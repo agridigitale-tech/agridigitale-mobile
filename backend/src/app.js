@@ -1,20 +1,26 @@
+//permet de configurer l'application Express, y compris les middlewares de sécurité, de gestion des erreurs et les routes.
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const errorHandler = require('./middlewares/errorHandler.middleware');
 
 const app = express();
+app.use(helmet());
+app.use(cors());
+app.use(morgan('dev'));
+app.use(express.json());
 
-// Middlewares globaux de sécurité et de formatage
-app.use(helmet()); 
-app.use(cors());   
-app.use(morgan('dev')); 
-app.use(express.json()); 
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/articles', require('./routes/article.routes'));
+app.use('/api/favoris', require('./routes/favori.routes'));
+app.use('/api/meteo', require('./routes/meteo.routes'));
+app.use('/api/agdtv', require('./routes/agdtv.routes'));
+app.use('/api/demandes', require('./routes/demande.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
-// Route de test principale
-app.get('/', (req, res) => {
-    res.json({ message: "Bienvenue sur l'API AgriDigitale !" });
-});
+app.use(errorHandler); // toujours en dernier
 
-// Exportation de l'application Express pour server.js
 module.exports = app;

@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { proteger } = require('../middlewares/auth.middleware');
-const c = require('../controllers/auth.controller');
+const { inscrire, connecter, profil, modifierProfil, enregistrerTokenFCM } = require('../controllers/auth.controller');
 
-router.post('/inscription', c.inscrire);
-router.post('/connexion', c.connecter);
-router.get('/profil', proteger, c.profil);
-router.put('/profil', proteger, c.modifierProfil);
-router.post('/token-fcm', proteger, c.enregistrerTokenFCM);
+// Ces lignes vous afficheront directement dans la console si l'une des fonctions est introuvable
+router.post('/inscription', inscrire);
+router.post('/connexion', connecter);
+router.get('/profil', profil);
+router.put('/profil', modifierProfil);
+router.post('/token-fcm', enregistrerTokenFCM);
+
+
 
 module.exports = router;

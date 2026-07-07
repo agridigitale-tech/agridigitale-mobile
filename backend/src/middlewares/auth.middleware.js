@@ -2,7 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 
-exports.authMiddleware = (req, res, next) => {
+exports.proteger = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if(!authHeader?.startsWith('Bearer ')) {
         return res.status(401).json({ message: 'Accès refusé : jeton manquant' });

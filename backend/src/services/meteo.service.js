@@ -1,4 +1,4 @@
-//permet de mettre à jour les données météo dans la base de données en utilisant l'API OpenWeatherMap 
+// permet de mettre à jour les données météo dans la base de données en utilisant l'API OpenWeatherMap 
 
 const axios = require('axios');
 const Meteo = require('../models/Meteo');
@@ -26,7 +26,7 @@ const mettreAJourMeteo = async () => {
         source: 'api',
         dateMiseAJour: new Date(),
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log('  Météo mise à jour');
   } catch (err) {
@@ -34,8 +34,5 @@ const mettreAJourMeteo = async () => {
   }
 };
 
+// Exportation de la fonction vers server.js (Toute planification superflue après cette ligne est supprimée)
 module.exports = { mettreAJourMeteo };
-
-cron.schedule('0 * * * *', () => {
-  mettreAJourMeteo();
-});

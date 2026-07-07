@@ -121,9 +121,9 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ MongoDB connecté');
+    console.log(' MongoDB connecté');
   } catch (err) {
-    console.error('❌ Erreur de connexion MongoDB :', err.message);
+    console.error(' Erreur de connexion MongoDB :', err.message);
     process.exit(1);
   }
 };
@@ -681,9 +681,9 @@ const synchroniserVideos = async () => {
         { upsert: true }
       );
     }
-    console.log('📺 Vidéos AGDTV synchronisées');
+    console.log(' Vidéos AGDTV synchronisées');
   } catch (err) {
-    console.error('❌ Erreur AGDTV :', err.message);
+    console.error(' Erreur AGDTV :', err.message);
   }
 };
 
@@ -796,9 +796,9 @@ const notifierNouvelArticle = async (article) => {
       },
       data: { articleId: article._id.toString(), type: 'nouvel_article' },
     });
-    console.log(`🔔 Notification envoyée à ${tokens.length} utilisateur(s)`);
+    console.log(` Notification envoyée à ${tokens.length} utilisateur(s)`);
   } catch (err) {
-    console.error('❌ Erreur notification :', err.message);
+    console.error(' Erreur notification :', err.message);
   }
 };
 

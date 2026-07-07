@@ -2,9 +2,11 @@
 
 const express = require('express');
 const router = express.Router();
-const { proteger } = require('../middlewares/auth.middleware');
-const c = require('../controllers/favori.controller');
+const favoriController = require('../controllers/favori.controller');
 
-router.post('/', proteger, c.ajouterFavori);
-router.delete('/:articleId', proteger, c.retirerFavori);
-router.get('/', proteger, c.listerFavoris);
+// Points d'accès de l'API alignés avec votre contrôleur
+router.post('/', favoriController.ajouterFavori);
+router.get('/', favoriController.listerFavoris);
+router.delete('/:articleId', favoriController.retirerFavori); // Utilise retirerFavori
+
+module.exports = router;
