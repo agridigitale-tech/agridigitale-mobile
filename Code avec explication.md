@@ -957,7 +957,7 @@ connectDB().then(() => {
 ```bash
 flutter create agridigitale_mobile
 cd agridigitale_mobile
-flutter pub add dio flutter_secure_storage provider
+flutter pub add dio flutter_secure_storage provider 
 flutter pub add sqflite path_provider connectivity_plus
 flutter pub add firebase_core firebase_messaging
 flutter pub add cached_network_image intl url_launcher

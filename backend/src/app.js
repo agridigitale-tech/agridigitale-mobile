@@ -20,6 +20,8 @@ app.use('/api/agdtv', require('./routes/agdtv.routes'));
 app.use('/api/demandes', require('./routes/demande.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
+// Permet d'accéder aux images via http://localhost:5000/uploads/nom-de-la-photo.jpg
+app.use('/uploads', express.static('public/uploads'));
 
 app.use(errorHandler); // toujours en dernier
 
