@@ -9,7 +9,7 @@ exports.statistiques = async (req, res, next) => {
     const [totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie] = await Promise.all([
       Article.countDocuments(),
       Utilisateur.countDocuments(),
-      Demande.countDocuments({ statut: 'Reçue' }),
+      Demande.countDocuments({ statut: 'EN_ATTENTE' }),
       Article.aggregate([{ $group: { _id: '$categorie', total: { $sum: 1 } } }]),
     ]);
     const articlesPlusLus = await Article.find().sort({ vues: -1 }).limit(5);

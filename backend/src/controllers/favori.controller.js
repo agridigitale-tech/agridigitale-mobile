@@ -1,11 +1,24 @@
-//permet de gérer les favoris des utilisateurs, y compris l'ajout, la suppression et la liste des articles favoris
+// permet de gérer les favoris des utilisateurs, y compris l'ajout, la suppression et la liste des articles favoris
 
 const Favori = require('../models/Favori');
 
 exports.ajouterFavori = async (req, res, next) => {
   try {
-    const favori = await Favori.create({ utilisateur: req.utilisateurId, article: req.body.articleId });
-    res.status(201).json(favori);
+    const { articleId, libelle } = req.body;
+
+    // Vérification de sécurité
+    if (!articleId || !libelle) {
+      return res.status(400).json({ message: 'Le libelle et l\'articleId sont obligatoires' });
+    }
+
+    // Création du favori en incluant le libelle requis par votre modèle Mongoose
+    const favori = await Favori.create({ 
+      utilisateur: req.utilisateurId, 
+      article: articleId,
+      libelle: libelle
+    });
+
+    return res.status(201).json(favori);
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Déjà en favoris' });
     next(err);
