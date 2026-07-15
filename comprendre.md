@@ -34,3 +34,6 @@ demarrerScheduler() ➔ Lance le robot RSS immédiatement, puis le configure pou
 npm install express-rate-limit
 npm install firebase-admin
 npm install multer
+
+flutter pub upgrade --major-versions
+flutter pub upgrade firebase_core firebase_messaging

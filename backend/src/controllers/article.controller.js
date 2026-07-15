@@ -45,4 +45,13 @@ exports.rechercherArticles = async (req, res, next) => {
     const articles = await Article.find(filtre).sort({ datePublication: -1 });
     res.json(articles);
   } catch (err) { next(err); }
+  };
+
+  exports.listerCategories = async (req, res, next) => {
+  try {
+    const categories = await Article.distinct('categorie');
+    res.json(categories.filter(Boolean).sort());
+  } catch (err) { next(err); }
+
+  
 };

@@ -17,5 +17,11 @@ connectDB().then(() => {
   mettreAJourMeteo();
   synchroniserVideos();
 
-  app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));
+  //  CORRECTION : Écouter sur toutes les interfaces réseau (0.0.0.0)
+  // au lieu de seulement localhost
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(` Serveur démarré sur le port ${PORT}`);
+    console.log(` Accessible localement : http://localhost:${PORT}`);
+    console.log(` Accessible depuis le réseau : http://10.0.0.59:${PORT}`);
+  });
 });

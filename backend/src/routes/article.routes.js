@@ -6,6 +6,7 @@ const c = require('../controllers/article.controller');
 
 router.get('/', c.listerArticles);
 router.get('/recherche', c.rechercherArticles);
+router.get('/categories', c.listerCategories);
 router.get('/:id', c.detailArticle);
 
 module.exports = router;
