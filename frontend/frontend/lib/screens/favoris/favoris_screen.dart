@@ -1,11 +1,12 @@
-//permet de gérer l'écran des favoris de l'application
-
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/favori_service.dart';
 import '../../models/article.dart';
 import '../../widgets/article_card.dart';
-import '../home/article_detail_screen.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/auth_gate.dart';
+import '../../core/design/app_colors.dart';
+import '../home/article_detail_screen.dart';
 
 class FavorisScreen extends StatefulWidget {
   const FavorisScreen({super.key});
@@ -15,49 +16,313 @@ class FavorisScreen extends StatefulWidget {
 
 class _FavorisScreenState extends State<FavorisScreen> {
   final _service = FavoriService();
-  late Future<List<Article>> _future;
+  List<Article> _favoris = [];
+  List<Article> _filtres = [];
+  bool _chargement = false;
+  String? _erreur;
+  bool _estConnecte = false;
+  String _triActif = 'recent';
+  String _recherche = '';
 
   @override
-  void initState() {
-    super.initState();
-    _verifierAuthEtCharger();
-  }
-
-  Future<void> _verifierAuthEtCharger() async {
-    final connecte = await exigerConnexion(context, motif: "accéder à vos favoris");
-    if (connecte) {
-      _future = _service.lister();
-    } else if (mounted) {
-      Navigator.pop(context);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.watch<AuthProvider>();
+    if (auth.connecte && !_estConnecte) {
+      _estConnecte = true;
+      _charger();
+    } else if (!auth.connecte) {
+      _estConnecte = false;
+      setState(() {
+        _favoris = [];
+        _filtres = [];
+        _erreur = null;
+      });
     }
   }
 
-   @override
-   Widget build(BuildContext context) {
-     return Scaffold(
-      appBar: AppBar(title: const Text('Mes favoris')),
-      body: FutureBuilder<List<Article>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final favoris = snapshot.data!;
-          if (favoris.isEmpty) return const Center(child: Text('Aucun favori pour le moment'));
-          return ListView.builder(
-            itemCount: favoris.length,
-            itemBuilder: (context, i) => Dismissible(
-              key: Key(favoris[i].id),
-              onDismissed: (_) => _service.retirer(favoris[i].id),
-              background: Container(color: Colors.red, alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 16), child: const Icon(Icons.delete, color: Colors.white)),
-              child: ArticleCard(
-                article: favoris[i],
-                onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: favoris[i].id))),
-              ),
+  Future<void> _charger() async {
+    setState(() {
+      _chargement = true;
+      _erreur = null;
+    });
+    try {
+      final liste = await _service.lister();
+      if (mounted) {
+        setState(() {
+          _favoris = liste;
+          _appliquerFiltres();
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _erreur = e.toString());
+    } finally {
+      if (mounted) setState(() => _chargement = false);
+    }
+  }
+
+  void _appliquerFiltres() {
+    List<Article> liste = List.from(_favoris);
+    if (_recherche.isNotEmpty) {
+      liste = liste
+          .where((a) =>
+              a.titre.toLowerCase().contains(_recherche.toLowerCase()) ||
+              a.categorie.toLowerCase().contains(_recherche.toLowerCase()))
+          .toList();
+    }
+    switch (_triActif) {
+      case 'recent':
+        liste.sort((a, b) => b.datePublication.compareTo(a.datePublication));
+        break;
+      case 'ancien':
+        liste.sort((a, b) => a.datePublication.compareTo(b.datePublication));
+        break;
+      case 'az':
+        liste.sort((a, b) => a.titre.compareTo(b.titre));
+        break;
+    }
+    _filtres = liste;
+  }
+
+  Future<void> _retirer(int index) async {
+    final article = _filtres[index];
+    setState(() {
+      _filtres.removeAt(index);
+      _favoris.removeWhere((a) => a.id == article.id);
+    });
+    try {
+      await _service.retirer(article.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Retiré des favoris'),
+            action: SnackBarAction(
+              label: 'Annuler',
+              onPressed: () {
+                setState(() {
+                  _favoris.insert(0, article);
+                  _appliquerFiltres();
+                });
+                _service.ajouter(article);
+              },
             ),
-          );
-        },
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _favoris.insert(0, article);
+          _appliquerFiltres();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          auth.connecte ? 'Mes favoris (${_filtres.length})' : 'Mes favoris',
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          if (auth.connecte && _favoris.isNotEmpty) ...[
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.sort),
+              onSelected: (val) => setState(() {
+                _triActif = val;
+                _appliquerFiltres();
+              }),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'recent',
+                  child: Row(children: [
+                    Icon(Icons.arrow_downward,
+                        size: 16,
+                        color: _triActif == 'recent'
+                            ? AppColors.vertPrimaire
+                            : Colors.grey),
+                    const SizedBox(width: 8),
+                    const Text('Plus récent'),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'ancien',
+                  child: Row(children: [
+                    Icon(Icons.arrow_upward,
+                        size: 16,
+                        color: _triActif == 'ancien'
+                            ? AppColors.vertPrimaire
+                            : Colors.grey),
+                    const SizedBox(width: 8),
+                    const Text('Plus ancien'),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'az',
+                  child: Row(children: [
+                    Icon(Icons.sort_by_alpha,
+                        size: 16,
+                        color: _triActif == 'az'
+                            ? AppColors.vertPrimaire
+                            : Colors.grey),
+                    const SizedBox(width: 8),
+                    const Text('A → Z'),
+                  ]),
+                ),
+              ],
+            ),
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _charger),
+          ],
+        ],
       ),
+      body: !auth.connecte
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.bookmark_border,
+                      size: 56, color: AppColors.grisIcone),
+                  const SizedBox(height: 14),
+                  const Text('Connecte-toi pour voir tes favoris',
+                      style: TextStyle(fontSize: 15)),
+                  const SizedBox(height: 18),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final ok = await exigerConnexion(context,
+                          motif: 'accéder à tes favoris');
+                      if (ok && mounted) _charger();
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.vertPrimaire),
+                    child: const Text('Se connecter',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            )
+          : _chargement
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.vertPrimaire))
+              : _erreur != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.wifi_off,
+                              size: 48, color: Colors.grey),
+                          const SizedBox(height: 12),
+                          const Text('Impossible de charger les favoris'),
+                          TextButton(
+                              onPressed: _charger,
+                              child: const Text('Réessayer')),
+                        ],
+                      ),
+                    )
+                  : _favoris.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.bookmark_border,
+                                  size: 56, color: AppColors.grisIcone),
+                              SizedBox(height: 12),
+                              Text('Aucun article enregistré',
+                                  style: TextStyle(fontSize: 15)),
+                              SizedBox(height: 6),
+                              Text(
+                                  'Appuie sur 🔖 sur un article pour l\'enregistrer',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 13),
+                                  textAlign: TextAlign.center),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            // Barre de recherche
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  hintText: 'Rechercher dans mes favoris...',
+                                  prefixIcon: const Icon(Icons.search,
+                                      color: AppColors.grisIcone),
+                                  suffixIcon: _recherche.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () => setState(() {
+                                            _recherche = '';
+                                            _appliquerFiltres();
+                                          }),
+                                        )
+                                      : null,
+                                ),
+                                onChanged: (v) => setState(() {
+                                  _recherche = v;
+                                  _appliquerFiltres();
+                                }),
+                              ),
+                            ),
+                            if (_filtres.isEmpty)
+                              const Expanded(
+                                child: Center(
+                                  child: Text('Aucun résultat',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                              )
+                            else
+                              Expanded(
+                                child: RefreshIndicator(
+                                  onRefresh: _charger,
+                                  child: ListView.builder(
+                                    itemCount: _filtres.length,
+                                    itemBuilder: (context, i) => Dismissible(
+                                      key: Key(_filtres[i].id),
+                                      direction: DismissDirection.endToStart,
+                                      confirmDismiss: (_) async {
+                                        await _retirer(i);
+                                        return false;
+                                      },
+                                      background: Container(
+                                        color: Colors.red,
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 16),
+                                        child: const Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.delete,
+                                                color: Colors.white),
+                                            SizedBox(height: 4),
+                                            Text('Retirer',
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11)),
+                                          ],
+                                        ),
+                                      ),
+                                      child: ArticleCard(
+                                        article: _filtres[i],
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ArticleDetailScreen(
+                                                articleId: _filtres[i].id),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
     );
   }
 }

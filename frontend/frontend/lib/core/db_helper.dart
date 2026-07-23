@@ -1,5 +1,4 @@
-//permet de gérer la base de données locale pour stocker les favoris des articles.
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -10,9 +9,10 @@ class DBHelper {
 
   Database? _db;
 
-  Future<Database> get database async {
+  Future<Database?> get database async {
+    if (kIsWeb) return null; // sqflite non supporté sur Web
     _db ??= await _initDB();
-    return _db!;
+    return _db;
   }
 
   Future<Database> _initDB() async {
@@ -35,16 +35,20 @@ class DBHelper {
 
   Future<void> sauvegarderFavori(Map<String, dynamic> article) async {
     final db = await database;
+    if (db == null) return;
     await db.insert('favoris_cache', article, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> supprimerFavori(String id) async {
     final db = await database;
+    if (db == null) return;
     await db.delete('favoris_cache', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<List<Map<String, dynamic>>> listerFavorisLocaux() async {
     final db = await database;
+    if (db == null) return [];
     return db.query('favoris_cache');
   }
 }
+//***REMOVED-ANTHROPIC-KEY***

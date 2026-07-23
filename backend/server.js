@@ -11,17 +11,28 @@ const cron = require('node-cron');
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
-  demarrerScheduler();                              // RSS toutes les 15 min
+  demarrerScheduler();                              // RSS toutes les 15 min (scheduler interne)
   cron.schedule('0 * * * *', mettreAJourMeteo);      // météo toutes les heures
   cron.schedule('0 */3 * * *', synchroniserVideos);  // AGDTV toutes les 3h
-  mettreAJourMeteo();
-  synchroniserVideos();
+  // Délai de 5s au démarrage pour laisser le réseau s'initialiser
+  setTimeout(() => { mettreAJourMeteo(); synchroniserVideos(); }, 5000);
 
   //  CORRECTION : Écouter sur toutes les interfaces réseau (0.0.0.0)
   // au lieu de seulement localhost
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  let localIp = '0.0.0.0';
+  for (const iface of Object.values(interfaces)) {
+    for (const alias of iface) {
+      if (alias.family === 'IPv4' && !alias.internal) {
+        localIp = alias.address;
+      }
+    }
+  }
   app.listen(PORT, '0.0.0.0', () => {
     console.log(` Serveur démarré sur le port ${PORT}`);
     console.log(` Accessible localement : http://localhost:${PORT}`);
-    console.log(` Accessible depuis le réseau : http://10.0.0.59:${PORT}`);
+    console.log(` Accessible depuis le réseau : http://${localIp}:${PORT}`);
+    console.log(` IP détectée automatiquement : ${localIp}`);
   });
 });

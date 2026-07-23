@@ -1,0 +1,20 @@
+# Variables d'environnement (contient les clés API et secrets)
+.env
+
+# Clé de service Firebase (contient la clé privée)
+src/config/firebase-service-account.json
+
+# Dépendances Node.js
+node_modules/
+
+# Fichiers uploadés par les utilisateurs
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Fichiers système
+.DS_Store
+Thumbs.db

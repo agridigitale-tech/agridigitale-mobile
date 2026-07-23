@@ -7,6 +7,16 @@ import 'app_typography.dart';
 class AppTheme {
   AppTheme._();
 
+  static ThemeData get sombre => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    colorScheme: ColorScheme.dark(primary: AppColors.vertPrimaire, error: AppColors.erreur),
+    textTheme: AppTypography.texte(),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFF1C1E26), foregroundColor: Colors.white, elevation: 0,
+    ),
+  );
+
   static ThemeData get clair => ThemeData(
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.fondClair,

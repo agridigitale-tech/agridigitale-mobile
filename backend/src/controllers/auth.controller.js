@@ -74,12 +74,20 @@ exports.profil = async (req, res, next) => {
   }
 };
 
-// 4. MODIFIER LE PROFIL (Ajouté pour corriger le bug des routes)
+// 4. MODIFIER LE PROFIL
 exports.modifierProfil = async (req, res, next) => {
   try {
+    const { nom, photo, preferencesRubriques, theme, langue } = req.body;
+    const champsAutorises = {};
+    if (nom !== undefined) champsAutorises.nom = nom;
+    if (photo !== undefined) champsAutorises.photo = photo;
+    if (preferencesRubriques !== undefined) champsAutorises.preferencesRubriques = preferencesRubriques;
+    if (theme !== undefined) champsAutorises.theme = theme;
+    if (langue !== undefined) champsAutorises.langue = langue;
+
     const utilisateur = await Utilisateur.findByIdAndUpdate(
       req.utilisateurId,
-      req.body,
+      champsAutorises,
       { new: true, runValidators: true }
     ).select('-motDePasse');
     res.json(utilisateur);

@@ -1,46 +1,72 @@
-// permet de gérer l'authentification de l'utilisateur (inscription, connexion, déconnexion) et le stockage sécurisé du token JWT.
-
-import 'package:dio/dio.dart'; // <--- INDISPENSABLE POUR UTILISER DIOEXCEPTION
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 
 class AuthService {
   final _dio = ApiClient().dio;
-  final _storage = const FlutterSecureStorage();
 
-   Future<void> inscrire(String nom, String email, String motDePasse) async {
-     try {
-       final rep = await _dio.post(AppConstants.apiAuthRegister, data: {
-         'nom': nom, 'email': email, 'motDePasse': motDePasse,
-       });
-       await _storage.write(key: AppConstants.jwtTokenKey, value: rep.data['token']);
-      } on DioException catch (e) { // <--- CORRECTION DU TYPAGE ICI
-        String errorMessage = AppConstants.registerError;
-        if (e.response?.data != null && e.response?.data['message'] != null) {
-          errorMessage = e.response?.data['message'];
-        }
-        throw Exception(errorMessage);
-      } catch (e) {
-        throw Exception(AppConstants.registerError);
-      }
-   }
+  static const _keyToken = 'jwt_token';
+  static const _keyNom = 'user_nom';
+  static const _keyEmail = 'user_email';
+  static const _keyRole = 'user_role';
 
-  Future<void> connecter(String email, String motDePasse) async {
+  Future<Map<String, dynamic>> inscrire(String nom, String email, String motDePasse) async {
+    try {
+      final rep = await _dio.post(AppConstants.apiAuthRegister, data: {
+        'nom': nom, 'email': email, 'motDePasse': motDePasse,
+      });
+      await _sauvegarder(rep.data);
+      return rep.data;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? AppConstants.registerError);
+    }
+  }
+
+  Future<Map<String, dynamic>> connecter(String email, String motDePasse) async {
     try {
       final rep = await _dio.post(AppConstants.apiAuthLogin, data: {
         'email': email, 'motDePasse': motDePasse,
       });
-      await _storage.write(key: AppConstants.jwtTokenKey, value: rep.data['token']);
-    } on DioException catch (e) { // <--- ALIGNEMENT DE SÉCURITÉ POUR LA CONNEXION
-      final errorMessage = e.response?.data['message'] ?? AppConstants.loginError;
-      throw Exception(errorMessage);
-    } catch (e) {
-      throw Exception(AppConstants.loginError);
+      await _sauvegarder(rep.data);
+      return rep.data;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? AppConstants.loginError);
     }
   }
 
-  Future<void> deconnecter() async => _storage.delete(key: AppConstants.jwtTokenKey);
+  Future<void> _sauvegarder(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    final utilisateur = data['utilisateur'] as Map<String, dynamic>? ?? data;
+    if (data['token'] != null) await prefs.setString(_keyToken, data['token']);
+    if (utilisateur['nom'] != null) await prefs.setString(_keyNom, utilisateur['nom']);
+    if (utilisateur['email'] != null) await prefs.setString(_keyEmail, utilisateur['email']);
+    if (utilisateur['role'] != null) await prefs.setString(_keyRole, utilisateur['role']);
+    ApiClient().updateToken(data['token']);
+  }
 
-  Future<bool> estConnecte() async => (await _storage.read(key: AppConstants.jwtTokenKey)) != null;
+  Future<void> deconnecter() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyToken);
+    await prefs.remove(_keyNom);
+    await prefs.remove(_keyEmail);
+    await prefs.remove(_keyRole);
+    ApiClient().updateToken(null);
+  }
+
+  Future<bool> estConnecte() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_keyToken);
+    if (token != null) ApiClient().updateToken(token);
+    return token != null && token.isNotEmpty;
+  }
+
+  Future<Map<String, dynamic>?> lireProfil() async {
+    final prefs = await SharedPreferences.getInstance();
+    final nom = prefs.getString(_keyNom);
+    final email = prefs.getString(_keyEmail);
+    final role = prefs.getString(_keyRole);
+    if (nom == null) return null;
+    return {'nom': nom, 'email': email, 'role': role};
+  }
 }

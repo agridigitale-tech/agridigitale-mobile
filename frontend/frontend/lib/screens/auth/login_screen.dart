@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _mdpCtrl = TextEditingController();
   bool _chargement = false;
   String? _erreur;
+  bool _mdpVisible = false; // Nouvelle variable pour la visibilité du mot de passe
 
   Future<void> _seConnecter() async {
     if (!_formKey.currentState!.validate()) return;
@@ -61,8 +62,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _mdpCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mot de passe'),
+                  obscureText: !_mdpVisible,
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _mdpVisible ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      tooltip: _mdpVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe',
+                      onPressed: () => setState(() => _mdpVisible = !_mdpVisible),
+                    ),
+                  ),
                   validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null,
                 ),
                 if (_erreur != null) ...[

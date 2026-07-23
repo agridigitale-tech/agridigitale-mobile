@@ -26,7 +26,7 @@ const mettreAJourMeteo = async () => {
         source: 'api',
         dateMiseAJour: new Date(),
       },
-      { upsert: true, returnDocument: 'after' }
+      { upsert: true, new: true }
     );
     console.log('  Météo mise à jour');
   } catch (err) {

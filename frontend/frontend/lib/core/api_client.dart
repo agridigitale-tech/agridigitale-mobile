@@ -1,47 +1,49 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
 
   late final Dio dio;
-  final _storage = const FlutterSecureStorage();
+  String? _token;
 
-  static String get _baseUrl {
-    // Backend déployé (Render/Railway) : utilise toujours cette ligne en priorité si dispo.
-    const backendDeploye = 'https://agridigitale-api.onrender.com/api';
-    if (!kDebugMode) return backendDeploye;
-
-    
-    return 'http://localhost:5000/api';
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:5000/api';
+    return 'http://10.0.0.60:5000/api';
   }
 
-  ApiClient._internal() {
-    dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 12),
-      receiveTimeout: const Duration(seconds: 12),
-      headers: {'Content-Type': 'application/json'},
-    ));
+  void updateToken(String? token) {
+    _token = token;
+  }
 
-    // Ajout d'un interceptor pour le logging en mode debug pour faciliter le développement et le débogage.
+    ApiClient._internal() {
+      dio = Dio(BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {'Content-Type': 'application/json'},
+      ));
+
     if (kDebugMode) {
       dio.interceptors.add(LogInterceptor(
-        requestBody: true, responseBody: true, error: true,
+        requestBody: true,
+        responseBody: true,
+        error: true,
+        logPrint: (o) => debugPrint(o.toString()),
       ));
     }
 
     dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'jwt_token');
-        if (token != null) options.headers['Authorization'] = 'Bearer $token';
+      onRequest: (options, handler) {
+        if (_token != null) {
+          options.headers['Authorization'] = 'Bearer $_token';
+        }
         handler.next(options);
       },
-      onError: (error, handler) async {
+      onError: (error, handler) {
         if (error.response?.statusCode == 401) {
-          await _storage.delete(key: 'jwt_token');
+          _token = null;
         }
         handler.next(error);
       },

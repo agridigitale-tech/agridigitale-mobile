@@ -37,3 +37,25 @@ npm install multer
 
 flutter pub upgrade --major-versions
 flutter pub upgrade firebase_core firebase_messaging
+
+
+1. Le Cœur du Système et la Gestion d'Étatprovider : 
+C'est le cerveau organisationnel. Il surveille et partage les données de l'application en temps réel (comme l'état de connexion de l'utilisateur ou le mode sombre) avec tous les écrans, et force l'interface à se mettre à jour dès qu'un changement survient.flutter_phoenix : Permet à l'application de se redémarrer elle-même proprement depuis le code (Hot Restart In-App). C'est parfait pour réinitialiser complètement l'état de l'application après une action majeure (comme l'activation des notifications ou un changement de langue complet).
+
+2. Le Réseau et la Communication (Liaison Backend)dio : 
+C'est le moteur de tes requêtes internet. Plus puissant et flexible que le module http de base, il s'occupe d'envoyer et de recevoir les données entre ton téléphone et ton serveur Node.js (inscription, connexion, météo, demandes...).dio_cache_interceptor : C'est un économiseur de forfait mobile. Il intercepte les requêtes réseau de dio pour mettre en cache les réponses textuelles du backend. Si l'agriculteur recharge la même page 2 minutes plus tard, l'application charge les données instantanément sans consommer sa connexion internet.
+
+3. La Sécurité et la Mémoire (Stockage)flutter_secure_storage : 
+Le coffre-fort chiffré. Il sert à stocker de manière hautement sécurisée le Token JWT d’authentification. Les données y sont cryptées par le processeur du smartphone, empêchant le vol d'identité.shared_preferences : La mémoire des réglages simples. Il sert à sauvegarder les petites préférences non sensibles de l'utilisateur, comme son choix de thème (clair/sombre) ou sa langue, pour que l'application s'en souvienne au prochain démarrage.
+
+4. Le Mode Hors-Ligne (Gestion des Champs)connectivity_plus : 
+Le détecteur de réseau. Il vérifie constamment si le smartphone est connecté à Internet (Wi-Fi, 4G) ou s'il est totalement déconnecté (hors-ligne au milieu d'une plantation).sqflite & path & path_provider : La base de données locale (SQLite). Quand connectivity_plus détecte que l'agriculteur n'a plus internet, ces paquets prennent le relais pour stocker ou lire les articles favoris directement dans la mémoire physique du smartphone.
+
+5. Les Notifications et les Alertesfirebase_core & firebase_messaging : 
+Les bâtisseurs d'alertes. Ils connectent ton application Flutter aux serveurs de Google Firebase pour s'occuper de la réception des notifications push (alertes météo ou nouveaux articles) même quand l'application est fermée.app_settings : Le passe-partout système. C'est le composant que tu cherchais pour rediriger directement l'agriculteur de l'application vers la page des paramètres natifs de son propre smartphone afin qu'il active manuellement l'autorisation des notifications si elle a été bloquée.
+
+6. Le Multimédia et l'Interface Visuelleyoutube_player_flutter : 
+Le lecteur vidéo physique d'AGDTV. Il intègre le vrai lecteur YouTube à l'intérieur de tes écrans pour lire directement les flux vidéos sans quitter AgriDigitale.cached_network_image : Le chargeur d'images intelligent. Il télécharge les photos des articles RSS et de la météo, puis les enregistre en cache. L'image s'affiche instantanément la fois suivante, même sans réseau.image_picker : L'accès à l'appareil photo. C'est le module indispensable pour permettre à l'administrateur de prendre une photo avec son téléphone ou d'ouvrir sa galerie locale afin de charger une image.google_fonts : Le catalogue de polices de caractères. Il permet d'appliquer de superbes typographies modernes pour rendre l'application lisible et professionnelle.cupertino_icons : Fournit les icônes officielles au style Apple/iOS.
+
+7. Les Fonctionnalités Utiles au Quotidienintl & flutter_localizations : 
+Les traducteurs. Ils s'assurent que les dates, les heures et les calendriers s'affichent proprement dans le format officiel en français (ex: "mercredi 22 juillet" au lieu du format américain).url_launcher : Le déclencheur externe. Il permet à l'application mobile d'ouvrir le navigateur du téléphone si l'agriculteur veut consulter le site source d'un article RSS.share_plus : Le bouton de partage. Il permet à l'agriculteur de cliquer sur un article pour l'envoyer directement à ses collègues via WhatsApp, SMS ou par e-mail.

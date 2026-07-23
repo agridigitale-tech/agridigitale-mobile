@@ -1,22 +1,30 @@
-// permet de lancer l'application et de gérer l'état global (authentification, thème, notifications)
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'services/notification_service.dart';
+import 'providers/language_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
-import 'core/theme.dart';
+import 'core/design/app_theme.dart';
+import 'core/app_localizations.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
-  //await Firebase.initializeApp(); // Décommente quand Firebase est configuré
-  runApp(const MonApp());
+
+  try {
+    await Firebase.initializeApp();
+    await NotificationService().initialiser();
+  } catch (e) {
+    debugPrint('[Firebase] Non configuré : $e');
+  }
+
+  runApp(Phoenix(child: const MonApp()));
 }
 
 class MonApp extends StatelessWidget {
@@ -28,20 +36,24 @@ class MonApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..verifierSession()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..charger()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()..charger()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) => MaterialApp(
+      child: Consumer2<ThemeProvider, LanguageProvider>(
+        builder: (context, themeProvider, languageProvider, child) => MaterialApp(
           title: 'AgriDigitale',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.clair,
-          darkTheme: AppTheme.sombre,
           themeMode: themeProvider.mode,
+          locale: languageProvider.locale,
+          // navigatorKey branché pour afficher les snackbars FCM depuis partout
+          navigatorKey: NotificationService.navigatorKey,
           home: const MainNavigationScreen(),
           routes: {
-            '/login': (context) => const LoginScreen(),
-            '/main': (context) => const MainNavigationScreen(),
+            '/login': (_) => const LoginScreen(),
+            '/main': (_) => const MainNavigationScreen(),
           },
           localizationsDelegates: const [
+            AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,

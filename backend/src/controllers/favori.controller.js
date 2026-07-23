@@ -6,16 +6,14 @@ exports.ajouterFavori = async (req, res, next) => {
   try {
     const { articleId, libelle } = req.body;
 
-    // Vérification de sécurité
-    if (!articleId || !libelle) {
-      return res.status(400).json({ message: 'Le libelle et l\'articleId sont obligatoires' });
+    if (!articleId) {
+      return res.status(400).json({ message: 'articleId est obligatoire' });
     }
 
-    // Création du favori en incluant le libelle requis par votre modèle Mongoose
     const favori = await Favori.create({ 
       utilisateur: req.utilisateurId, 
       article: articleId,
-      libelle: libelle
+      ...(libelle && { libelle })
     });
 
     return res.status(201).json(favori);

@@ -1,5 +1,3 @@
-//permet de lister les articles, de récupérer le détail d'un article et de rechercher des articles par mot-clé, catégorie ou date de publication
-
 const Article = require('../models/Article');
 
 exports.listerArticles = async (req, res, next) => {
@@ -7,6 +5,7 @@ exports.listerArticles = async (req, res, next) => {
     const { categorie, page = 1, limite = 10 } = req.query;
     const filtre = categorie ? { categorie } : {};
     const articles = await Article.find(filtre)
+      .select('guid titre resume image lienSource categorie datePublication vues')
       .sort({ datePublication: -1 })
       .skip((page - 1) * limite)
       .limit(Number(limite));
@@ -42,16 +41,16 @@ exports.rechercherArticles = async (req, res, next) => {
       if (dateDebut) filtre.datePublication.$gte = new Date(dateDebut);
       if (dateFin) filtre.datePublication.$lte = new Date(dateFin);
     }
-    const articles = await Article.find(filtre).sort({ datePublication: -1 });
+    const articles = await Article.find(filtre)
+      .select('guid titre resume image lienSource categorie datePublication vues')
+      .sort({ datePublication: -1 });
     res.json(articles);
   } catch (err) { next(err); }
-  };
+};
 
-  exports.listerCategories = async (req, res, next) => {
+exports.listerCategories = async (req, res, next) => {
   try {
     const categories = await Article.distinct('categorie');
     res.json(categories.filter(Boolean).sort());
   } catch (err) { next(err); }
-
-  
 };

@@ -1,7 +1,7 @@
 // src/controllers/banniere.controller.js
 const Banniere = require('../models/Banniere');
 
-// Récupérer les bannières actives pour le carousel
+// Récupérer les bannières actives pour le carousel (utilisateurs)
 exports.listerBannieres = async (req, res, next) => {
   try {
     const bannieres = await Banniere.find({ actif: true })
@@ -13,13 +13,35 @@ exports.listerBannieres = async (req, res, next) => {
   }
 };
 
-// Admin : créer une bannière
-exports.creerBanniere = async (req, res, next) => {
+// Admin : récupérer TOUTES les bannières (actives et inactives)
+exports.listerToutesBannieres = async (req, res, next) => {
   try {
-    const banniere = await Banniere.create(req.body);
-    res.status(201).json(banniere);
+    const bannieres = await Banniere.find().sort({ ordre: 1 });
+    res.json(bannieres);
   } catch (err) { 
     next(err); 
+  }
+};
+
+exports.creerBanniere = async (req, res, next) => {
+  try {
+    let imageUrl;
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`;
+    } else if (req.body.image) {
+      imageUrl = req.body.image;
+    } else {
+      return res.status(400).json({ message: 'Image requise' });
+    }
+    const banniere = await Banniere.create({
+      ...req.body,
+      image: imageUrl,
+      actif: req.body.actif === 'true' || req.body.actif === true,
+      ordre: req.body.ordre ? Number(req.body.ordre) : 0,
+    });
+    res.status(201).json(banniere);
+  } catch (err) {
+    next(err);
   }
 };
 

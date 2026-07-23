@@ -19,12 +19,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _service = AuthService();
   bool _chargement = false;
   String? _erreur;
+  bool _mdpVisible = false;
 
   Future<void> _sInscrire() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _chargement = true; _erreur = null; });
     try {
       await _service.inscrire(_nomCtrl.text.trim(), _emailCtrl.text.trim(), _mdpCtrl.text);
+      if (!mounted) return;
       await context.read<AuthProvider>().verifierSession();
       if (mounted) Navigator.pop(context);
      } catch (e) {
@@ -48,8 +50,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => (v == null || v.isEmpty) ? 'Champ obligatoire' : null),
               TextFormField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'E-mail'),
                 validator: (v) => (v == null || !v.contains('@')) ? 'E-mail invalide' : null),
-              TextFormField(controller: _mdpCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Mot de passe'),
-                validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null),
+              TextFormField(
+                controller: _mdpCtrl,
+                obscureText: !_mdpVisible,
+                decoration: InputDecoration(
+                  labelText: 'Mot de passe',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _mdpVisible ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.grey,
+                    ),
+                    tooltip: _mdpVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe',
+                    onPressed: () => setState(() => _mdpVisible = !_mdpVisible),
+                  ),
+                ),
+                validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null,
+              ),
               if (_erreur != null) Text(_erreur!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 24),
               _chargement

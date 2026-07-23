@@ -1,11 +1,9 @@
-/// Fichier de constantes pour l'application AgriDigitale
-/// Contient les valeurs de configuration essentielles
-
+// Constantes de l'application AgriDigitale
 class AppConstants {
   // Configuration de l'API
-  static const String baseUrl = 'http://10.0.0.59:5000';
+  static const String baseUrl = 'http://10.0.0.60:5000';
   static const Duration timeoutDuration = Duration(seconds: 10);
-
+ 
   // Clés de stockage
   static const String jwtTokenKey = 'jwt_token';
   static const String themeModeKey = 'theme_mode';

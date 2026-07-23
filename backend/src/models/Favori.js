@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const FavoriSchema = new mongoose.Schema({
   libelle: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   utilisateur: {
@@ -17,5 +17,7 @@ const FavoriSchema = new mongoose.Schema({
     required: true
   }
 }, { timestamps: true });
+
+FavoriSchema.index({ utilisateur: 1, article: 1 }, { unique: true });
 
 module.exports = mongoose.model('Favori', FavoriSchema);
