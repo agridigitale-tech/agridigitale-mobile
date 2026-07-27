@@ -22,13 +22,15 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
   Future<void> _charger() async {
     setState(() => _chargement = true);
     try {
-      // Marquer comme lues en même temps
-      await _dio.post('/notifications/marquer-lues');
       final rep = await _dio.get('/notifications');
       setState(() {
         _notifs = rep.data as List;
         _chargement = false;
       });
+      // Marquer comme lues après chargement réussi (erreur silencieuse si échec)
+      try {
+        await _dio.post('/notifications/marquer-lues');
+      } catch (_) {}
     } catch (_) {
       setState(() => _chargement = false);
     }
@@ -60,7 +62,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: _notifs.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, i) {
                       final n = _notifs[i];
                       final lu = n['lu'] == true;

@@ -18,6 +18,7 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
   YoutubePlayerController? _controller;
   List<VideoAGDTV> _videos = [];
   int _indexActif = 0;
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -28,11 +29,14 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
   Future<List<VideoAGDTV>> _chargerVideos() async {
     final videos = await _service.lister();
     if (videos.isNotEmpty && !kIsWeb) {
-      _controller?.dispose();
-      _controller = YoutubePlayerController(
-        initialVideoId: videos[0].idYoutube,
-        flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
-      );
+      // Ne recréer le contrôleur que s'il n'existe pas
+      if (_controller == null || _initialized == false) {
+        _controller = YoutubePlayerController(
+          initialVideoId: videos[0].idYoutube,
+          flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+        );
+        _initialized = true;
+      }
       _videos = videos;
       _indexActif = 0;
     }
@@ -55,7 +59,10 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
 
   @override
   void dispose() {
+    // Détruire le contrôleur pour arrêter la vidéo quand on quitte
     _controller?.dispose();
+    _controller = null;
+    _initialized = false;
     super.dispose();
   }
 
@@ -191,10 +198,17 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
 
               const Divider(color: Colors.white24, height: 16),
 
-              // Liste des vidéos
+              // Liste des vidéos en grille 2 colonnes
               Expanded(
-                child: ListView.builder(
+                child: GridView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.85,
+                  ),
                   itemCount: videos.length,
                   itemBuilder: (context, i) {
                     final v = videos[i];
@@ -208,7 +222,6 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
                         }
                       },
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: actif
@@ -219,7 +232,7 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Stack(children: [
-                            _Thumbnail(video: v, height: 110),
+                            _Thumbnail(video: v, height: double.infinity),
                             Positioned.fill(
                               child: Container(
                                   color: Colors.black
@@ -234,7 +247,7 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
                                   color: actif
                                       ? Colors.white
                                       : Colors.white70,
-                                  size: 40,
+                                  size: 36,
                                 ),
                               ),
                             ),
@@ -244,13 +257,13 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
                               bottom: 0,
                               child: Container(
                                 color: Colors.black.withValues(alpha: 0.6),
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(6),
                                 child: Text(v.titre,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w500)),
                               ),
                             ),
@@ -272,8 +285,8 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
 // Widget miniature YouTube (thumbnail)
 class _Thumbnail extends StatelessWidget {
   final VideoAGDTV video;
-  final double height;
-  const _Thumbnail({required this.video, required this.height});
+  final double? height;
+  const _Thumbnail({required this.video, this.height});
 
   @override
   Widget build(BuildContext context) {

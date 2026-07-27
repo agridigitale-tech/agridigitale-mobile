@@ -86,7 +86,8 @@ class _AdminScreenState extends State<AdminScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -94,7 +95,8 @@ class _AdminScreenState extends State<AdminScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Envoyer une notification',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -110,7 +112,10 @@ class _AdminScreenState extends State<AdminScreen>
                       Expanded(
                         child: Text(
                           'Sera envoyée à TOUS les utilisateurs',
-                          style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -143,20 +148,23 @@ class _AdminScreenState extends State<AdminScreen>
                       onPressed: envoi
                           ? null
                           : () async {
-                               if (titreCtrl.text.trim().isEmpty ||
-                                   msgCtrl.text.trim().isEmpty) {
-                                 return;
-                               }
+                              if (titreCtrl.text.trim().isEmpty ||
+                                  msgCtrl.text.trim().isEmpty) {
+                                return;
+                              }
                               setS(() => envoi = true);
                               try {
-                                final res = await _service.envoyerNotification(
+                                final res =
+                                    await _service.envoyerNotification(
                                   titre: titreCtrl.text.trim(),
                                   message: msgCtrl.text.trim(),
                                 );
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content: Text(res['message'] ?? 'Notification envoyée'),
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(SnackBar(
+                                    content: Text(res['message'] ??
+                                        'Notification envoyée'),
                                     backgroundColor: Colors.green,
                                   ));
                                 }
@@ -165,7 +173,8 @@ class _AdminScreenState extends State<AdminScreen>
                                 if (ctx.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                        content: Text('Erreur lors de l\'envoi'),
+                                        content:
+                                            Text('Erreur lors de l\'envoi'),
                                         backgroundColor: Colors.red),
                                   );
                                 }
@@ -173,7 +182,8 @@ class _AdminScreenState extends State<AdminScreen>
                             },
                       child: envoi
                           ? const SizedBox(
-                              width: 18, height: 18,
+                              width: 18,
+                              height: 18,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Envoyer à tous',
@@ -208,6 +218,12 @@ class _StatsTabState extends State<_StatsTab> {
     _future = widget.service.statistiques();
   }
 
+  Future<void> _reload() async {
+    setState(() {
+      _future = widget.service.statistiques();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
@@ -215,45 +231,57 @@ class _StatsTabState extends State<_StatsTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+              child:
+                  CircularProgressIndicator(color: AppColors.vertPrimaire));
         }
         if (snap.hasError) {
-          return _erreur(
-              () => setState(() => _future = widget.service.statistiques()));
+          return _erreur(_reload);
         }
         final d = snap.data!;
         final articlesParCat = (d['articlesParCategorie'] as List?) ?? [];
         final plusLus = (d['articlesPlusLus'] as List?) ?? [];
 
         return RefreshIndicator(
-          onRefresh: () async =>
-              setState(() => _future = widget.service.statistiques()),
+          onRefresh: _reload,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Row(children: [
                 Expanded(
-                    child: _carteChiffre(Icons.article_outlined,
-                        '${d['totalArticles'] ?? 0}', 'Articles', AppColors.vertPrimaire)),
+                    child: _carteChiffre(
+                        Icons.article_outlined,
+                        '${d['totalArticles'] ?? 0}',
+                        'Articles',
+                        AppColors.vertPrimaire)),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: _carteChiffre(Icons.people_outline,
-                        '${d['totalUtilisateurs'] ?? 0}', 'Utilisateurs', Colors.blue)),
+                    child: _carteChiffre(
+                        Icons.people_outline,
+                        '${d['totalUtilisateurs'] ?? 0}',
+                        'Utilisateurs',
+                        Colors.blue)),
               ]),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
-                    child: _carteChiffre(Icons.inbox_outlined,
-                        '${d['demandesEnAttente'] ?? 0}', 'En attente', Colors.orange)),
+                    child: _carteChiffre(
+                        Icons.inbox_outlined,
+                        '${d['demandesEnAttente'] ?? 0}',
+                        'En attente',
+                        Colors.orange)),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: _carteChiffre(Icons.category_outlined,
-                        '${articlesParCat.length}', 'Catégories', Colors.purple)),
+                    child: _carteChiffre(
+                        Icons.category_outlined,
+                        '${articlesParCat.length}',
+                        'Catégories',
+                        Colors.purple)),
               ]),
               if (plusLus.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 const Text('Top 5 articles les plus lus',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 ...List.generate(plusLus.length, (i) {
                   final a = plusLus[i];
@@ -303,7 +331,8 @@ class _StatsTabState extends State<_StatsTab> {
               if (articlesParCat.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 const Text('Articles par catégorie',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 ...articlesParCat.map((c) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -315,7 +344,8 @@ class _StatsTabState extends State<_StatsTab> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                          color: AppColors.vertPrimaire.withValues(alpha: 0.1),
+                            color:
+                                AppColors.vertPrimaire.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text('${c['total']}',
@@ -334,7 +364,8 @@ class _StatsTabState extends State<_StatsTab> {
     );
   }
 
-  Widget _carteChiffre(IconData icone, String valeur, String label, Color couleur) {
+  Widget _carteChiffre(
+      IconData icone, String valeur, String label, Color couleur) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -376,6 +407,12 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
     _future = widget.service.listerUtilisateurs();
   }
 
+  Future<void> _reload() async {
+    setState(() {
+      _future = widget.service.listerUtilisateurs();
+    });
+  }
+
   Future<void> _desactiver(String id, String nom) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -398,16 +435,17 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
     if (ok != true) return;
     try {
       await widget.service.desactiverUtilisateur(id);
-      setState(() => _future = widget.service.listerUtilisateurs());
+      await _reload();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Compte désactivé'),
+            content: Text('Compte désactivé avec succès ✓'),
             backgroundColor: Colors.orange));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Erreur'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red));
       }
     }
   }
@@ -419,20 +457,19 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+              child:
+                  CircularProgressIndicator(color: AppColors.vertPrimaire));
         }
         if (snap.hasError) {
-          return _erreur(() =>
-              setState(() => _future = widget.service.listerUtilisateurs()));
+          return _erreur(_reload);
         }
         final users = snap.data!;
         return RefreshIndicator(
-          onRefresh: () async =>
-              setState(() => _future = widget.service.listerUtilisateurs()),
+          onRefresh: _reload,
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: users.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
+            separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final u = users[i];
               final actif = u['actif'] ?? true;
@@ -453,8 +490,8 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
                 ),
                 title: Text(u['nom'] ?? '',
                     style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(u['email'] ?? '',
-                    style: const TextStyle(fontSize: 12)),
+                subtitle:
+                    Text(u['email'] ?? '', style: const TextStyle(fontSize: 12)),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -478,8 +515,8 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
                     if (actif && role != 'administrateur') ...[
                       const SizedBox(width: 4),
                       IconButton(
-                        icon: const Icon(Icons.block,
-                            color: Colors.red, size: 20),
+                        icon:
+                            const Icon(Icons.block, color: Colors.red, size: 20),
                         tooltip: 'Désactiver',
                         onPressed: () => _desactiver(u['_id'], u['nom'] ?? ''),
                       ),
@@ -495,7 +532,9 @@ class _UtilisateursTabState extends State<_UtilisateursTab> {
   }
 }
 
-// ─── ONGLET DEMANDES ──────────────────────────────────────────────────────
+// ─── ONGLET DEMANDES ────────────────────────────────────────────────────
+// Affiche les demandes des utilisateurs (contact/support).
+// L'admin peut les marquer comme traitées. Le statut passe de EN_ATTENTE à TRAITE.──
 
 class _DemandesTab extends StatefulWidget {
   final AdminService service;
@@ -513,23 +552,28 @@ class _DemandesTabState extends State<_DemandesTab> {
     _future = widget.service.listerDemandes();
   }
 
+  Future<void> _reload() async {
+    setState(() {
+      _future = widget.service.listerDemandes();
+    });
+  }
+
   Future<void> _traiter(String id) async {
     try {
       await widget.service.traiterDemande(id);
-      setState(() => _future = widget.service.listerDemandes());
+      await _reload();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Demande marquee comme traitee'),
+            content: Text('Demande marquée comme traitée ✓'),
             backgroundColor: Colors.green));
       }
     } catch (e) {
-      debugPrint('[Admin] traiterDemande: $e');
-      // Recharger quand meme car l'action peut avoir reussi
-      setState(() => _future = widget.service.listerDemandes());
+      debugPrint('[Admin] traiterDemande erreur: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Demande traitee'),
-            backgroundColor: Colors.green));
+        // Afficher l'erreur réelle au lieu d'un faux succès
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red));
       }
     }
   }
@@ -541,11 +585,11 @@ class _DemandesTabState extends State<_DemandesTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+              child:
+                  CircularProgressIndicator(color: AppColors.vertPrimaire));
         }
         if (snap.hasError) {
-          return _erreur(
-              () => setState(() => _future = widget.service.listerDemandes()));
+          return _erreur(_reload);
         }
         final demandes = snap.data!;
         if (demandes.isEmpty) {
@@ -562,12 +606,11 @@ class _DemandesTabState extends State<_DemandesTab> {
           );
         }
         return RefreshIndicator(
-          onRefresh: () async =>
-              setState(() => _future = widget.service.listerDemandes()),
+          onRefresh: _reload,
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: demandes.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final d = demandes[i];
               final traite = d['statut'] == 'TRAITE';
@@ -599,7 +642,7 @@ class _DemandesTabState extends State<_DemandesTab> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                        color: traite
+                          color: traite
                               ? Colors.green.withValues(alpha: 0.1)
                               : Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -614,8 +657,7 @@ class _DemandesTabState extends State<_DemandesTab> {
                       ),
                     ]),
                     const SizedBox(height: 4),
-                    Text(
-                        '${d['profession'] ?? ''} • ${d['email'] ?? ''}',
+                    Text('${d['profession'] ?? ''} • ${d['email'] ?? ''}',
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.grisTexte)),
                     if ((d['telephone'] ?? '').isNotEmpty)
@@ -639,8 +681,8 @@ class _DemandesTabState extends State<_DemandesTab> {
                           icon: const Icon(Icons.check,
                               color: Colors.white, size: 16),
                           label: const Text('Marquer traité',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 13)),
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 13)),
                         ),
                       ),
                     ],
@@ -655,7 +697,9 @@ class _DemandesTabState extends State<_DemandesTab> {
   }
 }
 
-// ─── ONGLET BANNIERES ────────────────────────────────────────────────────
+// ─── ONGLET BANNIÈRES ────────────────────────────────────────────────────
+// Permet à l'admin de voir, ajouter et supprimer les bannières du carousel.
+// Chaque bannière peut avoir une image, un lien URL cliquable et un ordre d'affichage.
 
 class _BannieresTab extends StatefulWidget {
   final AdminService service;
@@ -673,15 +717,23 @@ class _BannieresTabState extends State<_BannieresTab> {
     _future = widget.service.listerBannieres();
   }
 
+  Future<void> _reload() async {
+    setState(() {
+      _future = widget.service.listerBannieres();
+    });
+  }
+
   String _urlImage(String img) {
     if (img.isEmpty) return '';
     if (img.startsWith('http')) return img;
+    // ApiClient.baseUrl expose désormais un getter public (ex: https://.../api)
     final base = ApiClient.baseUrl.replaceAll('/api', '');
     return '$base$img';
   }
 
   void _dialogAjouter() {
     final ordreCtrl = TextEditingController(text: '1');
+    final lienCtrl = TextEditingController();
     final List<File> imagesSelectionnees = [];
     bool envoi = false;
 
@@ -689,7 +741,8 @@ class _BannieresTabState extends State<_BannieresTab> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -697,25 +750,30 @@ class _BannieresTabState extends State<_BannieresTab> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Ajouter des bannières',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 14),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.add_photo_alternate),
                   label: const Text('Choisir des photos'),
                   onPressed: () async {
                     final picker = ImagePicker();
-                    final picked = await picker.pickMultiImage(imageQuality: 80);
+                    final picked =
+                        await picker.pickMultiImage(imageQuality: 80);
                     if (picked.isNotEmpty) {
                       setS(() {
-                        imagesSelectionnees.addAll(picked.map((f) => File(f.path)));
+                        imagesSelectionnees
+                            .addAll(picked.map((f) => File(f.path)));
                       });
                     }
                   },
                 ),
                 if (imagesSelectionnees.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text('${imagesSelectionnees.length} image(s) sélectionnée(s)',
-                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  Text(
+                      '${imagesSelectionnees.length} image(s) sélectionnée(s)',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 8),
                   // SingleChildScrollView horizontal au lieu de ListView.builder
                   // pour éviter RenderViewport intrinsic dimensions crash
@@ -724,8 +782,9 @@ class _BannieresTabState extends State<_BannieresTab> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: List.generate(imagesSelectionnees.length, (i) =>
-                          Stack(
+                        children: List.generate(
+                          imagesSelectionnees.length,
+                          (i) => Stack(
                             children: [
                               Container(
                                 margin: const EdgeInsets.only(right: 8),
@@ -736,12 +795,15 @@ class _BannieresTabState extends State<_BannieresTab> {
                                 ),
                               ),
                               Positioned(
-                                top: 2, right: 10,
+                                top: 2,
+                                right: 10,
                                 child: GestureDetector(
-                                  onTap: () => setS(() => imagesSelectionnees.removeAt(i)),
+                                  onTap: () => setS(
+                                      () => imagesSelectionnees.removeAt(i)),
                                   child: Container(
                                     decoration: const BoxDecoration(
-                                        color: Colors.red, shape: BoxShape.circle),
+                                        color: Colors.red,
+                                        shape: BoxShape.circle),
                                     child: const Icon(Icons.close,
                                         color: Colors.white, size: 16),
                                   ),
@@ -756,10 +818,20 @@ class _BannieresTabState extends State<_BannieresTab> {
                 ],
                 const SizedBox(height: 10),
                 TextField(
+                  controller: lienCtrl,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                      labelText: 'Lien (optionnel)',
+                      hintText: 'https://...',
+                      border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 10),
+                TextField(
                   controller: ordreCtrl,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                      labelText: 'Ordre de départ', border: OutlineInputBorder()),
+                      labelText: 'Ordre de départ',
+                      border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -782,7 +854,7 @@ class _BannieresTabState extends State<_BannieresTab> {
                                 try {
                                   await widget.service.creerBanniere(
                                     image: '',
-                                    lien: '',
+                                    lien: lienCtrl.text.trim(),
                                     ordre: ordre,
                                     cheminFichier: img.path,
                                   );
@@ -791,17 +863,22 @@ class _BannieresTabState extends State<_BannieresTab> {
                                 } catch (_) {}
                               }
                               if (ctx.mounted) Navigator.pop(ctx);
-                              setState(() => _future = widget.service.listerBannieres());
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text('$succes bannière(s) publiée(s)'),
-                                  backgroundColor: succes > 0 ? Colors.green : Colors.red,
+                                await _reload();
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                  content:
+                                      Text('$succes bannière(s) publiée(s)'),
+                                  backgroundColor:
+                                      succes > 0 ? Colors.green : Colors.red,
                                 ));
                               }
                             },
                       child: envoi
                           ? const SizedBox(
-                              width: 18, height: 18,
+                              width: 18,
+                              height: 18,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
                           : Text(
@@ -826,22 +903,32 @@ class _BannieresTabState extends State<_BannieresTab> {
       builder: (_) => AlertDialog(
         title: const Text('Supprimer la bannière ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Supprimer', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
     if (ok != true) return;
-    await widget.service.supprimerBanniere(id);
-    setState(() => _future = widget.service.listerBannieres());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Banniere supprimee'),
-          backgroundColor: Colors.green));
+    try {
+      await widget.service.supprimerBanniere(id);
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Banniere supprimee'), backgroundColor: Colors.green));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Erreur lors de la suppression'),
+            backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -853,10 +940,12 @@ class _BannieresTabState extends State<_BannieresTab> {
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+              return const Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.vertPrimaire));
             }
             if (snap.hasError) {
-              return _erreur(() => setState(() => _future = widget.service.listerBannieres()));
+              return _erreur(_reload);
             }
             final bannieres = snap.data!;
             if (bannieres.isEmpty) {
@@ -864,19 +953,22 @@ class _BannieresTabState extends State<_BannieresTab> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.image_not_supported, size: 56, color: AppColors.grisIcone),
+                    Icon(Icons.image_not_supported,
+                        size: 56, color: AppColors.grisIcone),
                     SizedBox(height: 12),
-                    Text('Aucune bannière', style: TextStyle(color: AppColors.grisTexte)),
+                    Text('Aucune bannière',
+                        style: TextStyle(color: AppColors.grisTexte)),
                   ],
                 ),
               );
             }
             return RefreshIndicator(
-              onRefresh: () async => setState(() => _future = widget.service.listerBannieres()),
+              onRefresh: _reload,
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
                 itemCount: bannieres.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 8),
                 itemBuilder: (context, i) {
                   final b = bannieres[i];
                   return Container(
@@ -884,7 +976,11 @@ class _BannieresTabState extends State<_BannieresTab> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 6)
+                      ],
                     ),
                     child: Row(
                       children: [
@@ -892,10 +988,16 @@ class _BannieresTabState extends State<_BannieresTab> {
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
                             _urlImage(b['image'] ?? ''),
-                            width: 80, height: 50, fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              width: 80, height: 50, color: AppColors.grisPastille,
-                              child: const Icon(Icons.broken_image, color: AppColors.grisIcone),
+                            width: 80,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              width: 80,
+                              height: 50,
+                              color: AppColors.grisPastille,
+                              child: const Icon(Icons.broken_image,
+                                  color: AppColors.grisIcone),
                             ),
                           ),
                         ),
@@ -905,15 +1007,22 @@ class _BannieresTabState extends State<_BannieresTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Ordre : ${b['ordre'] ?? 0}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
                               if ((b['lien'] ?? '').isNotEmpty)
-                                Text(b['lien'], style: const TextStyle(fontSize: 11, color: AppColors.grisTexte),
-                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(b['lien'],
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.grisTexte),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.red),
                           onPressed: () => _supprimer(b['_id']),
                         ),
                       ],
@@ -941,7 +1050,6 @@ class _BannieresTabState extends State<_BannieresTab> {
   }
 }
 
-
 Widget _erreur(VoidCallback onRetry) {
   return Center(
     child: Column(
@@ -953,10 +1061,10 @@ Widget _erreur(VoidCallback onRetry) {
         const SizedBox(height: 8),
         ElevatedButton(
           onPressed: onRetry,
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.vertPrimaire),
-          child: const Text('Réessayer',
-              style: TextStyle(color: Colors.white)),
+          style:
+              ElevatedButton.styleFrom(backgroundColor: AppColors.vertPrimaire),
+          child:
+              const Text('Réessayer', style: TextStyle(color: Colors.white)),
         ),
       ],
     ),

@@ -1,5 +1,16 @@
 const Article = require('../models/Article');
 
+// Retourne l'article le plus lu pour la section "À la une" de l'accueil
+exports.articleUne = async (req, res, next) => {
+  try {
+    const article = await Article.findOne()
+      .select('guid titre resume image lienSource categorie datePublication vues')
+      .sort({ vues: -1 });
+    if (!article) return res.status(404).json({ message: 'Aucun article' });
+    res.json(article);
+  } catch (err) { next(err); }
+};
+
 exports.listerArticles = async (req, res, next) => {
   try {
     const { categorie, page = 1, limite = 10 } = req.query;
@@ -21,6 +32,21 @@ exports.detailArticle = async (req, res, next) => {
       { new: true }
     );
     if (!article) return res.status(404).json({ message: 'Article introuvable' });
+
+    // Si le contenu est vide ou trop court, tenter un scrape à la volée
+    const contenuTexte = (article.contenu || '').replace(/<[^>]*>/g, '').trim();
+    if (contenuTexte.length < 100 && article.lienSource) {
+      try {
+        const { scrapeContenuInertia } = require('../services/rss.service');
+        const nouveauContenu = await scrapeContenuInertia(article.lienSource);
+        if (nouveauContenu && nouveauContenu.replace(/<[^>]*>/g, '').trim().length > contenuTexte.length) {
+          article.contenu = nouveauContenu;
+          // Sauvegarder en base pour les prochaines fois
+          await Article.updateOne({ _id: article._id }, { $set: { contenu: nouveauContenu } });
+        }
+      } catch (_) { /* scrape optionnel, on continue sans */ }
+    }
+
     res.json(article);
   } catch (err) { next(err); }
 };

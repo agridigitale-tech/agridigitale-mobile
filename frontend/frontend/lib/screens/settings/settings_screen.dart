@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../widgets/auth_gate.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
@@ -116,6 +117,21 @@ class SettingsScreen extends StatelessWidget {
                 couleurTitre: Colors.red,
                 onTap: () async => await auth.deconnecter()),
 
+          const Divider(height: 1),
+
+          // Bouton bascule thème sombre / clair
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              final estSombre = themeProvider.mode == ThemeMode.dark;
+              return _ligne(
+                context,
+                estSombre ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                estSombre ? 'Thème sombre' : 'Thème clair',
+                sousTitre: estSombre ? '🌙 Sombre' : '☀️ Clair',
+                onTap: () => themeProvider.basculer(),
+              );
+            },
+          ),
           const Divider(height: 1),
 
           // Langue

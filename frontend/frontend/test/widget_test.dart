@@ -1,4 +1,3 @@
-// This is a basic Flutter widget test.
 //
 // To perform an interaction with a widget in your test, use the WidgetTester
 // utility in the flutter_test package. For example, you can send tap and scroll
@@ -13,7 +12,7 @@ import 'package:frontend/main.dart';
 void main() {
   testWidgets('App launches smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MonApp());
+await tester.pumpWidget(const MonApp());
 
     // Verify that the app launches without errors
     expect(find.byType(MaterialApp), findsOneWidget);

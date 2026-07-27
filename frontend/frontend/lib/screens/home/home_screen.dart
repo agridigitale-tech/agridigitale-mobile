@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/article_service.dart';
 import '../../models/article.dart';
 import '../../widgets/article_card.dart';
@@ -32,11 +33,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   bool _toutCharge = false;
   final _scrollController = ScrollController();
   int _notifCount = 0;
+  Article? _articleUne;
 
   @override
   void initState() {
     super.initState();
     _categoriesFuture = _service.listerCategories();
+    _chargerArticleUne();
     _chargerPlus();
     _chargerNotifs();
     _scrollController.addListener(() {
@@ -55,6 +58,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _chargerArticleUne() async {
+    final article = await _service.articleUne();
+    if (mounted) setState(() => _articleUne = article);
   }
 
   Future<void> _chargerNotifs() async {
@@ -95,9 +103,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _page = 1;
       _toutCharge = false;
       _categoriesFuture = _service.listerCategories();
+      _articleUne = null;
     });
-    await _chargerPlus();
-    await _chargerNotifs();
+    await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
   }
 
   void _allerFavoris() {
@@ -240,30 +248,44 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 },
               ),
             ),
-            const SliverToBoxAdapter(child: Divider(height: 1)),
-            if (_articles.isEmpty && _chargement)
-              const SliverFillRemaining(
-                  child: Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.vertPrimaire)))
-            else if (_articles.isEmpty && !_chargement)
-              SliverFillRemaining(
-                  child: _etatMessage(Icons.article_outlined,
-                      l.t('no_articles'), l.t('no_articles_sub')))
-            else
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) => ArticleCard(
-                    article: _articles[i],
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => ArticleDetailScreen(
-                                articleId: _articles[i].id))),
+              const SliverToBoxAdapter(child: Divider(height: 1)),
+              if (_articles.isEmpty && _chargement)
+                const SliverFillRemaining(
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: AppColors.vertPrimaire)))
+              else if (_articles.isEmpty && !_chargement)
+                SliverFillRemaining(
+                    child: _etatMessage(Icons.article_outlined,
+                        l.t('no_articles'), l.t('no_articles_sub')))
+              else ...[
+                // Article à la une : uniquement sur la catégorie "Home" (quand _categorieActive est null)
+                if (_articleUne != null && _categorieActive == null)
+                  SliverToBoxAdapter(
+                    child: _ArticleUne(
+                      article: _articleUne!,
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ArticleDetailScreen(
+                                  articleId: _articleUne!.id))),
+                    ),
                   ),
-                  childCount: _articles.length,
+                // Liste des articles (tous, sans exclusion)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => ArticleCard(
+                      article: _articles[i],
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ArticleDetailScreen(
+                                  articleId: _articles[i].id))),
+                    ),
+                    childCount: _articles.length,
+                  ),
                 ),
-              ),
+              ],
             if (_chargement)
               const SliverToBoxAdapter(
                 child: Padding(
@@ -301,4 +323,124 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 // Classe utilitaire pour écouter les notifs FCM depuis HomeScreen
 class FirebaseMessagingListener {
   static VoidCallback? onForegroundMessage;
+}
+
+// Widget Article à la Une
+class _ArticleUne extends StatelessWidget {
+  final Article article;
+  final VoidCallback onTap;
+  const _ArticleUne({required this.article, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = article.image;
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Grande image pleine largeur
+              hasImage
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      httpHeaders: const {'Accept': 'image/*'},
+                      placeholder: (ctx, url) => Container(
+                          height: 220, color: Colors.grey[200]),
+                      errorWidget: (ctx, url, err) => Container(
+                        height: 220,
+                        color: Colors.green[50],
+                        child: const Icon(Icons.article,
+                            size: 60, color: Colors.green),
+                      ),
+                    )
+                  : Container(
+                      height: 220,
+                      color: Colors.green[50],
+                      child: const Icon(Icons.article,
+                          size: 60, color: Colors.green),
+                    ),
+              // Dégradé bas
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Badge "À la une"
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.vertPrimaire,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star, color: Colors.white, size: 12),
+                      SizedBox(width: 4),
+                      Text('À la une',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+              // Titre en bas
+              Positioned(
+                bottom: 12,
+                left: 12,
+                right: 12,
+                child: Text(
+                  article.titre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -13,6 +13,8 @@ import 'core/design/app_theme.dart';
 import 'core/app_localizations.dart';
 import 'services/notification_service.dart';
 
+// Point d'entrée de l'application.
+// Initialise Firebase, les notifications FCM, et lance l'app avec les providers.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
@@ -47,6 +49,8 @@ class MonApp extends StatelessWidget {
           locale: languageProvider.locale,
           // navigatorKey branché pour afficher les snackbars FCM depuis partout
           navigatorKey: NotificationService.navigatorKey,
+          // Thème sombre activé ici pour que ThemeMode.dark fonctionne
+          darkTheme: AppTheme.sombre,
           home: const MainNavigationScreen(),
           routes: {
             '/login': (_) => const LoginScreen(),

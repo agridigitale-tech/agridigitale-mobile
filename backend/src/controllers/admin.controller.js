@@ -27,7 +27,13 @@ exports.listerUtilisateurs = async (req, res, next) => {
 
 exports.desactiverUtilisateur = async (req, res, next) => {
   try {
-    await Utilisateur.findByIdAndUpdate(req.params.id, { actif: false });
-    res.status(204).send();
+    const utilisateur = await Utilisateur.findByIdAndUpdate(
+      req.params.id,
+      { actif: false },
+      { new: true }
+    );
+    if (!utilisateur) return res.status(404).json({ message: 'Utilisateur introuvable' });
+    // Retourner 200 + JSON au lieu de 204 pour éviter les erreurs côté client
+    res.json({ success: true, message: 'Compte désactivé avec succès' });
   } catch (err) { next(err); }
 };

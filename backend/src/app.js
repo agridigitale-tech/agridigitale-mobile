@@ -45,6 +45,3 @@ app.use('/uploads', express.static('public/uploads'));
 app.use(errorHandler); // toujours en dernier
 
 module.exports = app;
-
-//pourquoi c'est seulement le titre et le resumer de chaque article qui s'affiche or sur le site il y a le contenu qui parle bien plus de //l'article ? corrige
-

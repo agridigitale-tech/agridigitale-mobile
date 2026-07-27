@@ -10,7 +10,7 @@ class ApiClient {
 
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:5000/api';
-    return 'http://10.0.0.60:5000/api';
+    return 'http://10.0.0.59:5000/api';
   }
 
   void updateToken(String? token) {

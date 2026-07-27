@@ -15,7 +15,11 @@ class AdminService {
   }
 
   Future<void> desactiverUtilisateur(String id) async {
-    await _dio.put('/admin/utilisateurs/$id/desactiver');
+    // validateStatus accepte tous les 2xx pour éviter les exceptions Dio sur réponse inattendue
+    await _dio.put(
+      '/admin/utilisateurs/$id/desactiver',
+      options: dio_pkg.Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
+    );
   }
 
   Future<List<dynamic>> listerDemandes() async {

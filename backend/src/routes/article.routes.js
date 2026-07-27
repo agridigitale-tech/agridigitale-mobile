@@ -4,9 +4,11 @@ const express = require('express');
 const router = express.Router();
 const c = require('../controllers/article.controller');
 
+router.get('/une', c.articleUne);
 router.get('/', c.listerArticles);
 router.get('/recherche', c.rechercherArticles);
 router.get('/categories', c.listerCategories);
+router.get('/une', c.articleUne);
 router.get('/:id', c.detailArticle);
 
 module.exports = router;

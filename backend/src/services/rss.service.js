@@ -1,10 +1,11 @@
-const Parser = require('rss-parser');
-const cron = require('node-cron');
-const axios = require('axios');
-const { URL } = require('url');
+const Parser = require('rss-parser'); //pour parser les flux RSS
+const cron = require('node-cron');//pour scheduler les tâches cron
+const axios = require('axios');//pour faire des requêtes HTTP
+const { URL } = require('url');//pour valider les URLs
 const Article = require('../models/Article');
 const { notifierNouvelArticle } = require('./notification.service');
 
+//pour parser les flux RSS avec des champs personnalisés (content:encoded, media:content, enclosure)
 const parser = new Parser({
   customFields: {
     item: [
@@ -28,6 +29,7 @@ const urlEstSure = (urlStr) => {
   }
 };
 
+// Extrait un résumé du contenu HTML en supprimant les balises et en limitant la longueur
 const extraireResume = (html = '', limite = 300) => {
   if (!html) return '';
   const texte = html
@@ -38,6 +40,7 @@ const extraireResume = (html = '', limite = 300) => {
   return texte.length > limite ? texte.substring(0, limite) + '...' : texte;
 };
 
+// Extrait l'URL de l'image d'un article RSS
 const extraireImageRSS = (item) => {
   if (item.mediaContent && item.mediaContent.$ && item.mediaContent.$.url) {
     return item.mediaContent.$.url;
@@ -45,12 +48,13 @@ const extraireImageRSS = (item) => {
   if (item.enclosure && item.enclosure.url) {
     return item.enclosure.url;
   }
+  // Fallback : extraire l'image du contenu HTML (content:encoded ou description)
   const contenu = item.contentEncoded || item.content || item.description || '';
   const match = contenu.match(/<img[^>]+src="([^">]+)"/);
   if (match) return match[1];
   return null;
 };
-
+// Scrape l'image Open Graph (og:image) depuis la page web
 const scrapeOgImage = async (url) => {
   if (!url || !urlEstSure(url)) return null;
   try {
@@ -217,4 +221,4 @@ const demarrerScheduler = () => {
   cron.schedule('0 3 * * *', mettreAJourContenuArticles);
 };
 
-module.exports = { recupererFlux, demarrerScheduler, mettreAJourContenuArticles };
+module.exports = { recupererFlux, demarrerScheduler, mettreAJourContenuArticles, scrapeContenuInertia };

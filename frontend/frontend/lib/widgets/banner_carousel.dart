@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/design/app_colors.dart';
 
@@ -13,7 +14,7 @@ class BannerCarousel extends StatefulWidget {
 class _BannerCarouselState extends State<BannerCarousel> {
   final PageController _controleur = PageController(viewportFraction: 0.92, initialPage: 1000);
   int _pageActuelle = 1000;
-  List<String> _images = [];
+  List<Map<String, String?>> _bannieres = [];
   bool _chargement = true;
   Timer? _timer;
 
@@ -29,21 +30,22 @@ class _BannerCarouselState extends State<BannerCarousel> {
       final response = await apiClient.dio.get('/bannieres');
       final baseServer = ApiClient.baseUrl.replaceAll('/api', '');
 
-      final images = (response.data as List)
+      final bannieres = (response.data as List)
           .where((b) => b['image'] != null && (b['image'] as String).isNotEmpty)
           .map((b) {
             final img = b['image'] as String;
-            if (img.startsWith('http')) return img;
-            return '$baseServer$img';
+            final imageUrl = img.startsWith('http') ? img : '$baseServer$img';
+            final lien = b['lien'] as String?;
+            return <String, String?>{'image': imageUrl, 'lien': lien};
           })
           .toList();
 
       setState(() {
-        _images = images;
+        _bannieres = bannieres;
         _chargement = false;
       });
 
-       if (_images.length > 1) {
+       if (_bannieres.length > 1) {
          _timer?.cancel();
          _timer = Timer.periodic(const Duration(seconds: 5), (_) {
            if (mounted) _pageSuivante();
@@ -56,7 +58,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
   }
 
   void _pageSuivante() {
-    if (_images.isEmpty) return;
+    if (_bannieres.isEmpty) return;
     _controleur.animateToPage(
       _pageActuelle + 1,
       duration: const Duration(milliseconds: 500),
@@ -85,7 +87,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
       );
     }
 
-    if (_images.isEmpty) return const SizedBox.shrink();
+    if (_bannieres.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
       height: 150,
@@ -95,33 +97,50 @@ class _BannerCarouselState extends State<BannerCarousel> {
             controller: _controleur,
             onPageChanged: (i) => setState(() => _pageActuelle = i),
             itemCount: null,
-            itemBuilder: (context, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: _images[i % _images.length],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.vertPrimaire,
-                        strokeWidth: 2,
+            itemBuilder: (context, i) {
+              final b = _bannieres[i % _bannieres.length];
+              final imageUrl = b['image']!;
+              final lien = b['lien'];
+              final hasLien = lien != null && lien.isNotEmpty;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: GestureDetector(
+                    onTap: hasLien
+                        ? () async {
+                            final uri = Uri.tryParse(lien);
+                            if (uri != null && await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          }
+                        : null,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.vertPrimaire,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          color: AppColors.grisIcone,
+                        ),
                       ),
                     ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      color: AppColors.grisIcone,
-                    ),
-                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           Positioned(
             bottom: 8,
@@ -130,14 +149,14 @@ class _BannerCarouselState extends State<BannerCarousel> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                _images.length,
+                _bannieres.length,
                 (index) => Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: (_pageActuelle % _images.length) == index ? 12 : 8,
+                  width: (_pageActuelle % _bannieres.length) == index ? 12 : 8,
                   height: 8,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    color: (_pageActuelle % _images.length) == index
+                    color: (_pageActuelle % _bannieres.length) == index
                         ? Colors.white
                         : Colors.white.withValues(alpha: 0.5),
                   ),

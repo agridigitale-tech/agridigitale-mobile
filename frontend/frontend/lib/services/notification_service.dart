@@ -8,6 +8,9 @@ Future<void> _backgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM] Message background: ${message.notification?.title}');
 }
 
+// Service singleton qui gère les notifications push Firebase (FCM).
+// Il enregistre le token FCM de l'appareil au backend pour que l'admin
+// puisse envoyer des notifications à tous les utilisateurs.
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;

@@ -68,9 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _mdpVisible ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black54,
                       ),
-                      tooltip: _mdpVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe',
                       onPressed: () => setState(() => _mdpVisible = !_mdpVisible),
                     ),
                   ),

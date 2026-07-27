@@ -12,8 +12,16 @@ class AppTheme {
     brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(primary: AppColors.vertPrimaire, error: AppColors.erreur),
     textTheme: AppTypography.texte(),
+    // iconTheme global : s'applique à TOUS les Icon() y compris dans suffixIcon
+    iconTheme: const IconThemeData(color: Colors.white70),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF1C1E26), foregroundColor: Colors.white, elevation: 0,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFF2A2D3A),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      suffixIconColor: Colors.white70,
     ),
   );
 
@@ -22,12 +30,15 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.fondClair,
     colorScheme: ColorScheme.light(primary: AppColors.vertPrimaire, error: AppColors.erreur),
     textTheme: AppTypography.texte(),
+    // iconTheme global : s'applique à TOUS les Icon() y compris dans suffixIcon
+    iconTheme: const IconThemeData(color: Colors.black54),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.fondClair, foregroundColor: AppColors.texteFort, elevation: 0,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true, fillColor: const Color(0xFFF5F5F5),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      suffixIconColor: Colors.black54,
     ),
   );
 }
