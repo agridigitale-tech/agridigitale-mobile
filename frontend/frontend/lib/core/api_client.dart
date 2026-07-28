@@ -8,10 +8,14 @@ class ApiClient {
   late final Dio dio;
   String? _token;
 
+  //static String get baseUrl {
+    //if (kIsWeb) return 'http://localhost:5000/api';
+    //return 'http://10.0.0.59:5000/api';
+  //}
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:5000/api';
-    return 'http://10.0.0.59:5000/api';
-  }
+  return 'https://railway.app';
+}
+
 
   void updateToken(String? token) {
     _token = token;
