@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const errorHandler = require('./middlewares/errorHandler.middleware');
 
 const app = express();
+app.set('trust proxy', true);  // <-- Ajoutez cette ligne
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: ['https://agridigitale-production.up.railway.app', 'http://localhost:3000', 'http://localhost:5000'],
