@@ -11,7 +11,13 @@ const app = express();
 app.set('trust proxy', true);  // <-- Ajoutez cette ligne
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: ['https://agridigitale-production.up.railway.app', 'http://localhost:3000', 'http://localhost:5000'],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
+    const allowed = ['https://agridigitale-production.up.railway.app'];
+    if (isLocalhost || allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use((req, res, next) => {
