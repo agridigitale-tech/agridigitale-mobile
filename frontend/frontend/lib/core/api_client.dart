@@ -13,8 +13,9 @@ class ApiClient {
     //return 'http://10.0.0.59:5000/api';
   //}
   static String get baseUrl {
-  return 'https://railway.app';
+  return 'https://agridigitale-production.up.railway.app/api';
 }
+
 
 
   void updateToken(String? token) {

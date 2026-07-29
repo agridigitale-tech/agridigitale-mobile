@@ -1,7 +1,7 @@
 // Constantes de l'application AgriDigitale
 class AppConstants {
   // Configuration de l'API
-  static const String baseUrl = 'http://10.0.0.59:5000';
+ static const String baseUrl = 'https://agridigitale-production.up.railway.app/api';
   static const Duration timeoutDuration = Duration(seconds: 10);
  
   // Clés de stockage

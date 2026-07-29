@@ -10,7 +10,7 @@ const errorHandler = require('./middlewares/errorHandler.middleware');
 const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: true,
+  origin: ['https://agridigitale-production.up.railway.app', 'http://localhost:3000', 'http://localhost:5000'],
   credentials: true,
 }));
 app.use((req, res, next) => {
