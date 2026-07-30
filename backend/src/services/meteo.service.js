@@ -1,20 +1,32 @@
-// permet de mettre à jour les données météo dans la base de données en utilisant l'API OpenWeatherMap 
+// permet de mettre à jour les données météo dans la base de données en utilisant l'API OpenWeatherMap
 
 const axios = require('axios');
 const Meteo = require('../models/Meteo');
 
+// Cache mémoire : { ville: { data, expiresAt } }
+const _cache = {};
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+const fetchMeteoVille = async (ville) => {
+  const now = Date.now();
+  if (_cache[ville] && _cache[ville].expiresAt > now) {
+    return _cache[ville].data;
+  }
+  const { data } = await axios.get('https://api.openweathermap.org/data/2.5/weather', {
+    params: {
+      q: ville,
+      appid: process.env.OPENWEATHER_API_KEY,
+      units: 'metric',
+      lang: 'fr',
+    },
+  });
+  _cache[ville] = { data, expiresAt: now + CACHE_TTL_MS };
+  return data;
+};
+
 const mettreAJourMeteo = async () => {
   try {
-    const url = `https://api.openweathermap.org/data/2.5/weather`;
-    const { data } = await axios.get(url, {
-      params: {
-        q: process.env.OPENWEATHER_VILLE,
-        appid: process.env.OPENWEATHER_API_KEY,
-        units: 'metric',
-        lang: 'fr',
-      },
-    });
-
+    const data = await fetchMeteoVille(process.env.OPENWEATHER_VILLE);
     await Meteo.findOneAndUpdate(
       { zone: process.env.OPENWEATHER_VILLE },
       {
@@ -34,5 +46,4 @@ const mettreAJourMeteo = async () => {
   }
 };
 
-// Exportation de la fonction vers server.js (Toute planification superflue après cette ligne est supprimée)
-module.exports = { mettreAJourMeteo };
+module.exports = { mettreAJourMeteo, fetchMeteoVille };

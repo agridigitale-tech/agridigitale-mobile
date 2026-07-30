@@ -4,7 +4,12 @@ const Banniere = require('../models/Banniere');
 // Récupérer les bannières actives pour le carousel (utilisateurs)
 exports.listerBannieres = async (req, res, next) => {
   try {
-    const bannieres = await Banniere.find({ actif: true })
+    const now = new Date();
+    const bannieres = await Banniere.find({
+      actif: true,
+      dateDebut: { $lte: now },
+      dateFin: { $gte: now },
+    })
       .sort({ ordre: 1 })
       .limit(5);
     res.json(bannieres);
@@ -38,6 +43,8 @@ exports.creerBanniere = async (req, res, next) => {
       image: imageUrl,
       actif: req.body.actif === 'true' || req.body.actif === true,
       ordre: req.body.ordre ? Number(req.body.ordre) : 0,
+      dateDebut: req.body.dateDebut ? new Date(req.body.dateDebut) : new Date(),
+      dateFin: req.body.dateFin ? new Date(req.body.dateFin) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
     res.status(201).json(banniere);
   } catch (err) {

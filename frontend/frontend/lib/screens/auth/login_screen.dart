@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 import '../main_navigation_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
@@ -88,6 +89,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         child: ElevatedButton(onPressed: _seConnecter, child: const Text('Se connecter')),
                       ),
+                TextButton(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+                  child: const Text('Mot de passe oublié ?'),
+                ),
                 TextButton(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
                   child: const Text('Créer un compte'),

@@ -107,3 +107,47 @@ exports.enregistrerTokenFCM = async (req, res, next) => {
     res.status(500).json({ message: 'Erreur lors de l\'enregistrement du token FCM' });
   }
 };
+
+// 6. MOT DE PASSE OUBLIÉ
+exports.motDePasseOublie = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'E-mail obligatoire' });
+    const utilisateur = await Utilisateur.findOne({ email });
+    // Toujours répondre 200 pour ne pas révéler si l'email existe
+    if (!utilisateur) return res.json({ message: 'Si cet e-mail existe, un lien a été envoyé.' });
+    const token = jwt.sign({ id: utilisateur._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    // Simulation envoi email (en prod : utiliser nodemailer/sendgrid)
+    console.log(`[RESET PASSWORD] Token pour ${email}: ${token}`);
+    res.json({ message: 'Si cet e-mail existe, un lien a été envoyé.', token });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+// 7. RÉINITIALISATION DU MOT DE PASSE
+exports.reinitialiserMotDePasse = async (req, res, next) => {
+  try {
+    const { token, nouveauMotDePasse } = req.body;
+    if (!token || !nouveauMotDePasse) {
+      return res.status(400).json({ message: 'Token et nouveau mot de passe obligatoires' });
+    }
+    if (nouveauMotDePasse.length < 6) {
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ message: 'Token invalide ou expiré' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(nouveauMotDePasse, salt);
+    await Utilisateur.findByIdAndUpdate(payload.id, { motDePasse: hash });
+    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};

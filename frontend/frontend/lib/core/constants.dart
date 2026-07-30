@@ -18,6 +18,8 @@ class AppConstants {
   // Routes de l'API
   static const String apiAuthRegister = '/auth/inscription';
   static const String apiAuthLogin = '/auth/connexion';
+  static const String apiAuthForgotPassword = '/auth/forgot-password';
+  static const String apiAuthResetPassword = '/auth/reset-password';
 
   // Configuration de l'application
   static const String appName = 'AgriDigitale';

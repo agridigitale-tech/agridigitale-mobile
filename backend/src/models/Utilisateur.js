@@ -49,7 +49,14 @@ const utilisateurSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
   },
-  
+  pays: {
+    type: String,
+    default: ''
+  },
+  continent: {
+    type: String,
+    default: ''
+  },
 }, { timestamps: true });
 
 // Hash du mot de passe avant sauvegarde

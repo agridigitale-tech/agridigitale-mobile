@@ -47,12 +47,23 @@ class AdminService {
     return rep.data as List<dynamic>;
   }
 
-  Future<void> creerBanniere({required String image, required String lien, required int ordre, String? cheminFichier}) async {
+  Future<void> creerBanniere({
+    required String image,
+    required String lien,
+    required int ordre,
+    String? cheminFichier,
+    DateTime? dateDebut,
+    DateTime? dateFin,
+  }) async {
+    final debut = (dateDebut ?? DateTime.now()).toIso8601String();
+    final fin = (dateFin ?? DateTime.now().add(const Duration(days: 30))).toIso8601String();
     if (cheminFichier != null) {
       final formData = dio_pkg.FormData.fromMap({
         'lien': lien,
         'ordre': ordre.toString(),
         'actif': 'true',
+        'dateDebut': debut,
+        'dateFin': fin,
         'image': await dio_pkg.MultipartFile.fromFile(
           cheminFichier,
           filename: cheminFichier.split('/').last.split('\\').last,
@@ -60,7 +71,14 @@ class AdminService {
       });
       await _dio.post('/bannieres', data: formData);
     } else {
-      await _dio.post('/bannieres', data: {'image': image, 'lien': lien, 'ordre': ordre, 'actif': true});
+      await _dio.post('/bannieres', data: {
+        'image': image,
+        'lien': lien,
+        'ordre': ordre,
+        'actif': true,
+        'dateDebut': debut,
+        'dateFin': fin,
+      });
     }
   }
 

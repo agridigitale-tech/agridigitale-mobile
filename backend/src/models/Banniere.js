@@ -30,7 +30,17 @@ const banniereSchema = new mongoose.Schema({
     type: String, 
     enum: ['pub', 'promo', 'banniere'], 
     default: 'banniere' 
-}
+},
+  dateDebut: {
+    type: Date,
+    required: true,
+    default: () => new Date()
+  },
+  dateFin: {
+    type: Date,
+    required: true,
+    default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+  },
 
 }, { timestamps: true });
 

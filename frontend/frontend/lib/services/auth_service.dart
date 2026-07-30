@@ -61,12 +61,31 @@ class AuthService {
     return token != null && token.isNotEmpty;
   }
 
-  Future<Map<String, dynamic>?> lireProfil() async {
+  Future<Map<String, dynamic>> lireProfil() async {
     final prefs = await SharedPreferences.getInstance();
     final nom = prefs.getString(_keyNom);
     final email = prefs.getString(_keyEmail);
     final role = prefs.getString(_keyRole);
-    if (nom == null) return null;
+    if (nom == null) return {};
     return {'nom': nom, 'email': email, 'role': role};
+  }
+
+  Future<void> motDePasseOublie(String email) async {
+    try {
+      await _dio.post(AppConstants.apiAuthForgotPassword, data: {'email': email});
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Erreur lors de la demande');
+    }
+  }
+
+  Future<void> reinitialiserMotDePasse(String token, String nouveauMotDePasse) async {
+    try {
+      await _dio.post(AppConstants.apiAuthResetPassword, data: {
+        'token': token,
+        'nouveauMotDePasse': nouveauMotDePasse,
+      });
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Token invalide ou expiré');
+    }
   }
 }

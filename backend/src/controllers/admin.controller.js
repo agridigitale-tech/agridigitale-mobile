@@ -6,21 +6,22 @@ const Demande = require('../models/Demande');
 
 exports.statistiques = async (req, res, next) => {
   try {
-    const [totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie] = await Promise.all([
+    const [totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie, parPays, parContinent] = await Promise.all([
       Article.countDocuments(),
       Utilisateur.countDocuments(),
       Demande.countDocuments({ statut: 'EN_ATTENTE' }),
       Article.aggregate([{ $group: { _id: '$categorie', total: { $sum: 1 } } }]),
+      Utilisateur.aggregate([{ $group: { _id: '$pays', total: { $sum: 1 } } }, { $sort: { total: -1 } }]),
+      Utilisateur.aggregate([{ $group: { _id: '$continent', total: { $sum: 1 } } }, { $sort: { total: -1 } }]),
     ]);
     const articlesPlusLus = await Article.find().sort({ vues: -1 }).limit(5);
-
-    res.json({ totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie, articlesPlusLus });
+    res.json({ totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie, articlesPlusLus, parPays, parContinent });
   } catch (err) { next(err); }
 };
 
 exports.listerUtilisateurs = async (req, res, next) => {
   try {
-    const utilisateurs = await Utilisateur.find().select('-tokenFCM');
+    const utilisateurs = await Utilisateur.find().select('-tokenFCM -motDePasse');
     res.json(utilisateurs);
   } catch (err) { next(err); }
 };
