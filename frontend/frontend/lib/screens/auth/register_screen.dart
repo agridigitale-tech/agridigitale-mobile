@@ -1,72 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 
-// Map nom de pays (en anglais, retourné par geocoding) → continent
-const _continentParPays = <String, String>{
-  // Afrique de l'Ouest
-  'Togo': 'Afrique', 'Benin': 'Afrique', 'Bénin': 'Afrique',
-  'Ivory Coast': 'Afrique', "Côte d'Ivoire": 'Afrique',
-  'Senegal': 'Afrique', 'Sénégal': 'Afrique',
-  'Mali': 'Afrique', 'Burkina Faso': 'Afrique',
-  'Ghana': 'Afrique', 'Nigeria': 'Afrique', 'Niger': 'Afrique',
-  'Guinea': 'Afrique', 'Guinée': 'Afrique',
-  'Sierra Leone': 'Afrique', 'Liberia': 'Afrique',
-  'Gambia': 'Afrique', 'Gambie': 'Afrique',
-  'Guinea-Bissau': 'Afrique', 'Cape Verde': 'Afrique',
-  'Mauritania': 'Afrique', 'Mauritanie': 'Afrique',
-  // Afrique Centrale
-  'Cameroon': 'Afrique', 'Cameroun': 'Afrique',
-  'Democratic Republic of the Congo': 'Afrique', 'Congo': 'Afrique',
-  'Gabon': 'Afrique', 'Chad': 'Afrique', 'Tchad': 'Afrique',
-  'Central African Republic': 'Afrique',
-  // Afrique du Nord
-  'Morocco': 'Afrique', 'Maroc': 'Afrique',
-  'Algeria': 'Afrique', 'Algérie': 'Afrique',
-  'Tunisia': 'Afrique', 'Tunisie': 'Afrique',
-  'Egypt': 'Afrique', 'Égypte': 'Afrique', 'Libya': 'Afrique',
-  // Afrique de l'Est & Sud
-  'South Africa': 'Afrique', 'Kenya': 'Afrique',
-  'Ethiopia': 'Afrique', 'Éthiopie': 'Afrique',
-  'Tanzania': 'Afrique', 'Tanzanie': 'Afrique',
-  'Uganda': 'Afrique', 'Ouganda': 'Afrique',
-  'Rwanda': 'Afrique', 'Madagascar': 'Afrique',
-  'Mozambique': 'Afrique', 'Zimbabwe': 'Afrique',
-  'Zambia': 'Afrique', 'Angola': 'Afrique',
-  // Europe
-  'France': 'Europe', 'Belgium': 'Europe', 'Belgique': 'Europe',
-  'Switzerland': 'Europe', 'Suisse': 'Europe',
-  'Germany': 'Europe', 'Allemagne': 'Europe',
-  'Spain': 'Europe', 'Espagne': 'Europe',
-  'Italy': 'Europe', 'Italie': 'Europe',
-  'United Kingdom': 'Europe', 'Portugal': 'Europe',
-  'Netherlands': 'Europe', 'Pays-Bas': 'Europe',
-  'Poland': 'Europe', 'Pologne': 'Europe',
-  'Romania': 'Europe', 'Roumanie': 'Europe',
-  'Sweden': 'Europe', 'Suède': 'Europe',
-  // Amérique du Nord
-  'United States': 'Amérique du Nord', 'Canada': 'Amérique du Nord',
-  'Mexico': 'Amérique du Nord', 'Mexique': 'Amérique du Nord',
-  // Amérique du Sud
-  'Brazil': 'Amérique du Sud', 'Brésil': 'Amérique du Sud',
-  'Argentina': 'Amérique du Sud', 'Argentine': 'Amérique du Sud',
-  'Colombia': 'Amérique du Sud', 'Colombie': 'Amérique du Sud',
-  'Peru': 'Amérique du Sud', 'Pérou': 'Amérique du Sud',
-  'Chile': 'Amérique du Sud', 'Chili': 'Amérique du Sud',
-  'Venezuela': 'Amérique du Sud',
-  // Asie
-  'China': 'Asie', 'Chine': 'Asie',
-  'India': 'Asie', 'Inde': 'Asie',
-  'Japan': 'Asie', 'Japon': 'Asie',
-  'South Korea': 'Asie', 'Corée du Sud': 'Asie',
-  'Indonesia': 'Asie', 'Indonésie': 'Asie',
-  'Pakistan': 'Asie', 'Bangladesh': 'Asie', 'Vietnam': 'Asie',
-  // Océanie
-  'Australia': 'Océanie', 'Australie': 'Océanie',
-  'New Zealand': 'Océanie', 'Nouvelle-Zélande': 'Océanie',
+// Map code ISO pays → (nom français, continent)
+const _paysParCode = <String, (String, String)>{
+  'TG': ('Togo', 'Afrique'),
+  'BJ': ('Bénin', 'Afrique'),
+  'CI': ("Côte d'Ivoire", 'Afrique'),
+  'SN': ('Sénégal', 'Afrique'),
+  'ML': ('Mali', 'Afrique'),
+  'BF': ('Burkina Faso', 'Afrique'),
+  'GH': ('Ghana', 'Afrique'),
+  'NG': ('Nigeria', 'Afrique'),
+  'NE': ('Niger', 'Afrique'),
+  'CM': ('Cameroun', 'Afrique'),
+  'CD': ('Congo (RDC)', 'Afrique'),
+  'CG': ('Congo', 'Afrique'),
+  'GA': ('Gabon', 'Afrique'),
+  'TD': ('Tchad', 'Afrique'),
+  'GN': ('Guinée', 'Afrique'),
+  'SL': ('Sierra Leone', 'Afrique'),
+  'LR': ('Liberia', 'Afrique'),
+  'GM': ('Gambie', 'Afrique'),
+  'GW': ('Guinée-Bissau', 'Afrique'),
+  'CV': ('Cap-Vert', 'Afrique'),
+  'MR': ('Mauritanie', 'Afrique'),
+  'MA': ('Maroc', 'Afrique'),
+  'DZ': ('Algérie', 'Afrique'),
+  'TN': ('Tunisie', 'Afrique'),
+  'EG': ('Égypte', 'Afrique'),
+  'LY': ('Libye', 'Afrique'),
+  'ZA': ('Afrique du Sud', 'Afrique'),
+  'KE': ('Kenya', 'Afrique'),
+  'ET': ('Éthiopie', 'Afrique'),
+  'TZ': ('Tanzanie', 'Afrique'),
+  'UG': ('Ouganda', 'Afrique'),
+  'RW': ('Rwanda', 'Afrique'),
+  'MG': ('Madagascar', 'Afrique'),
+  'MZ': ('Mozambique', 'Afrique'),
+  'ZW': ('Zimbabwe', 'Afrique'),
+  'ZM': ('Zambie', 'Afrique'),
+  'AO': ('Angola', 'Afrique'),
+  'FR': ('France', 'Europe'),
+  'BE': ('Belgique', 'Europe'),
+  'CH': ('Suisse', 'Europe'),
+  'DE': ('Allemagne', 'Europe'),
+  'ES': ('Espagne', 'Europe'),
+  'IT': ('Italie', 'Europe'),
+  'GB': ('Royaume-Uni', 'Europe'),
+  'PT': ('Portugal', 'Europe'),
+  'NL': ('Pays-Bas', 'Europe'),
+  'PL': ('Pologne', 'Europe'),
+  'RO': ('Roumanie', 'Europe'),
+  'SE': ('Suède', 'Europe'),
+  'US': ('États-Unis', 'Amérique du Nord'),
+  'CA': ('Canada', 'Amérique du Nord'),
+  'MX': ('Mexique', 'Amérique du Nord'),
+  'BR': ('Brésil', 'Amérique du Sud'),
+  'AR': ('Argentine', 'Amérique du Sud'),
+  'CO': ('Colombie', 'Amérique du Sud'),
+  'PE': ('Pérou', 'Amérique du Sud'),
+  'CL': ('Chili', 'Amérique du Sud'),
+  'VE': ('Venezuela', 'Amérique du Sud'),
+  'CN': ('Chine', 'Asie'),
+  'IN': ('Inde', 'Asie'),
+  'JP': ('Japon', 'Asie'),
+  'KR': ('Corée du Sud', 'Asie'),
+  'ID': ('Indonésie', 'Asie'),
+  'PK': ('Pakistan', 'Asie'),
+  'BD': ('Bangladesh', 'Asie'),
+  'VN': ('Vietnam', 'Asie'),
+  'AU': ('Australie', 'Océanie'),
+  'NZ': ('Nouvelle-Zélande', 'Océanie'),
 };
 
 const _continents = [
@@ -93,75 +99,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _service = AuthService();
   String? _continent;
   bool _chargement = false;
-  bool _gpsEnCours = false;
   String? _erreur;
   bool _mdpVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _recupererPaysParGPS();
+    // Détection via locale système — fiable, sans permission, sans internet
+    WidgetsBinding.instance.addPostFrameCallback((_) => _detecterLocale());
   }
 
-  Future<void> _recupererPaysParGPS() async {
-    setState(() => _gpsEnCours = true);
-    try {
-      // 1. Vérifier si le service GPS est activé
-      final serviceActif = await Geolocator.isLocationServiceEnabled();
-      if (!serviceActif) {
-        _appliquerFallback();
-        return;
-      }
-
-      // 2. Vérifier / demander la permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        _appliquerFallback();
-        return;
-      }
-
-      // 3. Récupérer la position GPS
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
-
-      // 4. Reverse geocoding → nom du pays
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        final pays = placemarks.first.country ?? 'Togo';
-        final continent = _continentParPays[pays] ?? 'Afrique';
-        if (mounted) {
-          setState(() {
-            _paysCtrl.text = pays;
-            _continent = continent;
-          });
-        }
-      } else {
-        _appliquerFallback();
-      }
-    } catch (_) {
-      _appliquerFallback();
-    } finally {
-      if (mounted) setState(() => _gpsEnCours = false);
-    }
-  }
-
-  void _appliquerFallback() {
-    if (mounted) {
+  void _detecterLocale() {
+    // Récupère le code pays depuis la locale du système (ex: fr_TG → TG)
+    final locale = WidgetsBinding.instance.platformDispatcher.locale;
+    final code = locale.countryCode?.toUpperCase() ?? '';
+    final data = _paysParCode[code];
+    if (data != null && mounted) {
       setState(() {
-        if (_paysCtrl.text.isEmpty) _paysCtrl.text = 'Togo';
-        _continent ??= 'Afrique';
+        _paysCtrl.text = data.$1;
+        _continent = data.$2;
+      });
+    } else if (mounted) {
+      // Fallback : Togo par défaut (cible principale de l'app)
+      setState(() {
+        _paysCtrl.text = 'Togo';
+        _continent = 'Afrique';
       });
     }
   }
@@ -198,6 +160,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final couleurPrimaire = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Créer un compte')),
       body: SingleChildScrollView(
@@ -205,93 +169,114 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
                 controller: _nomCtrl,
-                decoration: const InputDecoration(labelText: 'Nom complet'),
-                validator: (v) => (v == null || v.isEmpty) ? 'Champ obligatoire' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nom complet',
+                  prefixIcon: Icon(Icons.person_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Champ obligatoire' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'E-mail'),
-                validator: (v) => (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _mdpCtrl,
                 obscureText: !_mdpVisible,
                 decoration: InputDecoration(
                   labelText: 'Mot de passe',
+                  prefixIcon: const Icon(Icons.lock_outlined),
+                  border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _mdpVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : Colors.black54,
                     ),
-                    onPressed: () => setState(() => _mdpVisible = !_mdpVisible),
+                    onPressed: () =>
+                        setState(() => _mdpVisible = !_mdpVisible),
                   ),
                 ),
-                validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null,
+                validator: (v) => (v == null || v.length < 6)
+                    ? 'Minimum 6 caractères'
+                    : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+
+              // Champ pays — pré-rempli par la locale
               TextFormField(
                 controller: _paysCtrl,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Pays',
-                  prefixIcon: const Icon(Icons.flag_outlined),
-                  helperText: 'Détecté via GPS — modifiable',
-                  suffixIcon: _gpsEnCours
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.my_location, size: 20),
-                          tooltip: 'Relancer la détection GPS',
-                          onPressed: _recupererPaysParGPS,
-                        ),
+                  prefixIcon: Icon(Icons.flag_outlined),
+                  border: OutlineInputBorder(),
+                  helperText: 'Détecté automatiquement — modifiable',
                 ),
               ),
-              const SizedBox(height: 12),
-              InputDecorator(
+              const SizedBox(height: 16),
+
+              // Dropdown continent — pré-sélectionné par la locale
+              DropdownButtonFormField<String>(
+                value: _continent,
                 decoration: const InputDecoration(
                   labelText: 'Continent',
                   prefixIcon: Icon(Icons.public_outlined),
-                  border: UnderlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(vertical: 4),
+                  border: OutlineInputBorder(),
                   helperText: 'Déduit automatiquement — modifiable',
                 ),
-                child: DropdownButton<String>(
-                  value: _continent,
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                  hint: const Text('Sélectionner'),
-                  items: [
-                    const DropdownMenuItem<String>(value: null, child: Text('— Aucun —')),
-                    ..._continents.map((c) => DropdownMenuItem(value: c, child: Text(c))),
-                  ],
-                  onChanged: (v) => setState(() => _continent = v),
-                ),
+                hint: const Text('Sélectionner'),
+                items: _continents
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _continent = v),
               ),
+
               if (_erreur != null) ...[
                 const SizedBox(height: 12),
-                Text(_erreur!, style: const TextStyle(color: Colors.red)),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    _erreur!,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  ),
+                ),
               ],
               const SizedBox(height: 24),
+
               SizedBox(
-                width: double.infinity,
+                height: 48,
                 child: _chargement
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: couleurPrimaire,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                         onPressed: _sInscrire,
-                        child: const Text("S'inscrire"),
+                        child: const Text(
+                          "S'inscrire",
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
               ),
             ],
