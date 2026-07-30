@@ -85,6 +85,16 @@ class AuthService {
     }
   }
 
+  // Retourne la réponse complète (inclut token si SMTP non configuré)
+  Future<Map<String, dynamic>> motDePasseOublieAvecReponse(String email) async {
+    try {
+      final rep = await _dio.post(AppConstants.apiAuthForgotPassword, data: {'email': email});
+      return Map<String, dynamic>.from(rep.data ?? {});
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Erreur lors de la demande');
+    }
+  }
+
   Future<void> reinitialiserMotDePasse(String token, String nouveauMotDePasse) async {
     try {
       await _dio.post(AppConstants.apiAuthResetPassword, data: {

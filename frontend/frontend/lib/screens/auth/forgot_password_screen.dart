@@ -20,6 +20,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String? _erreur;
   bool _mdpVisible = false;
 
+  String? _tokenRecu; // token renvoyé par l'API si SMTP non configuré
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -32,8 +34,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _chargement = true; _erreur = null; });
     try {
-      await _service.motDePasseOublie(_emailCtrl.text.trim());
-      setState(() { _etapeReset = true; });
+      final reponse = await _service.motDePasseOublieAvecReponse(_emailCtrl.text.trim());
+      // Si le backend renvoie le token directement (SMTP non configuré)
+      final tokenFallback = reponse['token'] as String?;
+      setState(() {
+        _etapeReset = true;
+        if (tokenFallback != null && tokenFallback.isNotEmpty) {
+          _tokenRecu = tokenFallback;
+          _tokenCtrl.text = tokenFallback; // pré-remplir
+        }
+      });
     } catch (e) {
       setState(() => _erreur = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -102,10 +112,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ] else ...[
                   const Text(
-                    'Entrez le token reçu et votre nouveau mot de passe.',
+                    'Entrez le token reçu par email et votre nouveau mot de passe.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: AppColors.grisTexte),
                   ),
+                  if (_tokenRecu != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Email non configuré — token pré-rempli :',
+                              style: TextStyle(fontSize: 11, color: Colors.orange)),
+                          const SizedBox(height: 4),
+                          SelectableText(_tokenRecu!,
+                              style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   TextFormField(
                     controller: _tokenCtrl,

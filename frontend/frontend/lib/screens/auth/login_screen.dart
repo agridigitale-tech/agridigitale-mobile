@@ -63,21 +63,28 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 40),
 
-                // Logo / Titre
-                Icon(Icons.eco, size: 64, color: couleurPrimaire),
-                const SizedBox(height: 12),
+                // Logo réel
+                Center(
+                  child: Image.asset(
+                    'assets/images/logo-B.png',
+                    height: 90,
+                    errorBuilder: (_, __, ___) =>
+                        Icon(Icons.eco, size: 64, color: couleurPrimaire),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const Text(
                   'AgriDigitale',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'Connectez-vous à votre compte',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
                 // Champ email
                 TextFormField(
@@ -204,6 +211,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text(
                     "Pas encore de compte ? S'inscrire",
                     style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Continuer sans se connecter
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                  ),
+                  onPressed: () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continuer sans se connecter →',
+                    style: TextStyle(fontSize: 13),
                   ),
                 ),
               ],

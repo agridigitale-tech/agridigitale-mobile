@@ -37,6 +37,9 @@ npm install multer
 
 flutter pub upgrade --major-versions
 flutter pub upgrade firebase_core firebase_messaging
+flutter pub upgrade country_codes 3.3.0
+flutter pub upgrade geolocator and geocoding packages
+
 
 
 1. Le Cœur du Système et la Gestion d'Étatprovider : 
@@ -59,3 +62,6 @@ Le lecteur vidéo physique d'AGDTV. Il intègre le vrai lecteur YouTube à l'int
 
 7. Les Fonctionnalités Utiles au Quotidienintl & flutter_localizations : 
 Les traducteurs. Ils s'assurent que les dates, les heures et les calendriers s'affichent proprement dans le format officiel en français (ex: "mercredi 22 juillet" au lieu du format américain).url_launcher : Le déclencheur externe. Il permet à l'application mobile d'ouvrir le navigateur du téléphone si l'agriculteur veut consulter le site source d'un article RSS.share_plus : Le bouton de partage. Il permet à l'agriculteur de cliquer sur un article pour l'envoyer directement à ses collègues via WhatsApp, SMS ou par e-mail.
+
+country_codes 3.3.0
+geolocator and geocoding packages
