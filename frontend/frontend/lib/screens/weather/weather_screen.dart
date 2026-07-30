@@ -211,14 +211,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           imageUrl: _imageUrl!,
                           fit: BoxFit.contain,
                           width: double.infinity,
-                          placeholder: (_, __) => const Center(
+                          placeholder: (context, url) => const Center(
                             child: Padding(
                               padding: EdgeInsets.all(40),
                               child: CircularProgressIndicator(
                                   color: AppColors.vertPrimaire),
                             ),
                           ),
-                          errorWidget: (_, __, ___) => const Column(
+                          errorWidget: (context, url, error) => const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.broken_image,
@@ -366,11 +366,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
             imageUrl: iconeUrl,
             width: 56,
             height: 56,
-            placeholder: (_, __) => const SizedBox(
+            placeholder: (context, url) => const SizedBox(
                 width: 56,
                 height: 56,
                 child: CircularProgressIndicator(strokeWidth: 2)),
-            errorWidget: (_, __, ___) => const Icon(Icons.cloud,
+            errorWidget: (context, url, error) => const Icon(Icons.cloud,
                 size: 40, color: AppColors.grisIcone),
           ),
         const SizedBox(width: 12),

@@ -118,9 +118,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   labelText: 'Continent (optionnel)',
                   prefixIcon: Icon(Icons.public_outlined),
                 ),
-                items: _continents
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
+                hint: const Text('Sélectionner'),
+                items: [
+                  const DropdownMenuItem<String>(value: null, child: Text('— Aucun —')),
+                  ..._continents.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                ],
                 onChanged: (v) => setState(() => _continent = v),
               ),
               if (_erreur != null) ...[

@@ -150,7 +150,9 @@ class _AdminScreenState extends State<AdminScreen>
                           ? null
                           : () async {
                               if (titreCtrl.text.trim().isEmpty ||
-                                  msgCtrl.text.trim().isEmpty) return;
+                                  msgCtrl.text.trim().isEmpty) {
+                                return;
+                              }
                               setS(() => envoi = true);
                               try {
                                 final res =

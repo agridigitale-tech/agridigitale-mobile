@@ -15,9 +15,9 @@ class AuthProvider extends ChangeNotifier {
     connecte = await _service.estConnecte();
     if (connecte) {
       final profil = await _service.lireProfil();
-      nomUtilisateur = profil?['nom'];
-      emailUtilisateur = profil?['email'];
-      role = profil?['role'];
+      nomUtilisateur = profil['nom'];
+      emailUtilisateur = profil['email'];
+      role = profil['role'];
     }
     enVerification = false;
     notifyListeners();

@@ -93,7 +93,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: users.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (context, i) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final u = users[i];
               final actif = (u['actif'] as bool?) ?? true;

@@ -100,14 +100,14 @@ class _MeteoArchivesScreenState extends State<MeteoArchivesScreen> {
                                   child: CachedNetworkImage(
                                     imageUrl: url,
                                     fit: BoxFit.cover,
-                                    placeholder: (_, _) => Container(
+                                    placeholder: (context, url) => Container(
                                       color: Colors.grey[100],
                                       child: const Center(
                                         child: CircularProgressIndicator(
                                             color: AppColors.vertPrimaire, strokeWidth: 2),
                                       ),
                                     ),
-                                    errorWidget: (_, _, _) => Container(
+                                    errorWidget: (context, url, error) => Container(
                                       color: Colors.grey[100],
                                       child: const Icon(Icons.broken_image,
                                           color: AppColors.grisIcone, size: 40),
@@ -153,9 +153,9 @@ class _MeteoArchivesScreenState extends State<MeteoArchivesScreen> {
               child: CachedNetworkImage(
                 imageUrl: url,
                 fit: BoxFit.contain,
-                placeholder: (_, _) => const Center(
+                placeholder: (context, url) => const Center(
                     child: CircularProgressIndicator(color: Colors.white)),
-                errorWidget: (_, _, _) => const Icon(Icons.broken_image,
+                errorWidget: (context, url, error) => const Icon(Icons.broken_image,
                     color: Colors.white, size: 64),
               ),
             ),

@@ -75,7 +75,7 @@ class _AdminDemandesTabState extends State<AdminDemandesTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: demandes.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (context, i) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final d = demandes[i];
               final traite = d['statut'] == 'TRAITE';

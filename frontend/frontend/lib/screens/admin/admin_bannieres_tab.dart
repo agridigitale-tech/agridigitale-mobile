@@ -326,7 +326,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
                 itemCount: bannieres.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (context, i) => const SizedBox(height: 8),
                 itemBuilder: (context, i) {
                   final b = bannieres[i];
                   final debut = b['dateDebut'] != null
@@ -354,7 +354,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                           width: 80,
                           height: 50,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (context, error, stack) => Container(
                             width: 80,
                             height: 50,
                             color: AppColors.grisPastille,
