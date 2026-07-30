@@ -144,40 +144,24 @@ exports.motDePasseOublie = async (req, res, next) => {
     if (!email) return res.status(400).json({ message: 'E-mail obligatoire' });
 
     const utilisateur = await Utilisateur.findOne({ email });
-    // Si email inconnu : générer quand même un faux token pour ne pas révéler l'existence
-    // mais retourner success:true sans token réel
     if (!utilisateur) {
-      return res.status(200).json({
-        success: true,
-        token: '',
-        message: 'Si cet e-mail existe, un token a été envoyé.',
-      });
+      return res.status(200).json({ success: true, token: '' });
     }
 
     // Générer token reset 15 min
     const resetToken = jwt.sign({ id: utilisateur._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
-    // Envoyer l'email
-    let emailEnvoye = false;
-    try {
-      await envoyerEmailReset(email, resetToken);
-      emailEnvoye = true;
-      console.log(`[RESET] Email envoyé à ${email}`);
-    } catch (emailErr) {
-      console.error('[RESET] Échec envoi email:', emailErr.message);
-    }
+    // Répondre IMMÉDIATEMENT sans attendre l'email
+    res.status(200).json({ success: true, token: resetToken });
 
-    // Toujours renvoyer le token dans la réponse (double sécurité garantie)
-    return res.status(200).json({
-      success: true,
-      token: resetToken,
-      message: emailEnvoye
-        ? `Token envoyé par email à ${email} et disponible dans cette réponse.`
-        : 'Email non envoyé (SMTP non configuré) — utilisez le token de cette réponse.',
-    });
+    // Envoyer l'email en arrière-plan (non-bloquant)
+    envoyerEmailReset(email, resetToken)
+      .then(() => console.log(`[RESET] Email envoyé à ${email}`))
+      .catch(err => console.error('[RESET] Échec email (non bloquant):', err.message));
+
   } catch (err) {
     console.error('Forgot password error:', err);
-    res.status(500).json({ message: 'Erreur serveur' });
+    if (!res.headersSent) res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
