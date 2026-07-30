@@ -32,7 +32,7 @@ const limiterGlobal = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHe
 app.use('/api/', limiterGlobal);
 
 // Rate limiter strict pour auth
-const limiterAuth = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { message: 'Trop de tentatives, réessayez dans 15 minutes' } });
+const limiterAuth = rateLimit({ windowMs: 15 * 60 * 1000, max: 50, message: { message: 'Trop de tentatives, réessayez dans 15 minutes' } });
 app.use('/api/auth', limiterAuth);
 
 app.use('/api/auth', require('./routes/auth.routes'));

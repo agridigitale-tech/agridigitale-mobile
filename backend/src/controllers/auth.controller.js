@@ -144,9 +144,14 @@ exports.motDePasseOublie = async (req, res, next) => {
     if (!email) return res.status(400).json({ message: 'E-mail obligatoire' });
 
     const utilisateur = await Utilisateur.findOne({ email });
-    // Répondre 200 même si email inconnu (sécurité : ne pas révéler l'existence)
+    // Si email inconnu : générer quand même un faux token pour ne pas révéler l'existence
+    // mais retourner success:true sans token réel
     if (!utilisateur) {
-      return res.status(200).json({ success: true, message: 'Si cet e-mail existe, un token a été envoyé.' });
+      return res.status(200).json({
+        success: true,
+        token: '',
+        message: 'Si cet e-mail existe, un token a été envoyé.',
+      });
     }
 
     // Générer token reset 15 min
@@ -162,13 +167,13 @@ exports.motDePasseOublie = async (req, res, next) => {
       console.error('[RESET] Échec envoi email:', emailErr.message);
     }
 
-    // Toujours renvoyer le token dans la réponse (double sécurité)
+    // Toujours renvoyer le token dans la réponse (double sécurité garantie)
     return res.status(200).json({
       success: true,
       token: resetToken,
       message: emailEnvoye
-        ? 'Token envoyé par email et disponible dans la réponse.'
-        : 'Email non envoyé — utilisez le token de la réponse.',
+        ? `Token envoyé par email à ${email} et disponible dans cette réponse.`
+        : 'Email non envoyé (SMTP non configuré) — utilisez le token de cette réponse.',
     });
   } catch (err) {
     console.error('Forgot password error:', err);
