@@ -4,13 +4,8 @@ import '../../core/design/app_colors.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
-  final String email;
 
-  const ResetPasswordScreen({
-    super.key,
-    required this.token,
-    required this.email,
-  });
+  const ResetPasswordScreen({super.key, required this.token});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -18,7 +13,6 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _tokenCtrl;
   final _mdpCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   final _service = AuthService();
@@ -28,15 +22,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   String? _erreur;
 
   @override
-  void initState() {
-    super.initState();
-    // Pré-remplir avec le token reçu de l'API
-    _tokenCtrl = TextEditingController(text: widget.token);
-  }
-
-  @override
   void dispose() {
-    _tokenCtrl.dispose();
     _mdpCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -46,20 +32,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _chargement = true; _erreur = null; });
     try {
-      await _service.reinitialiserMotDePasse(
-        _tokenCtrl.text.trim(),
-        _mdpCtrl.text,
-      );
+      await _service.reinitialiserMotDePasse(widget.token, _mdpCtrl.text);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Mot de passe réinitialisé avec succès !'),
+          content: Text('Mot de passe réinitialisé avec succès !'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
         ),
       );
-      // Retour à l'écran de connexion
-      Navigator.popUntil(context, (route) => route.isFirst);
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       setState(() => _erreur = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -83,40 +65,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 16),
-                const Icon(Icons.verified_user_outlined, size: 64, color: AppColors.vertPrimaire),
+                const SizedBox(height: 24),
+                const Icon(Icons.lock_reset, size: 64, color: AppColors.vertPrimaire),
                 const SizedBox(height: 16),
                 const Text(
                   'Définir un nouveau mot de passe',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Token envoyé à : ${widget.email}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
 
-                // Token — pré-rempli, modifiable si besoin
-                TextFormField(
-                  controller: _tokenCtrl,
-                  maxLines: 3,
-                  style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
-                  decoration: const InputDecoration(
-                    labelText: 'Token de réinitialisation',
-                    prefixIcon: Icon(Icons.vpn_key_outlined),
-                    border: OutlineInputBorder(),
-                    helperText: 'Pré-rempli automatiquement — vérifiez aussi votre email',
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Token obligatoire' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // Nouveau mot de passe
                 TextFormField(
                   controller: _mdpCtrl,
                   obscureText: !_mdpVisible,
@@ -134,7 +92,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Confirmation
                 TextFormField(
                   controller: _confirmCtrl,
                   obscureText: !_confirmVisible,

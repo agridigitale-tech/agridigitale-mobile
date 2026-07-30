@@ -58,6 +58,7 @@ dependencies:
   flutter_html: ^3.0.0
   geolocator: ^13.0.4
   geocoding: ^3.0.0
+  app_links: ^6.4.0
 
 dev_dependencies:
   flutter_test:

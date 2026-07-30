@@ -26,18 +26,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _chargement = true; _erreur = null; });
     try {
-      final reponse = await _service.motDePasseOublieAvecReponse(_emailCtrl.text.trim());
-      final token = reponse['token'] as String? ?? '';
-
+      await _service.motDePasseOublie(_emailCtrl.text.trim());
       if (!mounted) return;
-      // Naviguer vers l'écran de réinitialisation avec le token
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => ResetPasswordScreen(
-            token: token,
-            email: _emailCtrl.text.trim(),
-          ),
+          builder: (_) => ResetPasswordScreen(email: _emailCtrl.text.trim()),
         ),
       );
     } catch (e) {
@@ -73,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Entrez votre adresse e-mail. Vous recevrez un token par email et il sera aussi disponible à l\'étape suivante.',
+                  'Entrez votre adresse e-mail. Vous recevrez un lien pour réinitialiser votre mot de passe directement dans l\'application.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
@@ -106,9 +100,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
                 const SizedBox(height: 24),
                 SizedBox(
-                  height: 48,
+                  height: 56,
                   child: _chargement
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire))
+                      ? Column(
+                          children: [
+                            const LinearProgressIndicator(color: AppColors.vertPrimaire),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Envoi en cours…',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        )
                       : ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.vertPrimaire,
@@ -118,7 +122,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                           onPressed: _envoyerDemande,
-                          child: const Text('Envoyer le token', style: TextStyle(fontSize: 15)),
+                          child: const Text('Envoyer le code', style: TextStyle(fontSize: 15)),
                         ),
                 ),
               ],

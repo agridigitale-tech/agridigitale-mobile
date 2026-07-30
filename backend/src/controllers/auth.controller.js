@@ -20,6 +20,7 @@ const _transporter = nodemailer.createTransport({
 });
 
 async function envoyerEmailReset(destinataire, token) {
+  const lien = `agridigitale://reset-password?token=${token}`;
   await _transporter.sendMail({
     from: `AgriDigitale <${process.env.SMTP_USER}>`,
     to: destinataire,
@@ -29,14 +30,17 @@ async function envoyerEmailReset(destinataire, token) {
                   padding:28px;border:1px solid #e0e0e0;border-radius:10px">
         <h2 style="color:#2e7d32;margin-top:0">🌱 AgriDigitale</h2>
         <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
-        <p><strong>Copiez ce token dans l'application :</strong></p>
-        <div style="background:#f1f8e9;padding:16px;border-radius:6px;
-                    font-size:13px;word-break:break-all;font-family:monospace;
-                    border:1px solid #c5e1a5;color:#1b5e20">
-          ${token}
+        <p>Appuyez sur le bouton ci-dessous depuis votre téléphone pour ouvrir l'application :</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${lien}"
+             style="background:#2e7d32;color:#fff;padding:14px 32px;
+                    border-radius:8px;text-decoration:none;font-size:16px;
+                    font-weight:bold;display:inline-block">
+            Réinitialiser mon mot de passe
+          </a>
         </div>
-        <p style="color:#888;font-size:12px;margin-top:20px">
-          ⏱ Ce token expire dans <strong>15 minutes</strong>.<br>
+        <p style="color:#888;font-size:12px">
+          ⏱ Ce lien expire dans <strong>15 minutes</strong>.<br>
           Si vous n'avez pas fait cette demande, ignorez cet email.
         </p>
       </div>

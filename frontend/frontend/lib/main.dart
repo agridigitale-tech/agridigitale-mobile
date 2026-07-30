@@ -4,17 +4,17 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
+import 'package:app_links/app_links.dart';
 import 'providers/theme_provider.dart';
 import 'providers/language_provider.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/reset_password_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'providers/auth_provider.dart' show AuthProvider;
 import 'core/design/app_theme.dart';
 import 'core/app_localizations.dart';
 import 'services/notification_service.dart';
 
-// Point d'entrée de l'application.
-// Initialise Firebase, les notifications FCM, et lance l'app avec les providers.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
@@ -29,8 +29,39 @@ void main() async {
   runApp(Phoenix(child: const MonApp()));
 }
 
-class MonApp extends StatelessWidget {
+class MonApp extends StatefulWidget {
   const MonApp({super.key});
+  @override
+  State<MonApp> createState() => _MonAppState();
+}
+
+class _MonAppState extends State<MonApp> {
+  final _navigatorKey = NotificationService.navigatorKey;
+  late final AppLinks _appLinks;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks();
+    // Lien reçu quand l'app est déjà ouverte
+    _appLinks.uriLinkStream.listen(_gererLien);
+    // Lien reçu au démarrage de l'app
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) _gererLien(uri);
+    });
+  }
+
+  void _gererLien(Uri uri) {
+    if (uri.scheme == 'agridigitale' && uri.host == 'reset-password') {
+      final token = uri.queryParameters['token'] ?? '';
+      if (token.isEmpty) return;
+      _navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(token: token),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,9 +78,7 @@ class MonApp extends StatelessWidget {
           theme: AppTheme.clair,
           themeMode: themeProvider.mode,
           locale: languageProvider.locale,
-          // navigatorKey branché pour afficher les snackbars FCM depuis partout
-          navigatorKey: NotificationService.navigatorKey,
-          // Thème sombre activé ici pour que ThemeMode.dark fonctionne
+          navigatorKey: _navigatorKey,
           darkTheme: AppTheme.sombre,
           home: const _AuthGate(),
           routes: {
