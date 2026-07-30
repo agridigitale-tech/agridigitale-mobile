@@ -1,56 +1,34 @@
+// RAPPEL main.dart : ajouter `await CountryCodes.init();` dans main() avant runApp()
+// Exemple :
+//   WidgetsFlutterBinding.ensureInitialized();
+//   await CountryCodes.init();
+//   runApp(...);
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:country_codes/country_codes.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 
-// Map code pays ISO → (nom pays, continent)
-const _paysData = <String, (String, String)>{
-  'TG': ('Togo', 'Afrique'),
-  'BJ': ('Bénin', 'Afrique'),
-  'CI': ("Côte d'Ivoire", 'Afrique'),
-  'SN': ('Sénégal', 'Afrique'),
-  'ML': ('Mali', 'Afrique'),
-  'BF': ('Burkina Faso', 'Afrique'),
-  'GH': ('Ghana', 'Afrique'),
-  'NG': ('Nigeria', 'Afrique'),
-  'CM': ('Cameroun', 'Afrique'),
-  'CD': ('Congo (RDC)', 'Afrique'),
-  'CG': ('Congo', 'Afrique'),
-  'GA': ('Gabon', 'Afrique'),
-  'NE': ('Niger', 'Afrique'),
-  'TD': ('Tchad', 'Afrique'),
-  'GN': ('Guinée', 'Afrique'),
-  'MR': ('Mauritanie', 'Afrique'),
-  'MA': ('Maroc', 'Afrique'),
-  'DZ': ('Algérie', 'Afrique'),
-  'TN': ('Tunisie', 'Afrique'),
-  'EG': ('Égypte', 'Afrique'),
-  'ZA': ('Afrique du Sud', 'Afrique'),
-  'KE': ('Kenya', 'Afrique'),
-  'ET': ('Éthiopie', 'Afrique'),
-  'TZ': ('Tanzanie', 'Afrique'),
-  'UG': ('Ouganda', 'Afrique'),
-  'RW': ('Rwanda', 'Afrique'),
-  'MG': ('Madagascar', 'Afrique'),
-  'FR': ('France', 'Europe'),
-  'BE': ('Belgique', 'Europe'),
-  'CH': ('Suisse', 'Europe'),
-  'DE': ('Allemagne', 'Europe'),
-  'ES': ('Espagne', 'Europe'),
-  'IT': ('Italie', 'Europe'),
-  'GB': ('Royaume-Uni', 'Europe'),
-  'PT': ('Portugal', 'Europe'),
-  'NL': ('Pays-Bas', 'Europe'),
-  'US': ('États-Unis', 'Amérique du Nord'),
-  'CA': ('Canada', 'Amérique du Nord'),
-  'MX': ('Mexique', 'Amérique du Nord'),
-  'BR': ('Brésil', 'Amérique du Sud'),
-  'AR': ('Argentine', 'Amérique du Sud'),
-  'CO': ('Colombie', 'Amérique du Sud'),
-  'CN': ('Chine', 'Asie'),
-  'IN': ('Inde', 'Asie'),
-  'JP': ('Japon', 'Asie'),
-  'AU': ('Australie', 'Océanie'),
+// Map code pays ISO → continent
+const _continentParCode = <String, String>{
+  'TG': 'Afrique', 'BJ': 'Afrique', 'CI': 'Afrique', 'SN': 'Afrique',
+  'ML': 'Afrique', 'BF': 'Afrique', 'GH': 'Afrique', 'NG': 'Afrique',
+  'CM': 'Afrique', 'CD': 'Afrique', 'CG': 'Afrique', 'GA': 'Afrique',
+  'NE': 'Afrique', 'TD': 'Afrique', 'GN': 'Afrique', 'MR': 'Afrique',
+  'MA': 'Afrique', 'DZ': 'Afrique', 'TN': 'Afrique', 'EG': 'Afrique',
+  'ZA': 'Afrique', 'KE': 'Afrique', 'ET': 'Afrique', 'TZ': 'Afrique',
+  'UG': 'Afrique', 'RW': 'Afrique', 'MG': 'Afrique', 'SL': 'Afrique',
+  'LR': 'Afrique', 'GW': 'Afrique', 'GM': 'Afrique', 'CV': 'Afrique',
+  'FR': 'Europe', 'BE': 'Europe', 'CH': 'Europe', 'DE': 'Europe',
+  'ES': 'Europe', 'IT': 'Europe', 'GB': 'Europe', 'PT': 'Europe',
+  'NL': 'Europe', 'PL': 'Europe', 'RO': 'Europe', 'SE': 'Europe',
+  'US': 'Amérique du Nord', 'CA': 'Amérique du Nord', 'MX': 'Amérique du Nord',
+  'BR': 'Amérique du Sud', 'AR': 'Amérique du Sud', 'CO': 'Amérique du Sud',
+  'PE': 'Amérique du Sud', 'CL': 'Amérique du Sud', 'VE': 'Amérique du Sud',
+  'CN': 'Asie', 'IN': 'Asie', 'JP': 'Asie', 'KR': 'Asie',
+  'ID': 'Asie', 'PK': 'Asie', 'BD': 'Asie', 'VN': 'Asie',
+  'AU': 'Océanie', 'NZ': 'Océanie',
 };
 
 const _continents = [
@@ -79,25 +57,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _chargement = false;
   String? _erreur;
   bool _mdpVisible = false;
-  bool _geoDetecte = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_geoDetecte) {
-      _geoDetecte = true;
-      _detecterLocale();
-    }
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _detecterPaysAutomatiquement();
+    });
   }
 
-  void _detecterLocale() {
-    final locale = Localizations.localeOf(context);
-    final code = locale.countryCode?.toUpperCase() ?? '';
-    final data = _paysData[code];
-    if (data != null) {
+  void _detecterPaysAutomatiquement() {
+    try {
+      final details = CountryCodes.detailsForLocale();
+      final nomPays = details?.name ?? 'Togo';
+      final code = details?.alpha2Code?.toUpperCase() ?? '';
+      final continent = _continentParCode[code] ?? 'Afrique';
       setState(() {
-        _paysCtrl.text = data.$1;
-        _continent = data.$2;
+        _paysCtrl.text = nomPays;
+        _continent = continent;
+      });
+    } catch (_) {
+      setState(() {
+        _paysCtrl.text = 'Togo';
+        _continent = 'Afrique';
       });
     }
   }
@@ -120,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _emailCtrl.text.trim(),
         _mdpCtrl.text,
         pays: _paysCtrl.text.trim(),
-        continent: _continent ?? '',
+        continent: _continent ?? 'Afrique',
       );
       if (!mounted) return;
       await context.read<AuthProvider>().verifierSession();
