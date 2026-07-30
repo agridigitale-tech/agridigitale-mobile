@@ -11,10 +11,17 @@ class AuthService {
   static const _keyEmail = 'user_email';
   static const _keyRole = 'user_role';
 
-  Future<Map<String, dynamic>> inscrire(String nom, String email, String motDePasse) async {
+  Future<Map<String, dynamic>> inscrire(String nom, String email, String motDePasse, {
+    String pays = '',
+    String continent = '',
+  }) async {
     try {
       final rep = await _dio.post(AppConstants.apiAuthRegister, data: {
-        'nom': nom, 'email': email, 'motDePasse': motDePasse,
+        'nom': nom,
+        'email': email,
+        'motDePasse': motDePasse,
+        if (pays.isNotEmpty) 'pays': pays,
+        if (continent.isNotEmpty) 'continent': continent,
       });
       await _sauvegarder(rep.data);
       return rep.data;

@@ -1,4 +1,5 @@
 const Meteo = require('../models/Meteo');
+const { fetchMeteoVille } = require('../services/meteo.service');
 
 // Utilisateur : consulter la dernière photo météo publiée
 exports.consulterMeteo = async (req, res, next) => {
@@ -15,6 +16,33 @@ exports.archiverMeteo = async (req, res, next) => {
     const archives = await Meteo.find({ source: 'manuel' }).sort({ dateMiseAJour: -1 });
     res.json(archives);
   } catch (err) { next(err); }
+};
+
+// Utilisateur : rechercher la météo d'une ville via OpenWeatherMap (avec cache 30min)
+exports.rechercherVille = async (req, res, next) => {
+  try {
+    const { ville } = req.params;
+    if (!ville || ville.trim().length < 2) {
+      return res.status(400).json({ message: 'Nom de ville invalide' });
+    }
+    const data = await fetchMeteoVille(ville.trim());
+    res.json({
+      ville: data.name,
+      pays: data.sys?.country ?? '',
+      temperature: data.main?.temp ?? null,
+      description: data.weather?.[0]?.description ?? '',
+      icone: data.weather?.[0]?.icon
+        ? `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`
+        : null,
+      humidite: data.main?.humidity ?? null,
+      vitesseVent: data.wind?.speed ?? null,
+    });
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ message: 'Ville introuvable' });
+    }
+    next(err);
+  }
 };
 
 // Admin : publier une photo météo

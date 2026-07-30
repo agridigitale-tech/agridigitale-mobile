@@ -12,22 +12,27 @@ class AdminStatsTab extends StatefulWidget {
 }
 
 class _AdminStatsTabState extends State<AdminStatsTab> {
-  late Future<Map<String, dynamic>> _future;
+  late Future<Map<String, dynamic>> _futureStats;
+  late Future<List<dynamic>> _futureUsers;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.statistiques();
+    _futureStats = widget.service.statistiques();
+    _futureUsers = widget.service.listerUtilisateurs();
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.service.statistiques());
+    setState(() {
+      _futureStats = widget.service.statistiques();
+      _futureUsers = widget.service.listerUtilisateurs();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([_futureStats, _futureUsers]),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -35,7 +40,8 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
         }
         if (snap.hasError) return adminErreur(_reload);
 
-        final d = snap.data!;
+        final d = snap.data![0] as Map<String, dynamic>;
+        final users = snap.data![1] as List<dynamic>;
         final articlesParCat = (d['articlesParCategorie'] as List?) ?? [];
         final plusLus = (d['articlesPlusLus'] as List?) ?? [];
         final parPays = (d['parPays'] as List?) ?? [];
@@ -153,10 +159,67 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
 
               // ── Répartition par continent ──
               _sectionGeo('Utilisateurs par continent', parContinent),
+
+              // ── Profils utilisateurs ──
+              if (users.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                const Text('Profils utilisateurs',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                ...users.map((u) => _carteUtilisateur(u)),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _carteUtilisateur(Map<String, dynamic> u) {
+    final actif = u['actif'] as bool? ?? true;
+    final role = u['role'] as String? ?? 'utilisateur';
+    final pays = (u['pays'] as String?) ?? '';
+    final continent = (u['continent'] as String?) ?? '';
+    final geo = [pays, continent].where((s) => s.isNotEmpty).join(' • ');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)
+        ],
+      ),
+      child: Row(children: [
+        CircleAvatar(
+          backgroundColor: role == 'administrateur'
+              ? AppColors.vertPrimaire
+              : AppColors.grisPastille,
+          radius: 20,
+          child: Text(
+            ((u['nom'] as String?) ?? 'U')[0].toUpperCase(),
+            style: TextStyle(
+              color: role == 'administrateur' ? Colors.white : AppColors.grisTexte,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(u['nom'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            Text(u['email'] ?? '',
+                style: const TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+            if (geo.isNotEmpty)
+              Text(geo,
+                  style: const TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+          ]),
+        ),
+        adminBadgeStatut(actif),
+      ]),
     );
   }
 

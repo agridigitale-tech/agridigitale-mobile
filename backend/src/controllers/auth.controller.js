@@ -9,7 +9,7 @@ const genererToken = (id, role) =>
 // 1. INSCRIPTION
 exports.inscrire = async (req, res, next) => {
   try {
-    const { nom, email, motDePasse } = req.body;
+    const { nom, email, motDePasse, pays, continent } = req.body;
     if (!nom || !email || !motDePasse) {
       return res.status(400).json({ message: 'Tous les champs sont obligatoires' });
     }
@@ -20,11 +20,16 @@ exports.inscrire = async (req, res, next) => {
     const existe = await Utilisateur.findOne({ email });
     if (existe) return res.status(409).json({ message: 'Cet e-mail est déjà utilisé' });
 
-    // Hash the password before creating the user
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(motDePasse, salt);
 
-    const utilisateur = new Utilisateur({ nom, email, motDePasse: hashedPassword });
+    const utilisateur = new Utilisateur({
+      nom,
+      email,
+      motDePasse: hashedPassword,
+      pays: pays || '',
+      continent: continent || '',
+    });
     await utilisateur.save();
 
     const token = genererToken(utilisateur._id, utilisateur.role);
@@ -32,10 +37,10 @@ exports.inscrire = async (req, res, next) => {
       token,
       utilisateur: { id: utilisateur._id, nom: utilisateur.nom, email: utilisateur.email, role: utilisateur.role }
     });
-   } catch (err) {
-     console.error('Registration error:', err);
-     res.status(500).json({ message: 'Erreur lors de l\'inscription' });
-   }
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ message: 'Erreur lors de l\'inscription' });
+  }
 };
 
 // 2. CONNEXION (Ajouté pour corriger le bug des routes)

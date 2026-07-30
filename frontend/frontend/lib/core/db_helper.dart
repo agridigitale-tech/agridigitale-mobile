@@ -19,7 +19,7 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -35,6 +35,21 @@ class DBHelper {
               datePublication TEXT,
               vues INTEGER,
               cachedAt INTEGER
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS meteo_cache (
+              ville TEXT PRIMARY KEY,
+              imageUrl TEXT NOT NULL,
+              cachedAt INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS meteo_historique (
+              ville TEXT PRIMARY KEY,
+              consultéAt INTEGER NOT NULL
             )
           ''');
         }
@@ -63,6 +78,19 @@ class DBHelper {
             datePublication TEXT,
             vues INTEGER,
             cachedAt INTEGER
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE meteo_cache (
+            ville TEXT PRIMARY KEY,
+            imageUrl TEXT NOT NULL,
+            cachedAt INTEGER NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE meteo_historique (
+            ville TEXT PRIMARY KEY,
+            consultéAt INTEGER NOT NULL
           )
         ''');
       },
@@ -145,5 +173,53 @@ class DBHelper {
     final rows = await db.query('articles_cache', where: 'id = ?', whereArgs: [id]);
     return rows.isNotEmpty ? rows.first : null;
   }
+
+  // ── Cache météo (TTL 2h) ────────────────────────────────────────
+  static const _meteoCacheTTL = Duration(hours: 2);
+
+  Future<void> sauvegarderMeteoCache(String ville, String imageUrl) async {
+    final db = await database;
+    if (db == null) return;
+    await db.insert(
+      'meteo_cache',
+      {'ville': ville.toLowerCase(), 'imageUrl': imageUrl, 'cachedAt': DateTime.now().millisecondsSinceEpoch},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getMeteoCache(String ville) async {
+    final db = await database;
+    if (db == null) return null;
+    final cutoff = DateTime.now().subtract(_meteoCacheTTL).millisecondsSinceEpoch;
+    final rows = await db.query(
+      'meteo_cache',
+      where: 'ville = ? AND cachedAt > ?',
+      whereArgs: [ville.toLowerCase(), cutoff],
+    );
+    return rows.isNotEmpty ? rows.first['imageUrl'] as String? : null;
+  }
+
+  // ── Historique villes météo ─────────────────────────────────────
+  Future<void> ajouterVilleHistorique(String ville) async {
+    final db = await database;
+    if (db == null) return;
+    await db.insert(
+      'meteo_historique',
+      {'ville': ville.toLowerCase(), 'consultéAt': DateTime.now().millisecondsSinceEpoch},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<String>> getHistoriqueVilles() async {
+    final db = await database;
+    if (db == null) return [];
+    final rows = await db.query('meteo_historique', orderBy: 'consultéAt DESC', limit: 10);
+    return rows.map((r) => r['ville'] as String).toList();
+  }
+
+  Future<void> supprimerVilleHistorique(String ville) async {
+    final db = await database;
+    if (db == null) return;
+    await db.delete('meteo_historique', where: 'ville = ?', whereArgs: [ville.toLowerCase()]);
+  }
 }
-//***REMOVED-ANTHROPIC-KEY***

@@ -96,7 +96,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final u = users[i];
-              final actif = u['actif'] ?? true;
+              final actif = (u['actif'] as bool?) ?? true;
               final role = u['role'] ?? 'utilisateur';
               final pays = (u['pays'] as String?) ?? '';
               final continent = (u['continent'] as String?) ?? '';
@@ -136,8 +136,8 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    adminBadgeStatut(actif as bool),
-                    if ((actif as bool) && role != 'administrateur') ...[
+                    adminBadgeStatut(actif),
+                    if (actif && role != 'administrateur') ...[
                       const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.block,
