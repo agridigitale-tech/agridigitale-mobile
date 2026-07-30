@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../core/design/app_colors.dart';
-import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -28,12 +27,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       await _service.motDePasseOublie(_emailCtrl.text.trim());
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ResetPasswordScreen(email: _emailCtrl.text.trim()),
+      // Afficher confirmation — le lien sera envoyé par email
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Un lien de réinitialisation a été envoyé à votre adresse e-mail.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
         ),
       );
+      Navigator.of(context).pop();
     } catch (e) {
       setState(() => _erreur = e.toString().replaceFirst('Exception: ', ''));
     } finally {
