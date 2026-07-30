@@ -1,11 +1,58 @@
-//permet de gérer l'inscription d'un nouvel utilisateur avec un formulaire et la validation des champs
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 
-// Liste des continents disponibles
+// Map code pays ISO → (nom pays, continent)
+const _paysData = <String, (String, String)>{
+  'TG': ('Togo', 'Afrique'),
+  'BJ': ('Bénin', 'Afrique'),
+  'CI': ("Côte d'Ivoire", 'Afrique'),
+  'SN': ('Sénégal', 'Afrique'),
+  'ML': ('Mali', 'Afrique'),
+  'BF': ('Burkina Faso', 'Afrique'),
+  'GH': ('Ghana', 'Afrique'),
+  'NG': ('Nigeria', 'Afrique'),
+  'CM': ('Cameroun', 'Afrique'),
+  'CD': ('Congo (RDC)', 'Afrique'),
+  'CG': ('Congo', 'Afrique'),
+  'GA': ('Gabon', 'Afrique'),
+  'NE': ('Niger', 'Afrique'),
+  'TD': ('Tchad', 'Afrique'),
+  'GN': ('Guinée', 'Afrique'),
+  'MR': ('Mauritanie', 'Afrique'),
+  'MA': ('Maroc', 'Afrique'),
+  'DZ': ('Algérie', 'Afrique'),
+  'TN': ('Tunisie', 'Afrique'),
+  'EG': ('Égypte', 'Afrique'),
+  'ZA': ('Afrique du Sud', 'Afrique'),
+  'KE': ('Kenya', 'Afrique'),
+  'ET': ('Éthiopie', 'Afrique'),
+  'TZ': ('Tanzanie', 'Afrique'),
+  'UG': ('Ouganda', 'Afrique'),
+  'RW': ('Rwanda', 'Afrique'),
+  'MG': ('Madagascar', 'Afrique'),
+  'FR': ('France', 'Europe'),
+  'BE': ('Belgique', 'Europe'),
+  'CH': ('Suisse', 'Europe'),
+  'DE': ('Allemagne', 'Europe'),
+  'ES': ('Espagne', 'Europe'),
+  'IT': ('Italie', 'Europe'),
+  'GB': ('Royaume-Uni', 'Europe'),
+  'PT': ('Portugal', 'Europe'),
+  'NL': ('Pays-Bas', 'Europe'),
+  'US': ('États-Unis', 'Amérique du Nord'),
+  'CA': ('Canada', 'Amérique du Nord'),
+  'MX': ('Mexique', 'Amérique du Nord'),
+  'BR': ('Brésil', 'Amérique du Sud'),
+  'AR': ('Argentine', 'Amérique du Sud'),
+  'CO': ('Colombie', 'Amérique du Sud'),
+  'CN': ('Chine', 'Asie'),
+  'IN': ('Inde', 'Asie'),
+  'JP': ('Japon', 'Asie'),
+  'AU': ('Australie', 'Océanie'),
+};
+
 const _continents = [
   'Afrique',
   'Amérique du Nord',
@@ -32,6 +79,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _chargement = false;
   String? _erreur;
   bool _mdpVisible = false;
+  bool _geoDetecte = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_geoDetecte) {
+      _geoDetecte = true;
+      _detecterLocale();
+    }
+  }
+
+  void _detecterLocale() {
+    final locale = Localizations.localeOf(context);
+    final code = locale.countryCode?.toUpperCase() ?? '';
+    final data = _paysData[code];
+    if (data != null) {
+      setState(() {
+        _paysCtrl.text = data.$1;
+        _continent = data.$2;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -107,17 +176,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _paysCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Pays (optionnel)',
+                  labelText: 'Pays',
                   prefixIcon: Icon(Icons.flag_outlined),
+                  helperText: 'Détecté automatiquement — modifiable',
                 ),
               ),
               const SizedBox(height: 12),
               InputDecorator(
                 decoration: const InputDecoration(
-                  labelText: 'Continent (optionnel)',
+                  labelText: 'Continent',
                   prefixIcon: Icon(Icons.public_outlined),
                   border: UnderlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(vertical: 4),
+                  helperText: 'Détecté automatiquement — modifiable',
                 ),
                 child: DropdownButton<String>(
                   value: _continent,
