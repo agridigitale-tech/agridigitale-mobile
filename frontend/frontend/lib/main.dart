@@ -11,7 +11,6 @@ import 'screens/auth/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'core/design/app_theme.dart';
 import 'core/app_localizations.dart';
-import 'package:country_codes/country_codes.dart';
 import 'services/notification_service.dart';
 
 // Point d'entrée de l'application.
@@ -19,7 +18,6 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
-  await CountryCodes.init();
 
   try {
     await Firebase.initializeApp();

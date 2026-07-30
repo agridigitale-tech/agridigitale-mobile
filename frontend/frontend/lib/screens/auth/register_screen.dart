@@ -1,34 +1,72 @@
-// RAPPEL main.dart : ajouter `await CountryCodes.init();` dans main() avant runApp()
-// Exemple :
-//   WidgetsFlutterBinding.ensureInitialized();
-//   await CountryCodes.init();
-//   runApp(...);
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:country_codes/country_codes.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
 
-// Map code pays ISO → continent
-const _continentParCode = <String, String>{
-  'TG': 'Afrique', 'BJ': 'Afrique', 'CI': 'Afrique', 'SN': 'Afrique',
-  'ML': 'Afrique', 'BF': 'Afrique', 'GH': 'Afrique', 'NG': 'Afrique',
-  'CM': 'Afrique', 'CD': 'Afrique', 'CG': 'Afrique', 'GA': 'Afrique',
-  'NE': 'Afrique', 'TD': 'Afrique', 'GN': 'Afrique', 'MR': 'Afrique',
-  'MA': 'Afrique', 'DZ': 'Afrique', 'TN': 'Afrique', 'EG': 'Afrique',
-  'ZA': 'Afrique', 'KE': 'Afrique', 'ET': 'Afrique', 'TZ': 'Afrique',
-  'UG': 'Afrique', 'RW': 'Afrique', 'MG': 'Afrique', 'SL': 'Afrique',
-  'LR': 'Afrique', 'GW': 'Afrique', 'GM': 'Afrique', 'CV': 'Afrique',
-  'FR': 'Europe', 'BE': 'Europe', 'CH': 'Europe', 'DE': 'Europe',
-  'ES': 'Europe', 'IT': 'Europe', 'GB': 'Europe', 'PT': 'Europe',
-  'NL': 'Europe', 'PL': 'Europe', 'RO': 'Europe', 'SE': 'Europe',
-  'US': 'Amérique du Nord', 'CA': 'Amérique du Nord', 'MX': 'Amérique du Nord',
-  'BR': 'Amérique du Sud', 'AR': 'Amérique du Sud', 'CO': 'Amérique du Sud',
-  'PE': 'Amérique du Sud', 'CL': 'Amérique du Sud', 'VE': 'Amérique du Sud',
-  'CN': 'Asie', 'IN': 'Asie', 'JP': 'Asie', 'KR': 'Asie',
-  'ID': 'Asie', 'PK': 'Asie', 'BD': 'Asie', 'VN': 'Asie',
-  'AU': 'Océanie', 'NZ': 'Océanie',
+// Map nom de pays (en anglais, retourné par geocoding) → continent
+const _continentParPays = <String, String>{
+  // Afrique de l'Ouest
+  'Togo': 'Afrique', 'Benin': 'Afrique', 'Bénin': 'Afrique',
+  'Ivory Coast': 'Afrique', "Côte d'Ivoire": 'Afrique',
+  'Senegal': 'Afrique', 'Sénégal': 'Afrique',
+  'Mali': 'Afrique', 'Burkina Faso': 'Afrique',
+  'Ghana': 'Afrique', 'Nigeria': 'Afrique', 'Niger': 'Afrique',
+  'Guinea': 'Afrique', 'Guinée': 'Afrique',
+  'Sierra Leone': 'Afrique', 'Liberia': 'Afrique',
+  'Gambia': 'Afrique', 'Gambie': 'Afrique',
+  'Guinea-Bissau': 'Afrique', 'Cape Verde': 'Afrique',
+  'Mauritania': 'Afrique', 'Mauritanie': 'Afrique',
+  // Afrique Centrale
+  'Cameroon': 'Afrique', 'Cameroun': 'Afrique',
+  'Democratic Republic of the Congo': 'Afrique', 'Congo': 'Afrique',
+  'Gabon': 'Afrique', 'Chad': 'Afrique', 'Tchad': 'Afrique',
+  'Central African Republic': 'Afrique',
+  // Afrique du Nord
+  'Morocco': 'Afrique', 'Maroc': 'Afrique',
+  'Algeria': 'Afrique', 'Algérie': 'Afrique',
+  'Tunisia': 'Afrique', 'Tunisie': 'Afrique',
+  'Egypt': 'Afrique', 'Égypte': 'Afrique', 'Libya': 'Afrique',
+  // Afrique de l'Est & Sud
+  'South Africa': 'Afrique', 'Kenya': 'Afrique',
+  'Ethiopia': 'Afrique', 'Éthiopie': 'Afrique',
+  'Tanzania': 'Afrique', 'Tanzanie': 'Afrique',
+  'Uganda': 'Afrique', 'Ouganda': 'Afrique',
+  'Rwanda': 'Afrique', 'Madagascar': 'Afrique',
+  'Mozambique': 'Afrique', 'Zimbabwe': 'Afrique',
+  'Zambia': 'Afrique', 'Angola': 'Afrique',
+  // Europe
+  'France': 'Europe', 'Belgium': 'Europe', 'Belgique': 'Europe',
+  'Switzerland': 'Europe', 'Suisse': 'Europe',
+  'Germany': 'Europe', 'Allemagne': 'Europe',
+  'Spain': 'Europe', 'Espagne': 'Europe',
+  'Italy': 'Europe', 'Italie': 'Europe',
+  'United Kingdom': 'Europe', 'Portugal': 'Europe',
+  'Netherlands': 'Europe', 'Pays-Bas': 'Europe',
+  'Poland': 'Europe', 'Pologne': 'Europe',
+  'Romania': 'Europe', 'Roumanie': 'Europe',
+  'Sweden': 'Europe', 'Suède': 'Europe',
+  // Amérique du Nord
+  'United States': 'Amérique du Nord', 'Canada': 'Amérique du Nord',
+  'Mexico': 'Amérique du Nord', 'Mexique': 'Amérique du Nord',
+  // Amérique du Sud
+  'Brazil': 'Amérique du Sud', 'Brésil': 'Amérique du Sud',
+  'Argentina': 'Amérique du Sud', 'Argentine': 'Amérique du Sud',
+  'Colombia': 'Amérique du Sud', 'Colombie': 'Amérique du Sud',
+  'Peru': 'Amérique du Sud', 'Pérou': 'Amérique du Sud',
+  'Chile': 'Amérique du Sud', 'Chili': 'Amérique du Sud',
+  'Venezuela': 'Amérique du Sud',
+  // Asie
+  'China': 'Asie', 'Chine': 'Asie',
+  'India': 'Asie', 'Inde': 'Asie',
+  'Japan': 'Asie', 'Japon': 'Asie',
+  'South Korea': 'Asie', 'Corée du Sud': 'Asie',
+  'Indonesia': 'Asie', 'Indonésie': 'Asie',
+  'Pakistan': 'Asie', 'Bangladesh': 'Asie', 'Vietnam': 'Asie',
+  // Océanie
+  'Australia': 'Océanie', 'Australie': 'Océanie',
+  'New Zealand': 'Océanie', 'Nouvelle-Zélande': 'Océanie',
 };
 
 const _continents = [
@@ -55,31 +93,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _service = AuthService();
   String? _continent;
   bool _chargement = false;
+  bool _gpsEnCours = false;
   String? _erreur;
   bool _mdpVisible = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _detecterPaysAutomatiquement();
-    });
+    _recupererPaysParGPS();
   }
 
-  void _detecterPaysAutomatiquement() {
+  Future<void> _recupererPaysParGPS() async {
+    setState(() => _gpsEnCours = true);
     try {
-      final details = CountryCodes.detailsForLocale();
-      final nomPays = details?.name ?? 'Togo';
-      final code = details?.alpha2Code?.toUpperCase() ?? '';
-      final continent = _continentParCode[code] ?? 'Afrique';
-      setState(() {
-        _paysCtrl.text = nomPays;
-        _continent = continent;
-      });
+      // 1. Vérifier si le service GPS est activé
+      final serviceActif = await Geolocator.isLocationServiceEnabled();
+      if (!serviceActif) {
+        _appliquerFallback();
+        return;
+      }
+
+      // 2. Vérifier / demander la permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _appliquerFallback();
+        return;
+      }
+
+      // 3. Récupérer la position GPS
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      // 4. Reverse geocoding → nom du pays
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final pays = placemarks.first.country ?? 'Togo';
+        final continent = _continentParPays[pays] ?? 'Afrique';
+        if (mounted) {
+          setState(() {
+            _paysCtrl.text = pays;
+            _continent = continent;
+          });
+        }
+      } else {
+        _appliquerFallback();
+      }
     } catch (_) {
+      _appliquerFallback();
+    } finally {
+      if (mounted) setState(() => _gpsEnCours = false);
+    }
+  }
+
+  void _appliquerFallback() {
+    if (mounted) {
       setState(() {
-        _paysCtrl.text = 'Togo';
-        _continent = 'Afrique';
+        if (_paysCtrl.text.isEmpty) _paysCtrl.text = 'Togo';
+        _continent ??= 'Afrique';
       });
     }
   }
@@ -157,10 +239,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _paysCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Pays',
-                  prefixIcon: Icon(Icons.flag_outlined),
-                  helperText: 'Détecté automatiquement — modifiable',
+                  prefixIcon: const Icon(Icons.flag_outlined),
+                  helperText: 'Détecté via GPS — modifiable',
+                  suffixIcon: _gpsEnCours
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.my_location, size: 20),
+                          tooltip: 'Relancer la détection GPS',
+                          onPressed: _recupererPaysParGPS,
+                        ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -170,7 +266,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icon(Icons.public_outlined),
                   border: UnderlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(vertical: 4),
-                  helperText: 'Détecté automatiquement — modifiable',
+                  helperText: 'Déduit automatiquement — modifiable',
                 ),
                 child: DropdownButton<String>(
                   value: _continent,
