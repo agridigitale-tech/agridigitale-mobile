@@ -112,18 +112,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _continent,
+              InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Continent (optionnel)',
                   prefixIcon: Icon(Icons.public_outlined),
+                  border: UnderlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(vertical: 4),
                 ),
-                hint: const Text('Sélectionner'),
-                items: [
-                  const DropdownMenuItem<String>(value: null, child: Text('— Aucun —')),
-                  ..._continents.map((c) => DropdownMenuItem(value: c, child: Text(c))),
-                ],
-                onChanged: (v) => setState(() => _continent = v),
+                child: DropdownButton<String>(
+                  value: _continent,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  hint: const Text('Sélectionner'),
+                  items: [
+                    const DropdownMenuItem<String>(value: null, child: Text('— Aucun —')),
+                    ..._continents.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                  ],
+                  onChanged: (v) => setState(() => _continent = v),
+                ),
               ),
               if (_erreur != null) ...[
                 const SizedBox(height: 12),
