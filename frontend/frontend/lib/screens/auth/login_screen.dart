@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Image.asset(
                     'assets/images/logo-B.png',
                     height: 90,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (context, error, stackTrace) =>
                         Icon(Icons.eco, size: 64, color: couleurPrimaire),
                   ),
                 ),

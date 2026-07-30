@@ -228,19 +228,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
 
               // Dropdown continent — pré-sélectionné par la locale
-              DropdownButtonFormField<String>(
-                value: _continent,
+              InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Continent',
                   prefixIcon: Icon(Icons.public_outlined),
                   border: OutlineInputBorder(),
                   helperText: 'Déduit automatiquement — modifiable',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
-                hint: const Text('Sélectionner'),
-                items: _continents
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _continent = v),
+                child: DropdownButton<String>(
+                  value: _continent,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  hint: const Text('Sélectionner'),
+                  items: _continents
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _continent = v),
+                ),
               ),
 
               if (_erreur != null) ...[
