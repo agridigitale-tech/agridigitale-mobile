@@ -7,11 +7,16 @@ exports.listerBannieres = async (req, res, next) => {
     const now = new Date();
     const bannieres = await Banniere.find({
       actif: true,
-      dateDebut: { $lte: now },
-      dateFin: { $gte: now },
+      $or: [
+        // Bannières avec dates valides
+        { dateDebut: { $lte: now }, dateFin: { $gte: now } },
+        // Bannières sans dates (anciennes données)
+        { dateDebut: null },
+        { dateFin: null },
+      ],
     })
       .sort({ ordre: 1 })
-      .limit(5);
+      .limit(10);
     res.json(bannieres);
   } catch (err) { 
     next(err); 

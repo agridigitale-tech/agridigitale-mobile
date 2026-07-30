@@ -89,13 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         child: ElevatedButton(onPressed: _seConnecter, child: const Text('Se connecter')),
                       ),
-                TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-                  child: const Text('Mot de passe oublié ?'),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+                    child: const Text('Mot de passe oublié ?',
+                        style: TextStyle(fontSize: 13)),
+                  ),
                 ),
+                const Divider(height: 24),
                 TextButton(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                  child: const Text('Créer un compte'),
+                  child: const Text('Pas encore de compte ? Créer un compte'),
                 ),
               ],
             ),
