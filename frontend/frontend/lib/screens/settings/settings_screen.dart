@@ -4,7 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../widgets/auth_gate.dart';
+import '../../screens/auth/login_screen.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
 import 'detail_settings/about_screen.dart';
@@ -109,8 +109,10 @@ class SettingsScreen extends StatelessWidget {
 
           if (!auth.connecte)
             _ligne(context, Icons.login, l.t('login_create'),
-                onTap: () =>
-                    exigerConnexion(context, motif: 'accéder à ton profil')),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                )),
 
           if (auth.connecte)
             _ligne(context, Icons.logout, l.t('logout'),
