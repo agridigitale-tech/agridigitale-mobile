@@ -144,20 +144,18 @@ exports.motDePasseOublie = async (req, res, next) => {
     if (!email) return res.status(400).json({ message: 'E-mail obligatoire' });
 
     const utilisateur = await Utilisateur.findOne({ email });
-    if (!utilisateur) {
-      return res.status(200).json({ success: true, token: '' });
-    }
 
-    // Générer token reset 15 min
+    // Répondre immédiatement — ne jamais révéler si l'email existe ou non
+    res.status(200).json({ success: true });
+
+    if (!utilisateur) return;
+
     const resetToken = jwt.sign({ id: utilisateur._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
-    // Répondre IMMÉDIATEMENT sans attendre l'email
-    res.status(200).json({ success: true, token: resetToken });
-
-    // Envoyer l'email en arrière-plan (non-bloquant)
+    // Envoi email en arrière-plan
     envoyerEmailReset(email, resetToken)
       .then(() => console.log(`[RESET] Email envoyé à ${email}`))
-      .catch(err => console.error('[RESET] Échec email (non bloquant):', err.message));
+      .catch(err => console.error('[RESET] Échec email:', err.message));
 
   } catch (err) {
     console.error('Forgot password error:', err);
