@@ -46,17 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('AgriDigitale', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 32),
+                const SizedBox(height: 48),
+                const Text(
+                  'AgriDigitale',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'E-mail'),
                   validator: (v) => (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
                 ),
@@ -78,29 +84,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (v) => (v == null || v.length < 6) ? 'Minimum 6 caractères' : null,
                 ),
-                if (_erreur != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_erreur!, style: const TextStyle(color: Colors.red)),
-                ],
-                const SizedBox(height: 24),
-                _chargement
-                    ? const CircularProgressIndicator()
-                    : SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(onPressed: _seConnecter, child: const Text('Se connecter')),
-                      ),
-                const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-                    child: const Text('Mot de passe oublié ?',
-                        style: TextStyle(fontSize: 13)),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                    ),
+                    child: const Text('Mot de passe oublié ?', style: TextStyle(fontSize: 13)),
                   ),
                 ),
-                const Divider(height: 24),
+                if (_erreur != null) ...[
+                  const SizedBox(height: 4),
+                  Text(_erreur!, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 8),
+                _chargement
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        onPressed: _seConnecter,
+                        child: const Text('Se connecter'),
+                      ),
+                const Divider(height: 32),
                 TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
                   child: const Text('Pas encore de compte ? Créer un compte'),
                 ),
               ],
