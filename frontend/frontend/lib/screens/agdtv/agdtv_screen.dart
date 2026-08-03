@@ -143,8 +143,10 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
                       const Text('Erreur de chargement',
                           style: TextStyle(color: Colors.white)),
                       TextButton(
-                        onPressed: () =>
-                            setState(() => _future = _chargerVideos()),
+                        onPressed: () {
+                            final future = _chargerVideos();
+                            setState(() => _future = future);
+                          },
                         child: const Text('Réessayer',
                             style:
                                 TextStyle(color: AppColors.vertPrimaire)),

@@ -16,17 +16,24 @@ class AdminBannieresTab extends StatefulWidget {
 }
 
 class _AdminBannieresTabState extends State<AdminBannieresTab> {
-  late Future<List<dynamic>> _future;
+  List<dynamic> _bannieres = [];
+  bool _chargement = true;
+  bool _erreur = false;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.listerBannieres();
+    _charger();
   }
 
-  Future<void> _reload() async {
-    final future = widget.service.listerBannieres();
-    setState(() => _future = future);
+  Future<void> _charger() async {
+    setState(() { _chargement = true; _erreur = false; });
+    try {
+      final data = await widget.service.listerBannieres();
+      if (mounted) setState(() { _bannieres = data; _chargement = false; });
+    } catch (_) {
+      if (mounted) setState(() { _chargement = false; _erreur = true; });
+    }
   }
 
   String _urlImage(String img) {
@@ -220,7 +227,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                               }
                               if (ctx.mounted) Navigator.pop(ctx);
                               if (mounted) {
-                                await _reload();
+                                await _charger();
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context)
                                     .showSnackBar(SnackBar(
@@ -276,7 +283,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     if (ok != true) return;
     try {
       await widget.service.supprimerBanniere(id);
-      await _reload();
+      await _charger();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Bannière supprimée'),
@@ -296,119 +303,84 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     final fmt = DateFormat('dd/MM/yy');
     return Stack(
       children: [
-        FutureBuilder<List<dynamic>>(
-          future: _future,
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.vertPrimaire));
-            }
-            if (snap.hasError) return adminErreur(_reload);
-
-            final bannieres = snap.data!;
-            if (bannieres.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.image_not_supported,
-                        size: 56, color: AppColors.grisIcone),
-                    SizedBox(height: 12),
-                    Text('Aucune bannière',
-                        style: TextStyle(color: AppColors.grisTexte)),
-                  ],
-                ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: _reload,
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                itemCount: bannieres.length,
-                separatorBuilder: (context, i) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final b = bannieres[i];
-                  final debut = b['dateDebut'] != null
-                      ? fmt.format(DateTime.parse(b['dateDebut']))
-                      : '—';
-                  final fin = b['dateFin'] != null
-                      ? fmt.format(DateTime.parse(b['dateFin']))
-                      : '—';
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 6)
-                      ],
+        if (_chargement)
+          const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire))
+        else if (_erreur)
+          adminErreur(_charger)
+        else if (_bannieres.isEmpty)
+          const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.image_not_supported, size: 56, color: AppColors.grisIcone),
+                SizedBox(height: 12),
+                Text('Aucune bannière', style: TextStyle(color: AppColors.grisTexte)),
+              ],
+            ),
+          )
+        else
+          RefreshIndicator(
+            onRefresh: _charger,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+              itemCount: _bannieres.length,
+              separatorBuilder: (context, i) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final b = _bannieres[i];
+                final debut = b['dateDebut'] != null ? fmt.format(DateTime.parse(b['dateDebut'])) : '—';
+                final fin = b['dateFin'] != null ? fmt.format(DateTime.parse(b['dateFin'])) : '—';
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
+                  ),
+                  child: Row(children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _urlImage(b['image'] ?? ''),
+                        width: 80, height: 50, fit: BoxFit.cover,
+                        errorBuilder: (ctx, e, s) => Container(
+                          width: 80, height: 50, color: AppColors.grisPastille,
+                          child: const Icon(Icons.broken_image, color: AppColors.grisIcone),
+                        ),
+                      ),
                     ),
-                    child: Row(children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          _urlImage(b['image'] ?? ''),
-                          width: 80,
-                          height: 50,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Container(
-                            width: 80,
-                            height: 50,
-                            color: AppColors.grisPastille,
-                            child: const Icon(Icons.broken_image,
-                                color: AppColors.grisIcone),
-                          ),
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Ordre : ${b['ordre'] ?? 0}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('$debut → $fin',
+                              style: const TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+                          if ((b['lien'] ?? '').isNotEmpty)
+                            Text(b['lien'],
+                                style: const TextStyle(fontSize: 11, color: AppColors.grisTexte),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Ordre : ${b['ordre'] ?? 0}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13)),
-                            Text('$debut → $fin',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.grisTexte)),
-                            if ((b['lien'] ?? '').isNotEmpty)
-                              Text(b['lien'],
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.grisTexte),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: Colors.red),
-                        onPressed: () => _supprimer(b['_id']),
-                      ),
-                    ]),
-                  );
-                },
-              ),
-            );
-          },
-        ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => _supprimer(b['_id']),
+                    ),
+                  ]),
+                );
+              },
+            ),
+          ),
         Positioned(
-          bottom: 16,
-          right: 16,
+          bottom: 16, right: 16,
           child: FloatingActionButton.extended(
             heroTag: 'add_banniere',
             onPressed: _dialogAjouter,
             backgroundColor: AppColors.vertPrimaire,
             icon: const Icon(Icons.add_photo_alternate, color: Colors.white),
-            label:
-                const Text('Ajouter', style: TextStyle(color: Colors.white)),
+            label: const Text('Ajouter', style: TextStyle(color: Colors.white)),
           ),
         ),
       ],

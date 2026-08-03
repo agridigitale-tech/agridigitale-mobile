@@ -175,7 +175,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   const SizedBox(height: 12),
                   const Text('Impossible de charger l\'article'),
                   TextButton(
-                    onPressed: () => setState(() => _future = _articleService.detail(widget.articleId)),
+                    onPressed: () {
+                      final future = _articleService.detail(widget.articleId);
+                      setState(() => _future = future);
+                    },
                     child: const Text('Reessayer'),
                   ),
                 ],

@@ -12,38 +12,39 @@ class AdminStatsTab extends StatefulWidget {
 }
 
 class _AdminStatsTabState extends State<AdminStatsTab> {
-  late Future<Map<String, dynamic>> _future;
+  Map<String, dynamic> _data = {};
+  bool _chargement = true;
+  bool _erreur = false;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.statistiques();
+    _charger();
   }
 
-  Future<void> _reload() async {
-    final future = widget.service.statistiques();
-    setState(() => _future = future);
+  Future<void> _charger() async {
+    setState(() { _chargement = true; _erreur = false; });
+    try {
+      final data = await widget.service.statistiques();
+      if (mounted) setState(() { _data = data; _chargement = false; });
+    } catch (_) {
+      if (mounted) setState(() { _chargement = false; _erreur = true; });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: AppColors.vertPrimaire));
-        }
-        if (snap.hasError) return adminErreur(_reload);
+    if (_chargement) return const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+    if (_erreur) return adminErreur(_charger);
 
-        final d = snap.data!;
-        final articlesParCat = (d['articlesParCategorie'] as List?) ?? [];
-        final plusLus = (d['articlesPlusLus'] as List?) ?? [];
-        final parPays = (d['parPays'] as List?) ?? [];
-        final parContinent = (d['parContinent'] as List?) ?? [];
+    final d = _data;
+    final articlesParCat = (d['articlesParCategorie'] as List?) ?? [];
+    final plusLus = (d['articlesPlusLus'] as List?) ?? [];
+    final parPays = (d['parPays'] as List?) ?? [];
+    final parContinent = (d['parContinent'] as List?) ?? [];
 
-        return RefreshIndicator(
-          onRefresh: _reload,
+    return RefreshIndicator(
+      onRefresh: _charger,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -166,8 +167,6 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
               ),
             ],
           ),
-        );
-      },
     );
   }
 

@@ -12,17 +12,24 @@ class AdminUtilisateursTab extends StatefulWidget {
 }
 
 class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
-  late Future<List<dynamic>> _future;
+  List<dynamic> _users = [];
+  bool _chargement = true;
+  bool _erreur = false;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.service.listerUtilisateurs();
+    _charger();
   }
 
-  Future<void> _reload() async {
-    final future = widget.service.listerUtilisateurs();
-    setState(() => _future = future);
+  Future<void> _charger() async {
+    setState(() { _chargement = true; _erreur = false; });
+    try {
+      final data = await widget.service.listerUtilisateurs();
+      if (mounted) setState(() { _users = data; _chargement = false; });
+    } catch (_) {
+      if (mounted) setState(() { _chargement = false; _erreur = true; });
+    }
   }
 
   Future<void> _desactiver(String id, String nom) async {
@@ -38,8 +45,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Désactiver',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Désactiver', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -47,7 +53,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
     if (ok != true) return;
     try {
       await widget.service.desactiverUtilisateur(id);
-      await _reload();
+      await _charger();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Compte désactivé avec succès ✓'),
@@ -56,8 +62,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text('Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
             backgroundColor: Colors.red));
       }
     }
@@ -65,96 +70,70 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: AppColors.vertPrimaire));
-        }
-        if (snap.hasError) return adminErreur(_reload);
-
-        final users = snap.data!;
-        if (users.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    if (_chargement) return const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire));
+    if (_erreur) return adminErreur(_charger);
+    if (_users.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 56, color: AppColors.grisIcone),
+            SizedBox(height: 12),
+            Text('Aucun utilisateur', style: TextStyle(color: AppColors.grisTexte)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _charger,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(12),
+        itemCount: _users.length,
+        separatorBuilder: (context, i) => const Divider(height: 1),
+        itemBuilder: (context, i) {
+          final u = _users[i];
+          final actif = (u['actif'] as bool?) ?? true;
+          final role = u['role'] ?? 'utilisateur';
+          final pays = (u['pays'] as String?) ?? '';
+          final continent = (u['continent'] as String?) ?? '';
+          final geo = [pays, continent].where((s) => s.isNotEmpty).join(' • ');
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: role == 'administrateur' ? AppColors.vertPrimaire : AppColors.grisPastille,
+              child: Text(
+                ((u['nom'] as String?) ?? 'U')[0].toUpperCase(),
+                style: TextStyle(
+                    color: role == 'administrateur' ? Colors.white : AppColors.grisTexte,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            title: Text(u['nom'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.people_outline, size: 56, color: AppColors.grisIcone),
-                SizedBox(height: 12),
-                Text('Aucun utilisateur',
-                    style: TextStyle(color: AppColors.grisTexte)),
+                Text(u['email'] ?? '', style: const TextStyle(fontSize: 12)),
+                if (geo.isNotEmpty)
+                  Text(geo, style: const TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                adminBadgeStatut(actif),
+                if (actif && role != 'administrateur') ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.block, color: Colors.red, size: 20),
+                    tooltip: 'Désactiver',
+                    onPressed: () => _desactiver(u['_id'], u['nom'] ?? ''),
+                  ),
+                ],
               ],
             ),
           );
-        }
-
-        return RefreshIndicator(
-          onRefresh: _reload,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: users.length,
-            separatorBuilder: (context, i) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final u = users[i];
-              final actif = (u['actif'] as bool?) ?? true;
-              final role = u['role'] ?? 'utilisateur';
-              final pays = (u['pays'] as String?) ?? '';
-              final continent = (u['continent'] as String?) ?? '';
-              final geo = [pays, continent]
-                  .where((s) => s.isNotEmpty)
-                  .join(' • ');
-
-              return ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                leading: CircleAvatar(
-                  backgroundColor: role == 'administrateur'
-                      ? AppColors.vertPrimaire
-                      : AppColors.grisPastille,
-                  child: Text(
-                    ((u['nom'] as String?) ?? 'U')[0].toUpperCase(),
-                    style: TextStyle(
-                        color: role == 'administrateur'
-                            ? Colors.white
-                            : AppColors.grisTexte,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-                title: Text(u['nom'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(u['email'] ?? '',
-                        style: const TextStyle(fontSize: 12)),
-                    if (geo.isNotEmpty)
-                      Text(geo,
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.grisTexte)),
-                  ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    adminBadgeStatut(actif),
-                    if (actif && role != 'administrateur') ...[
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.block,
-                            color: Colors.red, size: 20),
-                        tooltip: 'Désactiver',
-                        onPressed: () =>
-                            _desactiver(u['_id'], u['nom'] ?? ''),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
