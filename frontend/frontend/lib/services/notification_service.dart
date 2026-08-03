@@ -1,11 +1,36 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/api_client.dart';
 
-// Handler background — doit être une fonction top-level
+// Handler background/terminated — fonction top-level obligatoire
+// FCM affiche automatiquement la notification système grâce au champ
+// notification: {title, body} envoyé par le backend. Ce handler est
+// appelé pour les traitements silencieux (data-only messages).
 @pragma('vm:entry-point')
 Future<void> _backgroundHandler(RemoteMessage message) async {
-  debugPrint('[FCM] Message background: ${message.notification?.title}');
+  // Pas besoin de Firebase.initializeApp() ici — flutter_fire le gère
+  debugPrint('[FCM] Background: ${message.notification?.title}');
+}
+
+// Canal Android — doit correspondre à default_notification_channel_id dans AndroidManifest
+const _kChannelId = 'agridigitale_channel';
+const _kChannelName = 'AgriDigitale — Actualités';
+const _kChannelDesc = 'Notifications pour les nouveaux articles AgriDigitale';
+
+// Crée le canal Android via MethodChannel (nécessaire Android 8+)
+Future<void> _creerCanalAndroid() async {
+  try {
+    const channel = MethodChannel('com.example.frontend/notifications');
+    await channel.invokeMethod('createChannel', {
+      'id': _kChannelId,
+      'name': _kChannelName,
+      'description': _kChannelDesc,
+      'importance': 4, // IMPORTANCE_HIGH
+    });
+  } catch (_) {
+    // Le canal sera créé par FCM automatiquement si le MethodChannel n'existe pas
+  }
 }
 
 // Service singleton qui gère les notifications push Firebase (FCM).
@@ -23,39 +48,43 @@ class NotificationService {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
   Future<void> initialiser() async {
-    // 1. Enregistrer le handler background
+    // 1. Enregistrer le handler background/terminated
     FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
 
-    // 2. Demander la permission (Android 13+ / iOS)
+    // 2. Créer le canal Android (Android 8+ / Oreo)
+    await _creerCanalAndroid();
+
+    // 3. Demander la permission (Android 13+ / iOS)
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
+      provisional: false, // false = demande explicite à l'utilisateur
     );
     debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
 
-    // 3. Récupérer et envoyer le token FCM au backend
+    // 4. Forcer la livraison des notifications en foreground sur iOS
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // 5. Récupérer et envoyer le token FCM au backend
     await _envoyerToken();
 
-    // 4. Écouter les refresh de token
+    // 6. Écouter les refresh de token
     _messaging.onTokenRefresh.listen(_sauvegarderToken);
 
-    // 5. Notification reçue en foreground → afficher une bannière + rafraîchir badge
-    FirebaseMessaging.onMessage.listen((message) {
-      _afficherNotificationForeground(message);
-      // Le badge sera rafraîchit via FirebaseMessaging.onMessage dans HomeScreen
-    });
+    // 7. Notification reçue en foreground → afficher une bannière
+    FirebaseMessaging.onMessage.listen(_afficherNotificationForeground);
 
-    // 6. Notification cliquée depuis background
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('[FCM] Notification ouverte: ${message.notification?.title}');
-    });
+    // 8. Notification cliquée depuis background → naviguer vers l'article
+    FirebaseMessaging.onMessageOpenedApp.listen(_gererClic);
 
-    // 7. Notification qui a ouvert l'app depuis terminated
+    // 9. Notification qui a ouvert l'app depuis état terminé
     final initial = await _messaging.getInitialMessage();
-    if (initial != null) {
-      debugPrint('[FCM] App ouverte via notification: ${initial.notification?.title}');
-    }
+    if (initial != null) _gererClic(initial);
   }
 
   Future<void> _envoyerToken() async {
@@ -75,6 +104,16 @@ class NotificationService {
       debugPrint('[FCM] Token enregistré');
     } catch (e) {
       debugPrint('[FCM] Erreur sauvegarde token: $e');
+    }
+  }
+
+  // Appelé quand l'utilisateur clique sur une notification (background ou terminé)
+  void _gererClic(RemoteMessage message) {
+    debugPrint('[FCM] Notification cliquée: ${message.notification?.title}');
+    final articleId = message.data['articleId'];
+    if (articleId != null && articleId.isNotEmpty) {
+      // Naviguer vers l'article concerné
+      navigatorKey.currentState?.pushNamed('/article', arguments: articleId);
     }
   }
 

@@ -12,12 +12,18 @@ const genererToken = (id, role) =>
 const _transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: true, // SSL sur port 465
+  secure: parseInt(process.env.SMTP_PORT || '465') === 465, // SSL sur 465, STARTTLS sur 587
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: { rejectUnauthorized: false },
 });
+
+// Vérifier la connexion SMTP au démarrage
+_transporter.verify()
+  .then(() => console.log('[SMTP] Connexion Gmail OK'))
+  .catch(err => console.error('[SMTP] Erreur connexion:', err.message));
 
 async function envoyerEmailReset(destinataire, token) {
   const lien = `agridigitale://reset-password?token=${token}`;

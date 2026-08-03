@@ -171,7 +171,29 @@ const recupererFlux = async (tentative = 1) => {
       });
 
       nouveaux++;
-      await notifierNouvelArticle(article);
+
+      // Push FCM + sauvegarde en base en parallèle
+      const Utilisateur = require('../models/Utilisateur');
+      const Notification = require('../models/Notification');
+
+      await Promise.all([
+        // 1. Notification push FCM
+        notifierNouvelArticle(article),
+
+        // 2. Sauvegarde en base pour tous les utilisateurs
+        Utilisateur.find({}).select('_id').then(utilisateurs => {
+          if (utilisateurs.length === 0) return;
+          return Notification.insertMany(
+            utilisateurs.map(u => ({
+              titre: 'Nouvel article',
+              message: article.titre,
+              destinataire: u._id,
+              article: article._id,
+              lu: false,
+            }))
+          );
+        }),
+      ]).catch(err => console.warn('[RSS] Erreur notification:', err.message));
     }
     console.log(`[RSS] Synchronisation terminée : ${nouveaux} nouveaux articles sur ${feed.items.length}`);
   } catch (err) {

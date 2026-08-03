@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/api_client.dart';
 import '../../core/design/app_colors.dart';
 
@@ -33,6 +34,16 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
       } catch (_) {}
     } catch (_) {
       setState(() => _chargement = false);
+    }
+  }
+
+  String _formaterDate(String? iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      return DateFormat('dd MMM yyyy \u00b7 HH:mm', 'fr_FR').format(d);
+    } catch (_) {
+      return '';
     }
   }
 
@@ -130,6 +141,14 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
                                       fontSize: 13,
                                       color: Colors.grey.shade700,
                                       height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formaterDate(n['dateEnvoi'] ?? n['createdAt']),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade500,
                                     ),
                                   ),
                                 ],

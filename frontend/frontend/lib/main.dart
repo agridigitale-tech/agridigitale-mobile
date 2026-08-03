@@ -7,6 +7,7 @@ import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:app_links/app_links.dart';
 import 'providers/theme_provider.dart';
 import 'providers/language_provider.dart';
+import 'screens/home/article_detail_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
 import 'screens/main_navigation_screen.dart';
@@ -84,6 +85,11 @@ class _MonAppState extends State<MonApp> {
           routes: {
             '/login': (_) => const LoginScreen(),
             '/main': (_) => const MainNavigationScreen(),
+            '/article': (ctx) {
+              final id = ModalRoute.of(ctx)!.settings.arguments as String?;
+              if (id == null || id.isEmpty) return const MainNavigationScreen();
+              return ArticleDetailScreen(articleId: id);
+            },
           },
           localizationsDelegates: const [
             AppLocalizations.delegate,

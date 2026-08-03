@@ -79,30 +79,47 @@ class AuthService {
 
   Future<void> motDePasseOublie(String email) async {
     try {
-      await _dio.post(AppConstants.apiAuthForgotPassword, data: {'email': email});
+      await _dio.post(
+        AppConstants.apiAuthForgotPassword,
+        data: {'email': email},
+        options: Options(
+          sendTimeout: const Duration(seconds: 90),
+          receiveTimeout: const Duration(seconds: 90),
+        ),
+      );
     } on DioException catch (e) {
-      throw Exception(e.response?.data['message'] ?? 'Erreur lors de la demande');
-    }
-  }
-
-  // Retourne la réponse complète (inclut token si SMTP non configuré)
-  Future<Map<String, dynamic>> motDePasseOublieAvecReponse(String email) async {
-    try {
-      final rep = await _dio.post(AppConstants.apiAuthForgotPassword, data: {'email': email});
-      return Map<String, dynamic>.from(rep.data ?? {});
-    } on DioException catch (e) {
-      throw Exception(e.response?.data['message'] ?? 'Erreur lors de la demande');
+      if (e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Le serveur met du temps à démarrer. Réessayez.');
+      }
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Erreur serveur')
+          : e.message ?? 'Erreur réseau';
+      throw Exception(msg);
     }
   }
 
   Future<void> reinitialiserMotDePasse(String token, String nouveauMotDePasse) async {
     try {
-      await _dio.post(AppConstants.apiAuthResetPassword, data: {
-        'token': token,
-        'nouveauMotDePasse': nouveauMotDePasse,
-      });
+      await _dio.post(
+        AppConstants.apiAuthResetPassword,
+        data: {'token': token, 'nouveauMotDePasse': nouveauMotDePasse},
+        options: Options(
+          sendTimeout: const Duration(seconds: 90),
+          receiveTimeout: const Duration(seconds: 90),
+        ),
+      );
     } on DioException catch (e) {
-      throw Exception(e.response?.data['message'] ?? 'Token invalide ou expiré');
+      if (e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Le serveur met du temps à démarrer. Réessayez dans quelques secondes.');
+      }
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Token invalide ou expiré')
+          : 'Token invalide ou expiré';
+      throw Exception(msg);
     }
   }
 }

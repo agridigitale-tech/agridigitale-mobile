@@ -5,7 +5,6 @@ const Utilisateur = require('../models/Utilisateur');
 
 const notifierNouvelArticle = async (article) => {
   try {
-    // Ne notifie que les utilisateurs ayant choisi cette rubrique (ou qui n'ont pas de préférence = tous)
     const utilisateurs = await Utilisateur.find({
       tokenFCM: { $ne: null },
       $or: [
@@ -20,14 +19,34 @@ const notifierNouvelArticle = async (article) => {
     await admin.messaging().sendEachForMulticast({
       tokens,
       notification: {
-        title: 'AgriDigitale',
+        title: '\uD83C\uDF31 AgriDigitale — Nouvel article',
         body: article.titre,
       },
-      data: { articleId: article._id.toString(), type: 'nouvel_article' },
+      data: {
+        articleId: article._id.toString(),
+        type: 'nouvel_article',
+        categorie: article.categorie || '',
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'agridigitale_channel',
+          sound: 'default',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
     });
-    console.log(` Notification envoyée à ${tokens.length} utilisateur(s)`);
+    console.log(`[FCM] Notification envoyée à ${tokens.length} utilisateur(s)`);
   } catch (err) {
-    console.error(' Erreur notification :', err.message);
+    console.error('[FCM] Erreur notification :', err.message);
   }
 };
 
@@ -35,6 +54,17 @@ const envoyerNotificationManuelle = async (titre, message, tokens) => {
   await admin.messaging().sendEachForMulticast({
     tokens,
     notification: { title: titre, body: message },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'agridigitale_channel',
+        sound: 'default',
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+      },
+    },
+    apns: {
+      payload: { aps: { sound: 'default', badge: 1 } },
+    },
   });
 };
 

@@ -122,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('AGRIDIGITALE', style: Theme.of(context).textTheme.titleLarge),
         actions: [
           // Icône favoris → navigue vers l'onglet favoris

@@ -130,9 +130,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   String _formaterDate(DateTime date) {
     try {
-      return DateFormat('dd MMM yyyy', 'fr_FR').format(date);
+      return DateFormat('dd MMM yyyy · HH:mm', 'fr_FR').format(date);
     } catch (_) {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${date.day}/${date.month}/${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
 

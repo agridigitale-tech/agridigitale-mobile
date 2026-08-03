@@ -21,7 +21,8 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.service.listerUtilisateurs());
+    final future = widget.service.listerUtilisateurs();
+    setState(() => _future = future);
   }
 
   Future<void> _desactiver(String id, String nom) async {
