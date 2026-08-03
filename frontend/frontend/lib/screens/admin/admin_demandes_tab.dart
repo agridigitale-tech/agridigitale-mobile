@@ -21,7 +21,8 @@ class _AdminDemandesTabState extends State<AdminDemandesTab> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.service.listerDemandes());
+    final future = widget.service.listerDemandes();
+    setState(() => _future = future);
   }
 
   Future<void> _traiter(String id) async {

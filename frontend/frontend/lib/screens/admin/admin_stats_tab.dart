@@ -21,7 +21,8 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.service.statistiques());
+    final future = widget.service.statistiques();
+    setState(() => _future = future);
   }
 
   @override

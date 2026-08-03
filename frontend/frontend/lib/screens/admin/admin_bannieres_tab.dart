@@ -25,7 +25,8 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = widget.service.listerBannieres());
+    final future = widget.service.listerBannieres();
+    setState(() => _future = future);
   }
 
   String _urlImage(String img) {
