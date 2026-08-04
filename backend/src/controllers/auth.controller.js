@@ -24,7 +24,7 @@ const _transporter = nodemailer.createTransport({
   },
 });
 
-// Vérifier la connexion SMTP au démarrage
+console.log('[SMTP] Config:', process.env.SMTP_HOST, process.env.SMTP_PORT, process.env.SMTP_USER);
 _transporter.verify()
   .then(() => console.log('[SMTP] Connexion OK -', process.env.SMTP_HOST))
   .catch(err => console.error('[SMTP] Erreur connexion:', err.message));

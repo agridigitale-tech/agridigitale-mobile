@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit');
 const errorHandler = require('./middlewares/errorHandler.middleware');
 
 const app = express();
-app.set('trust proxy', true);  // <-- Ajoutez cette ligne
+app.set('trust proxy', 1);  // 1 = un seul proxy de confiance (Railway)
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: function (origin, callback) {
