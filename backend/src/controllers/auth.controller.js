@@ -126,7 +126,7 @@ exports.envoyerOTP = async (req, res, next) => {
     });
 
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: 'AgriDigitale <onboarding@resend.dev>',
         to: email,
         subject: '🌱 AgriDigitale — Code de réinitialisation',
@@ -145,9 +145,9 @@ exports.envoyerOTP = async (req, res, next) => {
           </div>
         `,
       });
-      console.log(`[OTP] Code envoyé à ${email}`);
+      console.log(`[OTP] Resend réponse:`, JSON.stringify(result));
     } catch (err) {
-      console.error('[OTP] Échec email:', err.message);
+      console.error('[OTP] Échec email:', err.message, JSON.stringify(err));
     }
 
   } catch (err) {
