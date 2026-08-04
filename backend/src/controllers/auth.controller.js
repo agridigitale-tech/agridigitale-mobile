@@ -165,14 +165,17 @@ exports.verifierOTPetReset = async (req, res, next) => {
       return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères' });
 
     const otpHash = crypto.createHash('sha256').update(String(otp)).digest('hex');
-    const utilisateur = await Utilisateur.findOne({
-      email,
-      resetToken: otpHash,
-      resetTokenExpiry: { $gt: new Date() },
-    }).select('+resetToken +resetTokenExpiry');
 
-    if (!utilisateur)
-      return res.status(400).json({ message: 'Code invalide ou expiré' });
+    // Récupérer l'utilisateur avec les champs select:false explicitement
+    const utilisateur = await Utilisateur.findOne({ email })
+      .select('+resetToken +resetTokenExpiry');
+
+    if (
+      !utilisateur ||
+      utilisateur.resetToken !== otpHash ||
+      !utilisateur.resetTokenExpiry ||
+      utilisateur.resetTokenExpiry < new Date()
+    ) return res.status(400).json({ message: 'Code invalide ou expiré' });
 
     const hash = await bcrypt.hash(nouveauMotDePasse, 10);
     await Utilisateur.findByIdAndUpdate(utilisateur._id, {
