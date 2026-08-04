@@ -13,20 +13,20 @@ const genererToken = (id, role) =>
 // Utilise crypto.randomBytes — pas de JWT pour le reset
 
 // ── Transporteur SMTP Gmail ──────────────────────────────────────────────────
+const _smtpPort = parseInt(process.env.SMTP_PORT || '587');
 const _transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: parseInt(process.env.SMTP_PORT || '465') === 465, // SSL sur 465, STARTTLS sur 587
+  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+  port: _smtpPort,
+  secure: _smtpPort === 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  tls: { rejectUnauthorized: false },
 });
 
 // Vérifier la connexion SMTP au démarrage
 _transporter.verify()
-  .then(() => console.log('[SMTP] Connexion Gmail OK'))
+  .then(() => console.log('[SMTP] Connexion OK -', process.env.SMTP_HOST))
   .catch(err => console.error('[SMTP] Erreur connexion:', err.message));
 
 async function envoyerEmailReset(destinataire, token) {
