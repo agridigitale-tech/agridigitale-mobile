@@ -1,13 +1,24 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const Utilisateur = require('../models/Utilisateur');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
-const _resend = new Resend(process.env.RESEND_API_KEY);
+// Gmail via service nodemailer — fonctionne depuis n'importe quel serveur
+const _transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+_transporter.verify()
+  .then(() => console.log('[SMTP] Gmail OK -', process.env.SMTP_USER))
+  .catch(err => console.error('[SMTP] Erreur:', err.message));
 
 // ── 1. INSCRIPTION ───────────────────────────────────────────────────────────
 exports.inscrire = async (req, res, next) => {
@@ -124,8 +135,8 @@ exports.envoyerOTP = async (req, res, next) => {
       resetTokenExpiry: expiry,
     });
 
-    _resend.emails.send({
-      from: 'AgriDigitale <onboarding@resend.dev>',
+    _transporter.sendMail({
+      from: `AgriDigitale <${process.env.SMTP_USER}>`,
       to: email,
       subject: '🌱 AgriDigitale — Code de réinitialisation',
       html: `
@@ -143,7 +154,7 @@ exports.envoyerOTP = async (req, res, next) => {
         </div>
       `,
     })
-    .then(r => console.log(`[OTP] Code envoyé à ${email} — id:`, r?.data?.id))
+    .then(() => console.log(`[OTP] Code envoyé à ${email}`))
     .catch(err => console.error('[OTP] Échec email:', err.message));
 
   } catch (err) {
@@ -184,17 +195,7 @@ exports.verifierOTPetReset = async (req, res, next) => {
   }
 };
 
-// ── 8. MOT DE PASSE OUBLIÉ (ancien système — conservé) ───────────────────────
-exports.motDePasseOublie = async (req, res, next) => {
-  res.status(200).json({ success: true });
-};
-
-// ── 9. RÉINITIALISATION (ancien système — conservé) ──────────────────────────
-exports.reinitialiserMotDePasse = async (req, res, next) => {
-  res.status(400).json({ message: 'Utilisez le nouveau système OTP' });
-};
-
-// ── 10. REDIRECT RESET (ancien système — conservé) ───────────────────────────
-exports.redirectReset = (req, res) => {
-  res.status(404).send('Non disponible');
-};
+// ── 8. ANCIEN SYSTÈME — conservé pour compatibilité ──────────────────────────
+exports.motDePasseOublie = async (req, res) => res.status(200).json({ success: true });
+exports.reinitialiserMotDePasse = async (req, res) => res.status(400).json({ message: 'Utilisez le nouveau système OTP' });
+exports.redirectReset = (req, res) => res.status(404).send('Non disponible');
