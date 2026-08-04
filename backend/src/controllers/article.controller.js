@@ -56,9 +56,11 @@ exports.rechercherArticles = async (req, res, next) => {
     const { motCle, categorie, dateDebut, dateFin } = req.query;
     const filtre = {};
     if (motCle) {
+      // Échapper les caractères spéciaux regex pour éviter l'injection
+      const motCleEchappe = motCle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filtre.$or = [
-        { titre: { $regex: motCle, $options: 'i' } },
-        { contenu: { $regex: motCle, $options: 'i' } },
+        { titre: { $regex: motCleEchappe, $options: 'i' } },
+        { contenu: { $regex: motCleEchappe, $options: 'i' } },
       ];
     }
     if (categorie) filtre.categorie = categorie;

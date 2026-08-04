@@ -20,6 +20,8 @@ class AppConstants {
   static const String apiAuthLogin = '/auth/connexion';
   static const String apiAuthForgotPassword = '/auth/forgot-password';
   static const String apiAuthResetPassword = '/auth/reset-password';
+  static const String apiAuthSendOtp = '/auth/send-otp';
+  static const String apiAuthVerifyOtp = '/auth/verify-otp';
 
   // Configuration de l'application
   static const String appName = 'AgriDigitale';

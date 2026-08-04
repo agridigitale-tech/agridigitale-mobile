@@ -77,6 +77,36 @@ class AuthService {
     return {'nom': nom, 'email': email, 'role': role};
   }
 
+  Future<void> envoyerOTP(String email) async {
+    try {
+      await _dio.post(
+        AppConstants.apiAuthSendOtp,
+        data: {'email': email},
+        options: Options(sendTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)),
+      );
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Erreur serveur')
+          : 'Erreur réseau';
+      throw Exception(msg);
+    }
+  }
+
+  Future<void> verifierOTPetReset(String email, String otp, String nouveauMotDePasse) async {
+    try {
+      await _dio.post(
+        AppConstants.apiAuthVerifyOtp,
+        data: {'email': email, 'otp': otp, 'nouveauMotDePasse': nouveauMotDePasse},
+        options: Options(sendTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)),
+      );
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Code invalide ou expiré')
+          : 'Erreur réseau';
+      throw Exception(msg);
+    }
+  }
+
   Future<void> motDePasseOublie(String email) async {
     try {
       await _dio.post(

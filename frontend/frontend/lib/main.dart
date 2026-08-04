@@ -56,10 +56,12 @@ class _MonAppState extends State<MonApp> {
     if (uri.scheme == 'agridigitale' && uri.host == 'reset-password') {
       final token = uri.queryParameters['token'] ?? '';
       if (token.isEmpty) return;
-      _navigatorKey.currentState?.push(
+      // Uri.queryParameters décode automatiquement l'URL encoding
+      _navigatorKey.currentState?.pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => ResetPasswordScreen(token: token),
         ),
+        (route) => route.isFirst,
       );
     }
   }

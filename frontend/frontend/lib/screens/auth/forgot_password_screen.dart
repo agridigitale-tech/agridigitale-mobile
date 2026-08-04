@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../core/design/app_colors.dart';
+import 'otp_verify_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -21,21 +22,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  Future<void> _envoyerDemande() async {
+  Future<void> _envoyerOTP() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _chargement = true; _erreur = null; });
     try {
-      await _service.motDePasseOublie(_emailCtrl.text.trim());
+      await _service.envoyerOTP(_emailCtrl.text.trim());
       if (!mounted) return;
-      // Afficher confirmation — le lien sera envoyé par email
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Un lien de réinitialisation a été envoyé à votre adresse e-mail.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerifyScreen(email: _emailCtrl.text.trim()),
         ),
       );
-      Navigator.of(context).pop();
     } catch (e) {
       setState(() => _erreur = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -69,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Entrez votre adresse e-mail. Vous recevrez un lien pour réinitialiser votre mot de passe directement dans l\'application.',
+                  'Entrez votre adresse e-mail. Si elle existe dans notre base, vous recevrez un code à 6 chiffres valable 10 minutes.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
@@ -102,29 +100,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
                 const SizedBox(height: 24),
                 SizedBox(
-                  height: 56,
+                  height: 52,
                   child: _chargement
-                      ? Column(
-                          children: [
-                            const LinearProgressIndicator(color: AppColors.vertPrimaire),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Envoi en cours…',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ],
-                        )
-                      : ElevatedButton(
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire))
+                      : ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.vertPrimaire,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          onPressed: _envoyerDemande,
-                          child: const Text('Envoyer le code', style: TextStyle(fontSize: 15)),
+                          icon: const Icon(Icons.send),
+                          label: const Text('Envoyer le code', style: TextStyle(fontSize: 15)),
+                          onPressed: _envoyerOTP,
                         ),
                 ),
               ],

@@ -57,6 +57,8 @@ const utilisateurSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  resetToken: { type: String, default: null, select: false },
+  resetTokenExpiry: { type: Date, default: null, select: false },
 }, { timestamps: true });
 
 // Hash du mot de passe avant sauvegarde
