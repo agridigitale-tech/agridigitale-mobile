@@ -1,24 +1,14 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const Utilisateur = require('../models/Utilisateur');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
-// Gmail via service nodemailer — fonctionne depuis n'importe quel serveur
-const _transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-_transporter.verify()
-  .then(() => console.log('[SMTP] Gmail OK -', process.env.SMTP_USER))
-  .catch(err => console.error('[SMTP] Erreur:', err.message));
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log('[Resend] Client initialisé');
 
 // ── 1. INSCRIPTION ───────────────────────────────────────────────────────────
 exports.inscrire = async (req, res, next) => {
@@ -135,27 +125,30 @@ exports.envoyerOTP = async (req, res, next) => {
       resetTokenExpiry: expiry,
     });
 
-    _transporter.sendMail({
-      from: `AgriDigitale <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: '🌱 AgriDigitale — Code de réinitialisation',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
-                    padding:32px;border:1px solid #e0e0e0;border-radius:12px">
-          <h2 style="color:#2e7d32;margin-top:0">🌱 AgriDigitale</h2>
-          <p style="font-size:15px">Voici votre code de réinitialisation de mot de passe :</p>
-          <div style="text-align:center;margin:28px 0">
-            <span style="font-size:42px;font-weight:bold;letter-spacing:10px;
-                         color:#2e7d32;background:#f1f8e9;padding:16px 28px;
-                         border-radius:10px;display:inline-block">${otp}</span>
+    try {
+      await resend.emails.send({
+        from: 'AgriDigitale <onboarding@resend.dev>',
+        to: email,
+        subject: '🌱 AgriDigitale — Code de réinitialisation',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
+                      padding:32px;border:1px solid #e0e0e0;border-radius:12px">
+            <h2 style="color:#2e7d32;margin-top:0">🌱 AgriDigitale</h2>
+            <p style="font-size:15px">Voici votre code de réinitialisation de mot de passe :</p>
+            <div style="text-align:center;margin:28px 0">
+              <span style="font-size:42px;font-weight:bold;letter-spacing:10px;
+                           color:#2e7d32;background:#f1f8e9;padding:16px 28px;
+                           border-radius:10px;display:inline-block">${otp}</span>
+            </div>
+            <p style="color:#555;font-size:14px">Ce code est valable <strong>10 minutes</strong>.</p>
+            <p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
           </div>
-          <p style="color:#555;font-size:14px">Ce code est valable <strong>10 minutes</strong>.</p>
-          <p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
-        </div>
-      `,
-    })
-    .then(() => console.log(`[OTP] Code envoyé à ${email}`))
-    .catch(err => console.error('[OTP] Échec email:', err.message));
+        `,
+      });
+      console.log(`[OTP] Code envoyé à ${email}`);
+    } catch (err) {
+      console.error('[OTP] Échec email:', err.message);
+    }
 
   } catch (err) {
     console.error('Send OTP error:', err);
