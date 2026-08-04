@@ -1,14 +1,25 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const Utilisateur = require('../models/Utilisateur');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-console.log('[Resend] Client initialisé');
+const _transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+_transporter.verify()
+  .then(() => console.log('[SMTP] Gmail OK -', process.env.SMTP_USER))
+  .catch(err => console.error('[SMTP] Erreur:', err.message));
 
 // ── 1. INSCRIPTION ───────────────────────────────────────────────────────────
 exports.inscrire = async (req, res, next) => {
@@ -126,8 +137,8 @@ exports.envoyerOTP = async (req, res, next) => {
     });
 
     try {
-      const result = await resend.emails.send({
-        from: 'AgriDigitale <onboarding@resend.dev>',
+      await _transporter.sendMail({
+        from: `AgriDigitale <${process.env.SMTP_USER}>`,
         to: email,
         subject: '🌱 AgriDigitale — Code de réinitialisation',
         html: `
@@ -145,9 +156,9 @@ exports.envoyerOTP = async (req, res, next) => {
           </div>
         `,
       });
-      console.log(`[OTP] Resend réponse:`, JSON.stringify(result));
+      console.log(`[OTP] Code envoyé à ${email}`);
     } catch (err) {
-      console.error('[OTP] Échec email:', err.message, JSON.stringify(err));
+      console.error('[OTP] Échec email:', err.message);
     }
 
   } catch (err) {
