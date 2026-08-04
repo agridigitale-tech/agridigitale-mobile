@@ -2,25 +2,35 @@ const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const Utilisateur = require('../models/Utilisateur');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
-const _transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  family: 4,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const _oauth2Client = new google.auth.OAuth2(
+  process.env.GMAIL_CLIENT_ID,
+  process.env.GMAIL_CLIENT_SECRET,
+  'https://developers.google.com/oauthplayground'
+);
+_oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
 
-_transporter.verify()
-  .then(() => console.log('[SMTP] Gmail OK -', process.env.SMTP_USER))
-  .catch(err => console.error('[SMTP] Erreur:', err.message));
+const _creerTransporter = async () => {
+  const { token: accessToken } = await _oauth2Client.getAccessToken();
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      type: 'OAuth2',
+      user: process.env.SMTP_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accessToken,
+    },
+  });
+};
+
+console.log('[Gmail OAuth2] Configuré pour', process.env.SMTP_USER);
 
 // ── 1. INSCRIPTION ───────────────────────────────────────────────────────────
 exports.inscrire = async (req, res, next) => {
@@ -138,7 +148,8 @@ exports.envoyerOTP = async (req, res, next) => {
     });
 
     try {
-      await _transporter.sendMail({
+      const transporter = await _creerTransporter();
+      await transporter.sendMail({
         from: `AgriDigitale <${process.env.SMTP_USER}>`,
         to: email,
         subject: '🌱 AgriDigitale — Code de réinitialisation',
