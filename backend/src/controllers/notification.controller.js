@@ -60,8 +60,14 @@ exports.listerNotifications = async (req, res, next) => {
   try {
     const notifs = await Notification.find({ destinataire: req.utilisateurId })
       .sort({ createdAt: -1 })
-      .limit(50);
-    res.json(notifs);
+      .limit(50)
+      .lean();
+    // Ajouter articleId (string) pour le Flutter
+    const result = notifs.map(n => ({
+      ...n,
+      articleId: n.article ? n.article.toString() : null,
+    }));
+    res.json(result);
   } catch (err) {
     next(err);
   }

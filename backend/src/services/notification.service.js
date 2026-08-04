@@ -26,20 +26,29 @@ const notifierNouvelArticle = async (article) => {
         articleId: article._id.toString(),
         type: 'nouvel_article',
         categorie: article.categorie || '',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
       },
       android: {
         priority: 'high',
+        ttl: 86400000,
         notification: {
           channelId: 'agridigitale_channel',
           sound: 'default',
           clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          defaultVibrateTimings: true,
+          notificationPriority: 'PRIORITY_HIGH',
+          visibility: 'PUBLIC',
         },
       },
       apns: {
+        headers: {
+          'apns-priority': '10',
+        },
         payload: {
           aps: {
             sound: 'default',
             badge: 1,
+            contentAvailable: true,
           },
         },
       },

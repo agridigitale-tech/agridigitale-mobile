@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/api_client.dart';
 import '../../core/design/app_colors.dart';
+import '../home/article_detail_screen.dart';
 
 class NotificationsListScreen extends StatefulWidget {
   const NotificationsListScreen({super.key});
@@ -77,7 +78,17 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
                     itemBuilder: (context, i) {
                       final n = _notifs[i];
                       final lu = n['lu'] == true;
-                      return Container(
+                      final articleId = n['articleId'] as String?;
+                      return GestureDetector(
+                        onTap: articleId != null && articleId.isNotEmpty
+                            ? () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ArticleDetailScreen(articleId: articleId),
+                                  ),
+                                )
+                            : null,
+                        child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: lu ? Colors.white : AppColors.vertPrimaire.withValues(alpha: 0.06),
@@ -155,6 +166,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
                               ),
                             ),
                           ],
+                        ),
                         ),
                       );
                     },
