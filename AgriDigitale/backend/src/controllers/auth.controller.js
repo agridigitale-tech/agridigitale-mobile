@@ -3,6 +3,7 @@ const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
 const { google } = require('googleapis');
 const Utilisateur = require('../models/Utilisateur');
+const buildOtpHtml = require('../services/emailTemplate');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
@@ -187,21 +188,7 @@ exports.envoyerOTP = async (req, res, next) => {
       await _envoyerEmailGmail(
         email,
         'AgriDigitale - Code de reinitialisation',
-        `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
-                    padding:32px;border:1px solid #e0e0e0;border-radius:12px">
-          <div style="text-align:center;margin-bottom:24px">
-            <img src="https://agridigitale.net/wp-content/uploads/2021/03/logo-agridigitale.png"
-                 alt="AgriDigitale" width="180" style="max-width:180px;height:auto;display:block;margin:0 auto" />
-          </div>
-          <p style="font-size:15px">Voici votre code de reinitialisation de mot de passe :</p>
-          <div style="text-align:center;margin:28px 0">
-            <span style="font-size:42px;font-weight:bold;letter-spacing:10px;
-                         color:#2e7d32;background:#f1f8e9;padding:16px 28px;
-                         border-radius:10px;display:inline-block">${otp}</span>
-          </div>
-          <p style="color:#555;font-size:14px">Ce code est valable <strong>10 minutes</strong>.</p>
-          <p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
-        </div>`
+        buildOtpHtml(otp),
       );
       console.log(`[OTP] Code envoye a ${email} (tentative ${tentatives + 1}/3)`);
     } catch (err) {
