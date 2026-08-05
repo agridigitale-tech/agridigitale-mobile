@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const Utilisateur = require('../models/Utilisateur');
 
@@ -15,22 +14,22 @@ const _oauth2Client = new google.auth.OAuth2(
 );
 _oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
 
-const _creerTransporter = async () => {
-  const { token: accessToken } = await _oauth2Client.getAccessToken();
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      type: 'OAuth2',
-      user: process.env.SMTP_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken,
-    },
-  });
+const _envoyerEmailGmail = async (to, subject, html) => {
+  const gmail = google.gmail({ version: 'v1', auth: _oauth2Client });
+  const message = [
+    `To: ${to}`,
+    `From: AgriDigitale <${process.env.SMTP_USER}>`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    html,
+  ].join('\r\n');
+  const encoded = Buffer.from(message).toString('base64url');
+  await gmail.users.messages.send({ userId: 'me', requestBody: { raw: encoded } });
 };
 
-console.log('[Gmail OAuth2] Configuré pour', process.env.SMTP_USER);
+console.log('[Gmail API] Configuré pour', process.env.SMTP_USER);
 
 // ── 1. INSCRIPTION ───────────────────────────────────────────────────────────
 exports.inscrire = async (req, res, next) => {
@@ -148,26 +147,22 @@ exports.envoyerOTP = async (req, res, next) => {
     });
 
     try {
-      const transporter = await _creerTransporter();
-      await transporter.sendMail({
-        from: `AgriDigitale <${process.env.SMTP_USER}>`,
-        to: email,
-        subject: '🌱 AgriDigitale — Code de réinitialisation',
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
-                      padding:32px;border:1px solid #e0e0e0;border-radius:12px">
-            <h2 style="color:#2e7d32;margin-top:0">🌱 AgriDigitale</h2>
-            <p style="font-size:15px">Voici votre code de réinitialisation de mot de passe :</p>
-            <div style="text-align:center;margin:28px 0">
-              <span style="font-size:42px;font-weight:bold;letter-spacing:10px;
-                           color:#2e7d32;background:#f1f8e9;padding:16px 28px;
-                           border-radius:10px;display:inline-block">${otp}</span>
-            </div>
-            <p style="color:#555;font-size:14px">Ce code est valable <strong>10 minutes</strong>.</p>
-            <p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+      await _envoyerEmailGmail(
+        email,
+        '🌱 AgriDigitale — Code de réinitialisation',
+        `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
+                    padding:32px;border:1px solid #e0e0e0;border-radius:12px">
+          <h2 style="color:#2e7d32;margin-top:0">🌱 AgriDigitale</h2>
+          <p style="font-size:15px">Voici votre code de réinitialisation de mot de passe :</p>
+          <div style="text-align:center;margin:28px 0">
+            <span style="font-size:42px;font-weight:bold;letter-spacing:10px;
+                         color:#2e7d32;background:#f1f8e9;padding:16px 28px;
+                         border-radius:10px;display:inline-block">${otp}</span>
           </div>
-        `,
-      });
+          <p style="color:#555;font-size:14px">Ce code est valable <strong>10 minutes</strong>.</p>
+          <p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+        </div>`
+      );
       console.log(`[OTP] Code envoyé à ${email}`);
     } catch (err) {
       console.error('[OTP] Échec email:', err.message);
