@@ -19,16 +19,18 @@ const _encoderSujet = (s) => `=?UTF-8?B?${Buffer.from(s).toString('base64')}?=`;
 
 const _envoyerEmailGmail = async (to, subject, html) => {
   const gmail = google.gmail({ version: 'v1', auth: _oauth2Client });
+  const htmlBase64 = Buffer.from(html, 'utf-8').toString('base64');
   const message = [
     `To: ${to}`,
     `From: AgriDigitale <${process.env.SMTP_USER}>`,
     `Subject: ${_encoderSujet(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
     '',
-    html,
+    htmlBase64,
   ].join('\r\n');
-  const encoded = Buffer.from(message).toString('base64url');
+  const encoded = Buffer.from(message, 'utf-8').toString('base64url');
   await gmail.users.messages.send({ userId: 'me', requestBody: { raw: encoded } });
 };
 
@@ -189,7 +191,7 @@ exports.envoyerOTP = async (req, res, next) => {
                     padding:32px;border:1px solid #e0e0e0;border-radius:12px">
           <div style="text-align:center;margin-bottom:24px">
             <img src="https://agridigitale.net/wp-content/uploads/2021/03/logo-agridigitale.png"
-                 alt="AgriDigitale" style="height:60px;object-fit:contain" />
+                 alt="AgriDigitale" width="180" style="max-width:180px;height:auto;display:block;margin:0 auto" />
           </div>
           <p style="font-size:15px">Voici votre code de reinitialisation de mot de passe :</p>
           <div style="text-align:center;margin:28px 0">
