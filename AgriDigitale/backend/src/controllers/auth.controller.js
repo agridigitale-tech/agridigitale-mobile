@@ -172,7 +172,7 @@ exports.envoyerLienReset = async (req, res, next) => {
       resetTokenExpiry: expiry,
     });
 
-    const lien = `agridigitale://reset-password?token=${encodeURIComponent(token)}`;
+    const lien = `https://agridigitale-production.up.railway.app/api/auth/reset-password?token=${encodeURIComponent(token)}`;
 
     const html = buildResetHtml(lien);
 
