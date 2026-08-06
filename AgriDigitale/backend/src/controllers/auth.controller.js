@@ -3,7 +3,7 @@ const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
 const { google } = require('googleapis');
 const Utilisateur = require('../models/Utilisateur');
-const buildOtpHtml = require('../services/emailTemplate');
+const { buildOtpHtml, buildResetHtml } = require('../services/emailTemplate');
 
 const genererToken = (id, role) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
@@ -174,14 +174,7 @@ exports.envoyerLienReset = async (req, res, next) => {
 
     const lien = `agridigitale://reset-password?token=${encodeURIComponent(token)}`;
 
-    const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e0e0e0;border-radius:12px">
-<p style="font-size:15px">Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe :</p>
-<div style="text-align:center;margin:28px 0">
-<a href="${lien}" style="background:#2e7d32;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;font-weight:bold;display:inline-block">Réinitialiser mon mot de passe</a>
-</div>
-<p style="color:#555;font-size:14px">Ce lien est valable <strong>15 minutes</strong>.</p>
-<p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
-</div>`;
+    const html = buildResetHtml(lien);
 
     try {
       await _envoyerEmailGmail(email, 'AgriDigitale - Réinitialisation du mot de passe', html);
