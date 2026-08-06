@@ -7,9 +7,7 @@ import 'favoris/favoris_screen.dart';
 import 'request/request_screen.dart';
 import 'settings/settings_screen.dart';
 import 'admin/admin_screen.dart';
-import 'home/notifications_list_screen.dart';
 import '../providers/auth_provider.dart';
-import '../providers/notification_provider.dart';
 import '../core/design/app_colors.dart';
 import '../core/app_localizations.dart';
 
@@ -32,7 +30,6 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     Icons.tv,
     Icons.bookmark_border,
     Icons.chat_bubble_outline,
-    Icons.notifications_outlined,
     Icons.settings,
   ];
 
@@ -42,7 +39,6 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     AgdtvScreen(),
     FavorisScreen(),
     RequestScreen(),
-    NotificationsListScreen(),
     SettingsScreen(),
   ];
 
@@ -50,14 +46,12 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final auth = context.watch<AuthProvider>();
-    final notifProvider = context.watch<NotificationProvider>();
     final labels = [
       l.t('home'),
       l.t('weather'),
       l.t('agdtv'),
       l.t('favorites'),
       l.t('request'),
-      l.t('notifications'),
       l.t('settings'),
     ];
 
@@ -97,48 +91,15 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
               child: Row(
                 children: List.generate(_icones.length, (i) {
                   final actif = i == _index;
-                  // Index 5 = notifications → badge rouge
-                  final estNotif = i == 5;
-                  final count = notifProvider.nonLues;
                   return Expanded(
                     child: InkWell(
-                      onTap: () {
-                        setState(() => _index = i);
-                        if (estNotif) notifProvider.reset();
-                      },
+                      onTap: () => setState(() => _index = i),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Icon(_icones[i],
-                                  color: actif ? AppColors.vertPrimaire : Colors.black54,
-                                  size: 22),
-                              if (estNotif && count > 0)
-                                Positioned(
-                                  top: -4,
-                                  right: -6,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Text(
-                                      count > 99 ? '99+' : '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                          Icon(_icones[i],
+                              color: actif ? AppColors.vertPrimaire : Colors.black54,
+                              size: 22),
                           const SizedBox(height: 2),
                           if (actif)
                             Text(labels[i],
