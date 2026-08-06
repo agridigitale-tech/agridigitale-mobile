@@ -135,20 +135,12 @@ class AuthService {
       await _dio.post(
         AppConstants.apiAuthResetPassword,
         data: {'token': token, 'nouveauMotDePasse': nouveauMotDePasse},
-        options: Options(
-          sendTimeout: const Duration(seconds: 90),
-          receiveTimeout: const Duration(seconds: 90),
-        ),
+        options: Options(sendTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)),
       );
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.connectionTimeout) {
-        throw Exception('Le serveur met du temps à démarrer. Réessayez dans quelques secondes.');
-      }
       final msg = e.response?.data is Map
-          ? (e.response!.data['message'] ?? 'Token invalide ou expiré')
-          : 'Token invalide ou expiré';
+          ? (e.response!.data['message'] ?? 'Lien invalide ou expiré')
+          : 'Lien invalide ou expiré';
       throw Exception(msg);
     }
   }

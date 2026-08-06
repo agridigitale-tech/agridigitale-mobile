@@ -150,80 +150,67 @@ exports.enregistrerTokenFCM = async (req, res, next) => {
   }
 };
 
-// ── 6. ENVOYER OTP RESET 
-exports.envoyerOTP = async (req, res, next) => {
+// ── 6. ENVOYER LIEN DE RÉINITIALISATION
+exports.envoyerLienReset = async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'E-mail obligatoire' });
 
-    const utilisateur = await Utilisateur.findOne({ email })
-      .select('+otpTentatives +otpFenetre');
-
     // Toujours répondre OK — ne jamais révéler si l'email existe
     res.status(200).json({ success: true });
 
+    const utilisateur = await Utilisateur.findOne({ email });
     if (!utilisateur) return;
 
-    // Limite : 3 tentatives par heure
-    const maintenant = Date.now();
-    const fenetreExpire = !utilisateur.otpFenetre || (maintenant - utilisateur.otpFenetre.getTime() > 60 * 60 * 1000);
-    const tentatives = fenetreExpire ? 0 : (utilisateur.otpTentatives || 0);
-    if (tentatives >= 3) {
-      console.warn(`[OTP] Limite atteinte pour ${email}`);
-      return;
-    }
-
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    const expiry = new Date(Date.now() + 10 * 60 * 1000);
+    // Token aléatoire sécurisé, valide 15 minutes
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
     await Utilisateur.findByIdAndUpdate(utilisateur._id, {
-      resetToken: otpHash,
+      resetToken: tokenHash,
       resetTokenExpiry: expiry,
-      otpTentatives: tentatives + 1,
-      otpFenetre: fenetreExpire ? new Date() : utilisateur.otpFenetre,
     });
 
-    try {
-      await _envoyerEmailGmail(
-        email,
-        'AgriDigitale - Code de reinitialisation',
-        buildOtpHtml(otp),
-      );
-      console.log(`[OTP] Code envoye a ${email} (tentative ${tentatives + 1}/3)`);
-    } catch (err) {
-      console.error('[OTP] Echec email:', err.message);
-    }
+    const lien = `agridigitale://reset-password?token=${encodeURIComponent(token)}`;
 
+    const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e0e0e0;border-radius:12px">
+<p style="font-size:15px">Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe :</p>
+<div style="text-align:center;margin:28px 0">
+<a href="${lien}" style="background:#2e7d32;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;font-weight:bold;display:inline-block">Réinitialiser mon mot de passe</a>
+</div>
+<p style="color:#555;font-size:14px">Ce lien est valable <strong>15 minutes</strong>.</p>
+<p style="color:#999;font-size:12px">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+</div>`;
+
+    try {
+      await _envoyerEmailGmail(email, 'AgriDigitale - Réinitialisation du mot de passe', html);
+      console.log(`[RESET] Lien envoyé à ${email}`);
+    } catch (err) {
+      console.error('[RESET] Echec email:', err.message);
+    }
   } catch (err) {
-    console.error('Send OTP error:', err);
+    console.error('envoyerLienReset error:', err);
   }
 };
 
-// ── 7. VÉRIFIER OTP + RESET MOT DE PASSE
-exports.verifierOTPetReset = async (req, res, next) => {
+// ── 7. RÉINITIALISER MOT DE PASSE VIA TOKEN
+exports.reinitialiserMotDePasse = async (req, res, next) => {
   try {
-    const { email, otp, nouveauMotDePasse } = req.body;
-    if (!email || !otp || !nouveauMotDePasse)
-      return res.status(400).json({ message: 'Email, code OTP et nouveau mot de passe obligatoires' });
+    const { token, nouveauMotDePasse } = req.body;
+    if (!token || !nouveauMotDePasse)
+      return res.status(400).json({ message: 'Token et nouveau mot de passe obligatoires' });
     if (nouveauMotDePasse.length < 6)
       return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères' });
 
-    const otpHash = crypto.createHash('sha256').update(String(otp)).digest('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const u = await Utilisateur.findOne({ resetToken: tokenHash }).select('+resetToken +resetTokenExpiry');
 
-    // Récupérer l'utilisateur avec les champs select:false explicitement
-    const utilisateur = await Utilisateur.findOne({ email })
-      .select('+resetToken +resetTokenExpiry');
-
-    if (
-      !utilisateur ||
-      utilisateur.resetToken !== otpHash ||
-      !utilisateur.resetTokenExpiry ||
-      utilisateur.resetTokenExpiry < new Date()
-    ) return res.status(400).json({ message: 'Code invalide ou expiré' });
+    if (!u || !u.resetTokenExpiry || u.resetTokenExpiry < new Date())
+      return res.status(400).json({ message: 'Lien invalide ou expiré' });
 
     const hash = await bcrypt.hash(nouveauMotDePasse, 10);
-    await Utilisateur.findByIdAndUpdate(utilisateur._id, {
+    await Utilisateur.findByIdAndUpdate(u._id, {
       motDePasse: hash,
       resetToken: null,
       resetTokenExpiry: null,
@@ -231,12 +218,13 @@ exports.verifierOTPetReset = async (req, res, next) => {
 
     res.json({ success: true, message: 'Mot de passe réinitialisé avec succès' });
   } catch (err) {
-    console.error('Verify OTP error:', err);
+    console.error('reinitialiserMotDePasse error:', err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// ── 8. ANCIEN SYSTÈME — conservé pour compatibilité 
+// ── 8. CONSERVÉ POUR COMPATIBILITÉ
+exports.envoyerOTP = async (req, res) => res.status(200).json({ success: true });
+exports.verifierOTPetReset = async (req, res) => res.status(400).json({ message: 'Utilisez le nouveau système de lien' });
 exports.motDePasseOublie = async (req, res) => res.status(200).json({ success: true });
-exports.reinitialiserMotDePasse = async (req, res) => res.status(400).json({ message: 'Utilisez le nouveau système OTP' });
 exports.redirectReset = (req, res) => res.status(404).send('Non disponible');

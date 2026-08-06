@@ -41,7 +41,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (e) {
       setState(() => _erreur = e.toString().replaceFirst('Exception: ', ''));
     } finally {

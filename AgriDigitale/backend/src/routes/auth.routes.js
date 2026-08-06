@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   inscrire, connecter, profil, modifierProfil, enregistrerTokenFCM,
-  motDePasseOublie, reinitialiserMotDePasse,
-  envoyerOTP, verifierOTPetReset,
+  motDePasseOublie,
+  envoyerLienReset, reinitialiserMotDePasse,
 } = require('../controllers/auth.controller');
 const { proteger } = require('../middlewares/auth.middleware');
 
@@ -13,12 +13,8 @@ router.get('/profil', proteger, profil);
 router.put('/profil', proteger, modifierProfil);
 router.post('/token-fcm', proteger, enregistrerTokenFCM);
 
-// Ancien système (deep link) — conservé
-router.post('/forgot-password', motDePasseOublie);
+// Réinitialisation par lien deep link
+router.post('/forgot-password', envoyerLienReset);
 router.post('/reset-password', reinitialiserMotDePasse);
-
-// Nouveau système OTP
-router.post('/send-otp', envoyerOTP);
-router.post('/verify-otp', verifierOTPetReset);
 
 module.exports = router;
