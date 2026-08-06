@@ -12,6 +12,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'providers/auth_provider.dart' show AuthProvider;
+import 'providers/notification_provider.dart';
 import 'core/design/app_theme.dart';
 import 'core/app_localizations.dart';
 import 'services/notification_service.dart';
@@ -73,6 +74,7 @@ class _MonAppState extends State<MonApp> {
         ChangeNotifierProvider(create: (_) => AuthProvider()..verifierSession()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..charger()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()..charger()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()..rafraichir()),
       ],
       child: Consumer2<ThemeProvider, LanguageProvider>(
         builder: (context, themeProvider, languageProvider, child) => MaterialApp(

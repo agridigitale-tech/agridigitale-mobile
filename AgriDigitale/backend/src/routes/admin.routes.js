@@ -10,4 +10,5 @@ router.get('/statistiques', proteger, estAdmin, c.statistiques);
 router.get('/utilisateurs', proteger, estAdmin, c.listerUtilisateurs);
 router.put('/utilisateurs/:id/desactiver', proteger, estAdmin, c.desactiverUtilisateur);
 
+
 module.exports = router;

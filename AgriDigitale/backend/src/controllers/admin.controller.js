@@ -1,5 +1,3 @@
-//permet de gérer les fonctionnalités réservées à l'administrateur, telles que la gestion des utilisateurs et la visualisation des statistiques de l'application.
-
 const Article = require('../models/Article');
 const Utilisateur = require('../models/Utilisateur');
 const Demande = require('../models/Demande');

@@ -120,7 +120,7 @@ exports.profil = async (req, res, next) => {
   }
 };
 
-// ── 4. MODIFIER LE PROFIL ────────────────────────────────────────────────────
+// ── 4. MODIFIER LE PROFIL─
 exports.modifierProfil = async (req, res, next) => {
   try {
     const { nom, photo, preferencesRubriques, theme, langue } = req.body;
@@ -140,7 +140,7 @@ exports.modifierProfil = async (req, res, next) => {
   }
 };
 
-// ── 5. TOKEN FCM ─────────────────────────────────────────────────────────────
+// ── 5. TOKEN FCM 
 exports.enregistrerTokenFCM = async (req, res, next) => {
   try {
     await Utilisateur.findByIdAndUpdate(req.utilisateurId, { tokenFCM: req.body.token });
@@ -150,7 +150,7 @@ exports.enregistrerTokenFCM = async (req, res, next) => {
   }
 };
 
-// ── 6. ENVOYER OTP RESET ─────────────────────────────────────────────────────
+// ── 6. ENVOYER OTP RESET 
 exports.envoyerOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -200,7 +200,7 @@ exports.envoyerOTP = async (req, res, next) => {
   }
 };
 
-// ── 7. VÉRIFIER OTP + RESET MOT DE PASSE ─────────────────────────────────────
+// ── 7. VÉRIFIER OTP + RESET MOT DE PASSE
 exports.verifierOTPetReset = async (req, res, next) => {
   try {
     const { email, otp, nouveauMotDePasse } = req.body;
@@ -236,7 +236,7 @@ exports.verifierOTPetReset = async (req, res, next) => {
   }
 };
 
-// ── 8. ANCIEN SYSTÈME — conservé pour compatibilité ──────────────────────────
+// ── 8. ANCIEN SYSTÈME — conservé pour compatibilité 
 exports.motDePasseOublie = async (req, res) => res.status(200).json({ success: true });
 exports.reinitialiserMotDePasse = async (req, res) => res.status(400).json({ message: 'Utilisez le nouveau système OTP' });
 exports.redirectReset = (req, res) => res.status(404).send('Non disponible');

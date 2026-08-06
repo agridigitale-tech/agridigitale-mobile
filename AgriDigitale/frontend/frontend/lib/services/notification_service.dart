@@ -1,41 +1,21 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:provider/provider.dart';
 import '../core/api_client.dart';
+import '../providers/notification_provider.dart';
 
-// Handler background/terminated — fonction top-level obligatoire
-// FCM affiche automatiquement la notification système grâce au champ
-// notification: {title, body} envoyé par le backend. Ce handler est
-// appelé pour les traitements silencieux (data-only messages).
 @pragma('vm:entry-point')
 Future<void> _backgroundHandler(RemoteMessage message) async {
-  // Pas besoin de Firebase.initializeApp() ici — flutter_fire le gère
-  debugPrint('[FCM] Background: ${message.notification?.title}');
+  await Firebase.initializeApp();
+  debugPrint('[FCM] Background/Terminé: ${message.notification?.title}');
 }
 
-// Canal Android — doit correspondre à default_notification_channel_id dans AndroidManifest
 const _kChannelId = 'agridigitale_channel';
 const _kChannelName = 'AgriDigitale — Actualités';
 const _kChannelDesc = 'Notifications pour les nouveaux articles AgriDigitale';
 
-// Crée le canal Android via MethodChannel (nécessaire Android 8+)
-Future<void> _creerCanalAndroid() async {
-  try {
-    const channel = MethodChannel('com.example.frontend/notifications');
-    await channel.invokeMethod('createChannel', {
-      'id': _kChannelId,
-      'name': _kChannelName,
-      'description': _kChannelDesc,
-      'importance': 4, // IMPORTANCE_HIGH
-    });
-  } catch (_) {
-    // Le canal sera créé par FCM automatiquement si le MethodChannel n'existe pas
-  }
-}
-
-// Service singleton qui gère les notifications push Firebase (FCM).
-// Il enregistre le token FCM de l'appareil au backend pour que l'admin
-// puisse envoyer des notifications à tous les utilisateurs.
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -43,56 +23,61 @@ class NotificationService {
 
   final _messaging = FirebaseMessaging.instance;
   final _dio = ApiClient().dio;
+  final _localNotif = FlutterLocalNotificationsPlugin();
 
-  // Clé globale pour afficher les snackbars depuis n'importe où
   static final navigatorKey = GlobalKey<NavigatorState>();
 
   Future<void> initialiser() async {
-    // 1. Enregistrer le handler background/terminated
     FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
 
-    // 2. Créer le canal Android (Android 8+ / Oreo)
-    await _creerCanalAndroid();
-
-    // 3. Demander la permission (Android 13+ / iOS)
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false, // false = demande explicite à l'utilisateur
+    await _localNotif.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+      onDidReceiveNotificationResponse: _onNotifTap,
     );
-    debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
 
-    // 4. Forcer la livraison des notifications en foreground sur iOS
+    await _localNotif
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+          _kChannelId,
+          _kChannelName,
+          description: _kChannelDesc,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+        ));
+
+    await _messaging.requestPermission(
+      alert: true, badge: true, sound: true, provisional: false,
+    );
+
     await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
+      alert: false, badge: false, sound: false,
     );
 
-    // 5. Récupérer et envoyer le token FCM au backend
     await _envoyerToken();
-
-    // 6. Écouter les refresh de token
     _messaging.onTokenRefresh.listen(_sauvegarderToken);
 
-    // 7. Notification reçue en foreground → afficher une bannière
-    FirebaseMessaging.onMessage.listen(_afficherNotificationForeground);
-
-    // 8. Notification cliquée depuis background → naviguer vers l'article
+    FirebaseMessaging.onMessage.listen(_afficherNotificationSysteme);
     FirebaseMessaging.onMessageOpenedApp.listen(_gererClic);
 
-    // 9. Notification qui a ouvert l'app depuis état terminé
     final initial = await _messaging.getInitialMessage();
-    if (initial != null) _gererClic(initial);
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _gererClic(initial));
+    }
   }
 
   Future<void> _envoyerToken() async {
     try {
       final token = await _messaging.getToken();
-      if (token != null) {
-        await _sauvegarderToken(token);
-      }
+      if (token != null) await _sauvegarderToken(token);
     } catch (e) {
       debugPrint('[FCM] Erreur token: $e');
     }
@@ -101,66 +86,64 @@ class NotificationService {
   Future<void> _sauvegarderToken(String token) async {
     try {
       await _dio.post('/auth/token-fcm', data: {'token': token});
-      debugPrint('[FCM] Token enregistré');
     } catch (e) {
       debugPrint('[FCM] Erreur sauvegarde token: $e');
     }
   }
 
-  // Appelé quand l'utilisateur clique sur une notification (background ou terminé)
-  void _gererClic(RemoteMessage message) {
-    debugPrint('[FCM] Notification cliquée: ${message.notification?.title}');
-    final articleId = message.data['articleId'];
-    if (articleId != null && articleId.isNotEmpty) {
-      // Naviguer vers l'article concerné
-      navigatorKey.currentState?.pushNamed('/article', arguments: articleId);
+  void _afficherNotificationSysteme(RemoteMessage message) {
+    final notif = message.notification;
+    if (notif == null) return;
+
+    // Incrémenter le badge compteur
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      try {
+        ctx.read<NotificationProvider>().incrementer();
+      } catch (_) {}
+    }
+
+    final articleId = message.data['articleId'] ?? '';
+    final type = message.data['type'] ?? '';
+
+    _localNotif.show(
+      message.hashCode,
+      notif.title,
+      notif.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _kChannelId,
+          _kChannelName,
+          channelDescription: _kChannelDesc,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: '$type|$articleId',
+    );
+  }
+
+  void _onNotifTap(NotificationResponse response) {
+    final parts = (response.payload ?? '').split('|');
+    final type = parts.isNotEmpty ? parts[0] : '';
+    final id = parts.length > 1 ? parts[1] : '';
+    if (type == 'nouvel_article' && id.isNotEmpty) {
+      navigatorKey.currentState?.pushNamed('/article', arguments: id);
     }
   }
 
-  void _afficherNotificationForeground(RemoteMessage message) {
-    final notification = message.notification;
-    if (notification == null) return;
-
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 5),
-        backgroundColor: const Color(0xFF3CA35A),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(Icons.notifications, color: Colors.white, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    notification.title ?? '',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14),
-                  ),
-                  if ((notification.body ?? '').isNotEmpty)
-                    Text(
-                      notification.body!,
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _gererClic(RemoteMessage message) {
+    final articleId = message.data['articleId'];
+    if (articleId != null && articleId.isNotEmpty) {
+      navigatorKey.currentState?.pushNamed('/article', arguments: articleId);
+    }
   }
 }

@@ -60,6 +60,8 @@ dependencies:
   geocoding: ^3.0.0
   app_links: ^6.4.0
   country_picker: ^2.0.26
+  flutter_local_notifications: ^18.0.1
+  app_badge_plus: ^1.0.0
 
 dev_dependencies:
   flutter_test:

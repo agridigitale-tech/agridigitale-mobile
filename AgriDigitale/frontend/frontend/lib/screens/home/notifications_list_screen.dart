@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../core/api_client.dart';
 import '../../core/design/app_colors.dart';
+import '../../providers/notification_provider.dart';
 import '../home/article_detail_screen.dart';
 
 class NotificationsListScreen extends StatefulWidget {
@@ -29,9 +31,10 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
         _notifs = rep.data as List;
         _chargement = false;
       });
-      // Marquer comme lues après chargement réussi (erreur silencieuse si échec)
+      // Marquer comme lues après chargement réussi
       try {
         await _dio.post('/notifications/marquer-lues');
+        if (mounted) context.read<NotificationProvider>().reset();
       } catch (_) {}
     } catch (_) {
       setState(() => _chargement = false);
