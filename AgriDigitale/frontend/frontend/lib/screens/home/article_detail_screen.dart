@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/article_service.dart';
 import '../../services/favori_service.dart';
 import '../../services/commentaire_service.dart';
@@ -104,6 +107,116 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       await _commentaireService.supprimer(widget.articleId, c.id);
       if (mounted) setState(() => _commentaires.remove(c));
     } catch (_) {}
+  }
+
+  void _partagerArticle(Article article) {
+    final lien = article.lienSource.isNotEmpty
+        ? article.lienSource
+        : 'https://agridigitale.com/articles/${article.id}';
+    final texte = '${article.titre}\n$lien';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Partager via',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _boutonPartage(
+                  icone: FontAwesomeIcons.whatsapp,
+                  label: 'WhatsApp',
+                  couleur: const Color(0xFF25D366),
+                  onTap: () {
+                    Navigator.pop(context);
+                    launchUrl(
+                      Uri.parse('https://wa.me/?text=${Uri.encodeComponent(texte)}'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                ),
+                _boutonPartage(
+                  icone: FontAwesomeIcons.facebookF,
+                  label: 'Facebook',
+                  couleur: const Color(0xFF1877F2),
+                  onTap: () {
+                    Navigator.pop(context);
+                    launchUrl(
+                      Uri.parse('https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(lien)}'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                ),
+                _boutonPartage(
+                  icone: FontAwesomeIcons.xTwitter,
+                  label: 'X / Twitter',
+                  couleur: Colors.black,
+                  onTap: () {
+                    Navigator.pop(context);
+                    launchUrl(
+                      Uri.parse('https://twitter.com/intent/tweet?text=${Uri.encodeComponent(texte)}'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                ),
+                _boutonPartage(
+                  icone: FontAwesomeIcons.link,
+                  label: 'Copier lien',
+                  couleur: Colors.grey.shade700,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Clipboard.setData(ClipboardData(text: lien));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Lien copié !')),
+                    );
+                  },
+                ),
+                _boutonPartage(
+                  icone: FontAwesomeIcons.shareNodes,
+                  label: 'Autres',
+                  couleur: AppColors.vertPrimaire,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Share.share(texte, subject: article.titre);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _boutonPartage({
+    required IconData icone,
+    required String label,
+    required Color couleur,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: couleur.withValues(alpha: 0.12),
+            child: FaIcon(icone, color: couleur, size: 22),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
   }
 
   Future<void> _basculerFavori(Article article) async {
@@ -216,6 +329,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             : _imagePlaceholder(),
       ),
       actions: [
+        IconButton(
+          icon: const FaIcon(FontAwesomeIcons.shareNodes, color: Colors.white, size: 20),
+          onPressed: () => _partagerArticle(article),
+        ),
         IconButton(
           icon: _favoriTraite
               ? const SizedBox(
@@ -336,10 +453,48 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 ),
               ),
             const SizedBox(height: 8),
+            _buildReseauxSociaux(),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildReseauxSociaux() {
+    const reseaux = [
+      (icone: FontAwesomeIcons.whatsapp,  couleur: Color(0xFF25D366), url: 'https://whatsapp.com/channel/0029VaWrkLsBqbr71Q6DvW2y'),
+      (icone: FontAwesomeIcons.xTwitter,  couleur: Color(0xFF000000), url: 'https://x.com/agridigitale1'),
+      (icone: FontAwesomeIcons.youtube,   couleur: Color(0xFFFF0000), url: 'https://youtube.com/@agridigitaletv'),
+      (icone: FontAwesomeIcons.facebookF, couleur: Color(0xFF1877F2), url: 'https://facebook.com/agridigitale'),
+      (icone: FontAwesomeIcons.instagram, couleur: Color(0xFFE1306C), url: 'https://instagram.com/agridigitale'),
+      (icone: FontAwesomeIcons.linkedin,  couleur: Color(0xFF0A66C2), url: 'https://linkedin.com/company/agridigitale'),
+    ];
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: Row(
+          children: [
+            const Text('Suivez-nous',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: reseaux.map((r) => GestureDetector(
+                  onTap: () => launchUrl(Uri.parse(r.url), mode: LaunchMode.externalApplication),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: r.couleur.withValues(alpha: 0.12),
+                    child: FaIcon(r.icone, color: r.couleur, size: 14),
+                  ),
+                )).toList(),
+              ),
+            ),
+          ],
+        ),
+      );
   }
 
   SliverToBoxAdapter _buildSectionCommentaires(AuthProvider auth) {

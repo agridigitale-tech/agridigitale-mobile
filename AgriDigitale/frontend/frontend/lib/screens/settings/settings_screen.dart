@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -14,7 +15,7 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   Widget _ligne(BuildContext context, IconData icone, String titre,
-      {String? sousTitre, VoidCallback? onTap, Color? couleurTitre}) {
+      {String? sousTitre, VoidCallback? onTap, Color? couleurTitre, bool isFa = false}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -23,7 +24,9 @@ class SettingsScreen extends StatelessWidget {
           CircleAvatar(
             backgroundColor: AppColors.grisPastille,
             radius: 18,
-            child: Icon(icone, color: AppColors.grisIcone, size: 18),
+            child: isFa
+                ? FaIcon(icone, color: AppColors.grisIcone, size: 16)
+                : Icon(icone, color: AppColors.grisIcone, size: 18),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -165,8 +168,9 @@ class SettingsScreen extends StatelessWidget {
           // Partager
           _ligne(
             context,
-            Icons.share_outlined,
+            FontAwesomeIcons.shareNodes,
             l.t('share'),
+            isFa: true,
             onTap: _partagerApplication,
           ),
           const Divider(height: 1),

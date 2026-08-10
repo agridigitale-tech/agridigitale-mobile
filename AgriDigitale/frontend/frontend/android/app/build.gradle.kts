@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.frontend"
+    namespace = "com.agridigitale.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.frontend"
+        applicationId = "com.agridigitale.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
