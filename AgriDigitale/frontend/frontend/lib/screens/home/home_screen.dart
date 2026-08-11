@@ -202,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               child: FutureBuilder<List<String>>(
                 future: _categoriesFuture,
                 builder: (context, snap) {
-                  final categories = ['Home', ...(snap.data ?? [])];
+                  final categories = ['Home', 'Togo', 'Afrique', 'Monde', ...(snap.data ?? []).where((c) => !['Togo','Afrique','Monde'].contains(c))];
                   return SizedBox(
                     height: 42,
                     child: ListView.builder(

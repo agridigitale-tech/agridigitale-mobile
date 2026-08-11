@@ -87,7 +87,7 @@ class ArticleService {
       final rep = await _dio.get('/articles/categories');
       return List<String>.from(rep.data);
     } catch (_) {
-      return [];
+      return ['Togo', 'Afrique', 'Monde'];
     }
   }
 
