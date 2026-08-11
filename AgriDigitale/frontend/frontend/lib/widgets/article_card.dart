@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/article.dart';
 import '../core/design/app_colors.dart';
+import '../core/api_client.dart';
 import '../services/favori_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_gate.dart';
+
+// ── Proxy image web ──
+String _imgUrl(String? url) {
+  if (url == null || url.isEmpty) return '';
+  if (!kIsWeb) return url;
+  return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
+}
 
 // ── Couleur par catégorie ──
 Color _couleurCategorie(String cat) {
@@ -52,7 +61,7 @@ class ArticleCardVerticale extends StatelessWidget {
                     height: 130,
                     width: double.infinity,
                     child: hasImage
-                        ? CachedNetworkImage(imageUrl: article.image!, fit: BoxFit.cover,
+                        ? CachedNetworkImage(imageUrl: _imgUrl(article.image), fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => _placeholder())
                         : _placeholder(),
                   ),
@@ -162,7 +171,7 @@ class _ArticleCardState extends State<ArticleCard> {
                   SizedBox(
                     width: 110, height: 110,
                     child: hasImage
-                        ? CachedNetworkImage(imageUrl: widget.article.image!, fit: BoxFit.cover,
+                        ? CachedNetworkImage(imageUrl: _imgUrl(widget.article.image), fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => _placeholder())
                         : _placeholder(),
                   ),

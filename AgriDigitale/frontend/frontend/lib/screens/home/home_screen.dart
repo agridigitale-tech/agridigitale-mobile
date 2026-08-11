@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id))),
                     ),
                   ),
-                // Scroll horizontal "À ne pas manquer" (2e à 5e article)
+                // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
                 if (_articles.length > 1 && _categorieActive == null)
                   SliverToBoxAdapter(
                     child: Column(
@@ -285,9 +285,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.only(left: 14),
-                            itemCount: _articles.skip(1).take(6).length,
                             itemBuilder: (context, i) {
-                              final a = _articles.skip(1).toList()[i];
+                              final plusVus = [..._articles]..sort((a, b) => b.vues.compareTo(a.vues));
+                              final top = plusVus.take(6).toList();
+                              if (i >= top.length) return null;
+                              final a = top[i];
                               return ArticleCardVerticale(
                                 article: a,
                                 onTap: () => Navigator.push(context,
@@ -304,20 +306,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       ],
                     ),
                   ),
-                // Liste verticale compacte
+                // Liste verticale = tous les articles par date
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
-                      final skip = _categorieActive == null ? 7 : 0;
-                      if (i >= _articles.length - skip) return null;
-                      final a = _articles.skip(skip).toList()[i];
+                      if (i >= _articles.length) return null;
+                      final a = _articles[i];
                       return ArticleCard(
                         article: a,
                         onTap: () => Navigator.push(context,
                             MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
                       );
                     },
-                    childCount: (_articles.length - (_categorieActive == null ? 7 : 0)).clamp(0, 9999),
+                    childCount: _articles.length,
                   ),
                 ),
               ],
