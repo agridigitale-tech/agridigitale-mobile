@@ -14,8 +14,9 @@ app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
+    const isVercel = /\.vercel\.app$/.test(origin);
     const allowed = ['https://agridigitale-production.up.railway.app'];
-    if (isLocalhost || allowed.includes(origin)) return callback(null, true);
+    if (isLocalhost || isVercel || allowed.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
