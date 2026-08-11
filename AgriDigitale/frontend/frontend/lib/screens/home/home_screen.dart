@@ -260,30 +260,64 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     child: _etatMessage(Icons.article_outlined,
                         l.t('no_articles'), l.t('no_articles_sub')))
               else ...[
-                // Article à la une : uniquement sur la catégorie "Home" (quand _categorieActive est null)
+                // Article à la une
                 if (_articleUne != null && _categorieActive == null)
                   SliverToBoxAdapter(
                     child: _ArticleUne(
                       article: _articleUne!,
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ArticleDetailScreen(
-                                  articleId: _articleUne!.id))),
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id))),
                     ),
                   ),
-                // Liste des articles (tous, sans exclusion)
+                // Scroll horizontal "À ne pas manquer" (2e à 5e article)
+                if (_articles.length > 1 && _categorieActive == null)
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(14, 14, 14, 8),
+                          child: Text('À ne pas manquer',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                        ),
+                        SizedBox(
+                          height: 210,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.only(left: 14),
+                            itemCount: _articles.skip(1).take(6).length,
+                            itemBuilder: (context, i) {
+                              final a = _articles.skip(1).toList()[i];
+                              return ArticleCardVerticale(
+                                article: a,
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                              );
+                            },
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
+                          child: Text('Dernières actualités',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Liste verticale compacte
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, i) => ArticleCard(
-                      article: _articles[i],
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ArticleDetailScreen(
-                                  articleId: _articles[i].id))),
-                    ),
-                    childCount: _articles.length,
+                    (context, i) {
+                      final skip = _categorieActive == null ? 7 : 0;
+                      if (i >= _articles.length - skip) return null;
+                      final a = _articles.skip(skip).toList()[i];
+                      return ArticleCard(
+                        article: a,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                      );
+                    },
+                    childCount: (_articles.length - (_categorieActive == null ? 7 : 0)).clamp(0, 9999),
                   ),
                 ),
               ],

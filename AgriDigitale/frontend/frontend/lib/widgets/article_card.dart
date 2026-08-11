@@ -8,6 +8,90 @@ import '../services/favori_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_gate.dart';
 
+// ── Couleur par catégorie ──
+Color _couleurCategorie(String cat) {
+  switch (cat.toLowerCase()) {
+    case 'togo': return const Color(0xFF2E7D32);
+    case 'afrique': return const Color(0xFFE65100);
+    case 'monde': return const Color(0xFF1565C0);
+    default: return AppColors.vertPrimaire;
+  }
+}
+
+// ── Card verticale (grande image en haut) ──
+class ArticleCardVerticale extends StatelessWidget {
+  final Article article;
+  final VoidCallback? onTap;
+  final double width;
+
+  const ArticleCardVerticale({super.key, required this.article, this.onTap, this.width = 220});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = article.image != null && article.image!.isNotEmpty;
+    final couleur = _couleurCategorie(article.categorie);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: width,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 130,
+                    width: double.infinity,
+                    child: hasImage
+                        ? CachedNetworkImage(imageUrl: article.image!, fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _placeholder())
+                        : _placeholder(),
+                  ),
+                  Positioned(
+                    top: 8, left: 8,
+                    child: _badgeCategorie(article.categorie, couleur),
+                  ),
+                ],
+              ),
+              // Contenu
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(article.titre, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, height: 1.3)),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
+                      const SizedBox(width: 3),
+                      Text(_date(article.datePublication), style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      const SizedBox(width: 8),
+                      Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
+                      const SizedBox(width: 3),
+                      Text('${article.vues}', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card horizontale compacte (image gauche) ──
 class ArticleCard extends StatefulWidget {
   final Article article;
   final VoidCallback? onTap;
@@ -47,175 +131,86 @@ class _ArticleCardState extends State<ArticleCard> {
         if (mounted) setState(() => _enFavori = true);
       }
     } catch (e) {
-      if (mounted && e.toString().contains('409')) {
-        setState(() => _enFavori = true);
-      }
+      if (mounted && e.toString().contains('409')) setState(() => _enFavori = true);
     } finally {
       if (mounted) setState(() => _enCours = false);
-    }
-  }
-
-  String _formaterDate(DateTime date) {
-    try {
-      return DateFormat('dd MMM yyyy · HH:mm', 'fr_FR').format(date);
-    } catch (_) {
-      return '${date.day}/${date.month}/${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final imageUrl = widget.article.image;
-    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    final hasImage = widget.article.image != null && widget.article.image!.isNotEmpty;
+    final couleur = _couleurCategorie(widget.article.categorie);
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        height: 200,
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Image verticale à gauche ──
-              SizedBox(
-                width: 140,
-                height: double.infinity,
-                child: hasImage
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (ctx, url) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.vertPrimaire),
-                          ),
-                        ),
-                        errorWidget: (ctx, url, err) => Container(
-                          color: Colors.green[50],
-                          child: const Icon(Icons.article,
-                              size: 48, color: AppColors.vertPrimaire),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.green[50],
-                        child: const Icon(Icons.article,
-                            size: 48, color: AppColors.vertPrimaire),
-                      ),
+              // Image gauche
+              Stack(
+                children: [
+                  SizedBox(
+                    width: 110, height: 110,
+                    child: hasImage
+                        ? CachedNetworkImage(imageUrl: widget.article.image!, fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _placeholder())
+                        : _placeholder(),
+                  ),
+                  Positioned(
+                    bottom: 6, left: 6,
+                    child: _badgeCategorie(widget.article.categorie, couleur),
+                  ),
+                ],
               ),
-
-              // ── Contenu à droite ──
+              // Contenu droite
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Badge catégorie + bouton favori
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.vertPrimaire.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              widget.article.categorie.toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.vertPrimaire,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.4,
+                          Expanded(
+                            child: Text(widget.article.titre, maxLines: 3, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.35)),
                           ),
-                        ),
-                      ),
                           GestureDetector(
                             onTap: _toggleFavori,
                             child: _enCours
-                                ? const SizedBox(
-                                    width: 18, height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.vertPrimaire))
+                                ? const SizedBox(width: 18, height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vertPrimaire))
                                 : Icon(
-                                    (auth.connecte && _enFavori)
-                                        ? Icons.bookmark
-                                        : Icons.bookmark_border,
-                                    size: 20,
-                                    color: AppColors.vertPrimaire,
-                                  ),
+                                    (auth.connecte && _enFavori) ? Icons.bookmark : Icons.bookmark_border,
+                                    size: 20, color: AppColors.vertPrimaire),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Titre
-                      Text(
-                        widget.article.titre,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          height: 1.3,
-                          color: Color(0xFF1A1A1A),
-                        ),
                       ),
                       const SizedBox(height: 6),
-
-                      // Résumé
-                      Expanded(
-                        child: Text(
-                          widget.article.resume,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: Colors.grey[600],
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-
-                      // Date + vues
-                      Row(
-                        children: [
-                          Icon(Icons.access_time,
-                              size: 11, color: Colors.grey[400]),
-                          const SizedBox(width: 3),
-                          Text(
-                            _formaterDate(widget.article.datePublication),
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey[400]),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(Icons.remove_red_eye_outlined,
-                              size: 11, color: Colors.grey[400]),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${widget.article.vues}',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey[400]),
-                          ),
-                        ],
-                      ),
+                      Text(widget.article.resume, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4)),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
+                        const SizedBox(width: 3),
+                        Text(_date(widget.article.datePublication),
+                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        const SizedBox(width: 8),
+                        Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
+                        const SizedBox(width: 3),
+                        Text('${widget.article.vues}', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      ]),
                     ],
                   ),
                 ),
@@ -226,4 +221,20 @@ class _ArticleCardState extends State<ArticleCard> {
       ),
     );
   }
+}
+
+// ── Helpers ──
+Widget _placeholder() => Container(
+    color: Colors.green[50],
+    child: const Center(child: Icon(Icons.article, size: 36, color: AppColors.vertPrimaire)));
+
+Widget _badgeCategorie(String cat, Color couleur) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(color: couleur, borderRadius: BorderRadius.circular(20)),
+    child: Text(cat.toUpperCase(),
+        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)));
+
+String _date(DateTime date) {
+  try { return DateFormat('dd MMM · HH:mm', 'fr_FR').format(date); }
+  catch (_) { return '${date.day}/${date.month}/${date.year}'; }
 }
