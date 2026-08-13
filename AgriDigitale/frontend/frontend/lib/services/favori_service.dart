@@ -1,3 +1,6 @@
+// Service favoris : ajoute/retire/liste les articles favoris.
+// Sur mobile : synchronise avec SQLite pour un accès hors ligne.
+// Sur web : uniquement via l'API (pas de SQLite).
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/api_client.dart';
@@ -41,6 +44,8 @@ class FavoriService {
     }
   }
 
+  // Vérifie si un article est en favori :
+  // mobile → lecture SQLite locale | web → appel API
   Future<bool> estEnFavori(String articleId) async {
     try {
       if (!kIsWeb) {

@@ -1,3 +1,6 @@
+// Écran détail d'un article : affiche l'image, le contenu HTML, les réseaux sociaux,
+// les commentaires et les articles similaires.
+// Gère aussi le partage (WhatsApp, Facebook, X, copier lien, autres) et les favoris.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -256,7 +259,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  // Retourne le contenu HTML à afficher — contenu complet en priorité, résumé en fallback
+  // Retourne le contenu HTML à afficher :
+  // priorité au contenu complet, fallback sur le résumé, puis message par défaut
   String _getContenuHtml(Article article) {
     final texte = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     if (texte.isNotEmpty) return article.contenu;
@@ -314,6 +318,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
+  // AppBar avec image en arrière-plan, bouton partage (FA) et bouton favori
   SliverAppBar _buildAppBar(Article article) {
     return SliverAppBar(
       expandedHeight: 240,
@@ -460,6 +465,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
+  // Section "Suivez-nous" : 6 icônes réseaux sociaux cliquables (WhatsApp, X, YouTube, Facebook, Instagram, LinkedIn)
   Widget _buildReseauxSociaux() {
     const reseaux = [
       (icone: FontAwesomeIcons.whatsapp,  couleur: Color(0xFF25D366), url: 'https://whatsapp.com/channel/0029VaWrkLsBqbr71Q6DvW2y'),
@@ -497,6 +503,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       );
   }
 
+  // Section commentaires : champ de saisie + liste des commentaires existants
   SliverToBoxAdapter _buildSectionCommentaires(AuthProvider auth) {
     return SliverToBoxAdapter(
       child: Container(
@@ -624,6 +631,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
+  // Liste des 5 autres articles (hors article courant) affichés en bas de page
   Widget _buildAutresArticles() {
     return FutureBuilder<List<Article>>(
       future: _autresFuture,

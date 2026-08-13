@@ -1,3 +1,5 @@
+// Carousel de bannières publicitaires chargées depuis le backend.
+// Défilement automatique toutes les 5 secondes. Clic → ouvre le lien externe si présent.
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -24,6 +26,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
     _chargerBannieres();
   }
 
+  // Charge les bannières depuis l'API et démarre le timer de défilement automatique
   Future<void> _chargerBannieres() async {
     try {
       final apiClient = ApiClient();

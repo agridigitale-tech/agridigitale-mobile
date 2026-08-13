@@ -1,3 +1,5 @@
+// Service auth : inscription, connexion, déconnexion, OTP, reset mot de passe.
+// Persiste le token JWT et le profil dans SharedPreferences.
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_client.dart';
@@ -42,6 +44,8 @@ class AuthService {
     }
   }
 
+  // Sauvegarde le token JWT et le profil utilisateur dans SharedPreferences
+  // et met à jour le token dans ApiClient pour les prochaines requêtes
   Future<void> _sauvegarder(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     final utilisateur = data['utilisateur'] as Map<String, dynamic>? ?? data;

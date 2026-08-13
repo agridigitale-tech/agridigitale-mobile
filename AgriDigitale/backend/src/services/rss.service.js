@@ -4,6 +4,7 @@ const axios = require('axios');//pour faire des requêtes HTTP
 const { URL } = require('url');//pour valider les URLs
 const Article = require('../models/Article');
 const { notifierNouvelArticle } = require('./notification.service');
+const { desactiverBannieresExpirees } = require('../controllers/banniere.controller');
 
 //pour parser les flux RSS avec des champs personnalisés (content:encoded, media:content, enclosure)
 const parser = new Parser({
@@ -56,7 +57,7 @@ const extraireImageRSS = (item) => {
 };
 // Scrape l'image Open Graph (og:image) depuis la page web
 const scrapeOgImage = async (url) => {
-  if (!url || !urlEstSure(url)) return null;
+  if (!url || !urlEstSure(url)) return null; 
   try {
     const res = await axios.get(url, {
       timeout: 8000,
@@ -241,6 +242,9 @@ const demarrerScheduler = () => {
   recupererFlux();
   console.log('[RSS] Scheduler démarré (toutes les 15 min)');
   cron.schedule('0 3 * * *', mettreAJourContenuArticles);
+  // Désactivation automatique des bannières expirées toutes les heures
+  cron.schedule('0 * * * *', desactiverBannieresExpirees);
+  desactiverBannieresExpirees(); // exécution immédiate au démarrage
 };
 
 module.exports = { recupererFlux, demarrerScheduler, mettreAJourContenuArticles, scrapeContenuInertia };

@@ -1,3 +1,6 @@
+// Base de données locale SQLite (via sqflite).
+// Stocke les favoris, le cache articles (TTL 6h) et le cache météo (TTL 2h).
+// Sur le web, sqflite n'est pas supporté — toutes les méthodes retournent null/[].
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -9,6 +12,7 @@ class DBHelper {
 
   Database? _db;
 
+  // Retourne la DB (ouvre si besoin). Retourne null sur le web.
   Future<Database?> get database async {
     if (kIsWeb) return null; // sqflite non supporté sur Web
     _db ??= await _initDB();
@@ -115,7 +119,7 @@ class DBHelper {
     return db.query('favoris_cache');
   }
 
-  // ── Cache articles (TTL 6h, min 20 articles)
+  // ── Cache articles : TTL 6h, minimum 20 articles avant de tomber sur les anciens
   static const _maxAge = Duration(hours: 6);
   static const _minArticles = 20;
 
@@ -174,7 +178,7 @@ class DBHelper {
     return rows.isNotEmpty ? rows.first : null;
   }
 
-  // ── Cache météo (TTL 2h) 
+  // ── Cache météo : TTL 2h pour éviter trop d'appels API
   static const _meteoCacheTTL = Duration(hours: 2);
 
   Future<void> sauvegarderMeteoCache(String ville, String imageUrl) async {
@@ -199,7 +203,7 @@ class DBHelper {
     return rows.isNotEmpty ? rows.first['imageUrl'] as String? : null;
   }
 
-  // ── Historique villes météo 
+  // ── Historique des villes recherchées (10 dernières, triées par date)
   Future<void> ajouterVilleHistorique(String ville) async {
     final db = await database;
     if (db == null) return;

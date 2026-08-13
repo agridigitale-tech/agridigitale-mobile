@@ -1,3 +1,6 @@
+// Écran d'accueil : affiche les bannières, la recherche, les catégories,
+// l'article à la une, le scroll horizontal "À ne pas manquer" (top 6 vues),
+// et la liste verticale "Dernières actualités" avec pagination infinie.
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -42,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _chargerArticleUne();
     _chargerPlus();
     _chargerNotifs();
+    // Pagination infinie : charge plus d'articles quand on approche du bas
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200) {
@@ -87,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     setState(() => _chargement = false);
   }
 
+  // Filtre les articles par catégorie (null = toutes) et recharge depuis la page 1
   void _filtrer(String? cat) {
     setState(() {
       _categorieActive = cat;
@@ -108,8 +113,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
   }
 
+  // Navigue vers l'onglet favoris (index 3) via le parent MainNavigationScreen
   void _allerFavoris() {
-    // Navigue vers l'onglet favoris (index 3) via le parent MainNavigationScreen
     final nav = context.findAncestorStateOfType<MainNavigationScreenState>();
     if (nav != null) {
       nav.changerOnglet(3);

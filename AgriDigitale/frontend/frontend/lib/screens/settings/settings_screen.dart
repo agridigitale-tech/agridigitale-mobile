@@ -1,3 +1,5 @@
+// Écran paramètres : profil utilisateur, thème, langue, notifications, partage, à propos.
+// Affiche un bouton connexion si non connecté, ou le profil + déconnexion si connecté.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,6 +16,7 @@ import 'detail_settings/notifications_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  // Construit une ligne de paramètre avec icône (Material ou FontAwesome), titre et chevron
   Widget _ligne(BuildContext context, IconData icone, String titre,
       {String? sousTitre, VoidCallback? onTap, Color? couleurTitre, bool isFa = false}) {
     return InkWell(

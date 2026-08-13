@@ -1,3 +1,4 @@
+// Provider notifications : compte les notifs non lues et met à jour le badge de l'icône app.
 import 'package:flutter/foundation.dart';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import '../core/api_client.dart';
@@ -8,6 +9,7 @@ class NotificationProvider extends ChangeNotifier {
 
   final _dio = ApiClient().dio;
 
+  // Interroge le backend pour le nombre de notifs non lues et met à jour le badge
   Future<void> rafraichir() async {
     try {
       final rep = await _dio.get('/notifications/non-lues');

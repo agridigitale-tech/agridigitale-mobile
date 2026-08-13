@@ -1,3 +1,7 @@
+// Widgets de carte article utilisés dans HomeScreen.
+// ArticleCardVerticale : grande image en haut, utilisée dans le scroll horizontal "À ne pas manquer".
+// ArticleCard : image à gauche (format compact), utilisée dans la liste verticale "Dernières actualités".
+// _imgUrl() : sur le web, redirige les images via le proxy backend pour éviter les erreurs CORS.
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,14 +14,16 @@ import '../services/favori_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_gate.dart';
 
-// ── Proxy image web ──
+// Retourne l'URL de l'image :
+// - mobile : URL directe (pas de restriction CORS)
+// - web : passe par le proxy backend /api/proxy-image pour éviter les erreurs CORS
 String _imgUrl(String? url) {
   if (url == null || url.isEmpty) return '';
   if (!kIsWeb) return url;
   return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
 }
 
-// ── Couleur par catégorie ──
+// Couleur du badge catégorie selon la catégorie de l'article
 Color _couleurCategorie(String cat) {
   switch (cat.toLowerCase()) {
     case 'togo': return const Color(0xFF2E7D32);
@@ -27,7 +33,8 @@ Color _couleurCategorie(String cat) {
   }
 }
 
-// ── Card verticale (grande image en haut) ──
+// Card verticale : image 130px en haut + badge catégorie + titre + date/vues.
+// Utilisée dans le scroll horizontal "À ne pas manquer" (top 6 par vues).
 class ArticleCardVerticale extends StatelessWidget {
   final Article article;
   final VoidCallback? onTap;
@@ -100,7 +107,8 @@ class ArticleCardVerticale extends StatelessWidget {
   }
 }
 
-// ── Card horizontale compacte (image gauche) ──
+// Card horizontale compacte : image 110x110 à gauche + titre + résumé + bouton favori.
+// Utilisée dans la liste verticale "Dernières actualités".
 class ArticleCard extends StatefulWidget {
   final Article article;
   final VoidCallback? onTap;

@@ -1,3 +1,6 @@
+// Point d'entrée de l'application AgriDigitale.
+// Initialise Firebase, les formats de date FR, et lance l'app avec Phoenix (restart propre).
+// Gère aussi les deep links (ex: agridigitale://reset-password?token=...).
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -45,9 +48,9 @@ class _MonAppState extends State<MonApp> {
   void initState() {
     super.initState();
     _appLinks = AppLinks();
-    // Lien reçu quand l'app est déjà ouverte
+    // Écoute les deep links quand l'app est déjà ouverte en arrière-plan
     _appLinks.uriLinkStream.listen(_gererLien);
-    // Lien reçu au démarrage de l'app
+    // Récupère le deep link qui a lancé l'app (cold start)
     _appLinks.getInitialLink().then((uri) {
       if (uri != null) _gererLien(uri);
     });
@@ -71,9 +74,13 @@ class _MonAppState extends State<MonApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Gestion session utilisateur (connexion / déconnexion / rôle)
         ChangeNotifierProvider(create: (_) => AuthProvider()..verifierSession()),
+        // Thème clair / sombre persisté dans SharedPreferences
         ChangeNotifierProvider(create: (_) => ThemeProvider()..charger()),
+        // Langue FR / EN persistée dans SharedPreferences
         ChangeNotifierProvider(create: (_) => LanguageProvider()..charger()),
+        // Compteur de notifications non lues + badge icône
         ChangeNotifierProvider(create: (_) => NotificationProvider()..rafraichir()),
       ],
       child: Consumer2<ThemeProvider, LanguageProvider>(

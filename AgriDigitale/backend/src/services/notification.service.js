@@ -48,7 +48,7 @@ const notifierNouvelArticle = async (article) => {
 
     const result = await admin.messaging().sendEachForMulticast(_buildMessage(
       tokens,
-      { title: '🌱 AgriDigitale — Nouvel article', body: article.titre },
+      { title: 'AgriDigitale — Nouvel article', body: article.titre },
       { articleId: article._id.toString(), type: 'nouvel_article', categorie: article.categorie || '', click_action: 'FLUTTER_NOTIFICATION_CLICK' }
     ));
 

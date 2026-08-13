@@ -86,6 +86,21 @@ class AdminService {
     await _dio.delete('/bannieres/$id');
   }
 
+  Future<void> modifierBanniere({
+    required String id,
+    required DateTime dateDebut,
+    required DateTime dateFin,
+    required int ordre,
+    required String lien,
+  }) async {
+    await _dio.put('/bannieres/$id', data: {
+      'dateDebut': dateDebut.toIso8601String(),
+      'dateFin': dateFin.toIso8601String(),
+      'ordre': ordre,
+      'lien': lien,
+    });
+  }
+
   Future<Map<String, dynamic>> envoyerNotification({
     required String titre,
     required String message,

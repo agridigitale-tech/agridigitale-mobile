@@ -1,4 +1,5 @@
-// lib/models/article.dart
+// Modèle Article : représente un article de presse venant du backend.
+// Supporte 3 conversions : JSON (API) ↔ objet, Map (SQLite) ↔ objet.
 class Article {
   final String id;
   final String guid;

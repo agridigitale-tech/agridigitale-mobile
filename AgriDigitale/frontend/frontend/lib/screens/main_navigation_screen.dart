@@ -1,3 +1,6 @@
+// Navigation principale de l'app : 6 onglets (Home, Météo, AGDTV, Favoris, Demande, Paramètres).
+// Utilise IndexedStack pour garder l'état de chaque écran en mémoire.
+// Affiche un bouton "Panneau administrateur" en haut de la barre si l'utilisateur est admin.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'home/home_screen.dart';
@@ -20,6 +23,7 @@ class MainNavigationScreen extends StatefulWidget {
 class MainNavigationScreenState extends State<MainNavigationScreen> {
   int _index = 0;
 
+  // Permet à HomeScreen de naviguer vers l'onglet favoris (index 3) depuis l'AppBar
   void changerOnglet(int index) {
     setState(() => _index = index);
   }

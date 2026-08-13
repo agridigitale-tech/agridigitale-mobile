@@ -1,3 +1,5 @@
+// Service articles : récupère les articles depuis le backend avec fallback cache SQLite.
+// Sur le web, le cache SQLite est désactivé (kIsWeb). Les images passent par le proxy CORS.
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../core/api_client.dart';
@@ -91,6 +93,8 @@ class ArticleService {
     }
   }
 
+  // Normalise une URL image : ajoute le domaine backend si relative,
+  // et redirige via le proxy CORS sur le web pour éviter les erreurs cross-origin
   String? _normaliserImage(String? image) {
     if (image == null || image.trim().isEmpty) return null;
     final t = image.trim();

@@ -1,3 +1,5 @@
+// Provider auth : gère l'état de connexion de l'utilisateur (connecte/déconnecté/admin).
+// Appelé au démarrage via verifierSession() pour restaurer la session depuis SharedPreferences.
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 
@@ -11,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
 
   bool get estAdmin => role == 'administrateur';
 
+  // Charge le profil depuis SharedPreferences et notifie les widgets
   Future<void> verifierSession() async {
     connecte = await _service.estConnecte();
     if (connecte) {

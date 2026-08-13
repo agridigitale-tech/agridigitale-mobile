@@ -1,3 +1,5 @@
+// Client HTTP singleton basé sur Dio.
+// Centralise l'URL du backend, le token JWT et les intercepteurs (logs + auth).
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -8,16 +10,14 @@ class ApiClient {
   late final Dio dio;
   String? _token;
 
-  //static String get baseUrl {
-    //if (kIsWeb) return 'http://localhost:5000/api';
-    //return 'http://10.0.0.59:5000/api';
-  //}
+  // URL du backend Railway — commune à toute l'app (mobile + web)
   static String get baseUrl {
   return 'https://agridigitale-production.up.railway.app/api';
 }
 
 
 
+  // Met à jour le token JWT après connexion ou le supprime après déconnexion
   void updateToken(String? token) {
     _token = token;
   }
@@ -30,7 +30,7 @@ class ApiClient {
         headers: {'Content-Type': 'application/json'},
       ));
     
-      //si kDebugMode est activé, on ajoute un interceptor pour loguer les requêtes et réponses
+      // En mode debug : affiche toutes les requêtes et réponses dans la console
     if (kDebugMode) {
       dio.interceptors.add(LogInterceptor(
         requestBody: true,
@@ -39,7 +39,8 @@ class ApiClient {
         logPrint: (o) => debugPrint(o.toString()),
       ));
     }
-    // Ajout d'un interceptor pour gérer l'authentification
+    // Intercepteur auth : injecte le token Bearer dans chaque requête,
+    // et efface le token local si le serveur répond 401 (session expirée)
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         if (_token != null) {

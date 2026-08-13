@@ -1,3 +1,5 @@
+// Service notifications push (Firebase Cloud Messaging).
+// Gère : permission, token FCM, affichage local, clic → navigation vers l'article.
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../core/api_client.dart';
 import '../providers/notification_provider.dart';
 
+// Handler exécuté en arrière-plan (processus isolé) quand l'app est fermée
 @pragma('vm:entry-point')
 Future<void> _backgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
