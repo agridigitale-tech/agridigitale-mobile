@@ -22,6 +22,20 @@ class AdminService {
     );
   }
 
+  Future<void> promouvoirAdmin(String id) async {
+    await _dio.put(
+      '/admin/utilisateurs/$id/promouvoir',
+      options: dio_pkg.Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
+    );
+  }
+
+  Future<void> retrograderAdmin(String id) async {
+    await _dio.put(
+      '/admin/utilisateurs/$id/retrograder',
+      options: dio_pkg.Options(validateStatus: (s) => s != null && s >= 200 && s < 300),
+    );
+  }
+
   Future<List<dynamic>> listerDemandes() async {
     final rep = await _dio.get('/demandes');
     return rep.data as List<dynamic>;

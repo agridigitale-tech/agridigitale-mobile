@@ -9,6 +9,7 @@ const c = require('../controllers/admin.controller');
 router.get('/statistiques', proteger, estAdmin, c.statistiques);
 router.get('/utilisateurs', proteger, estAdmin, c.listerUtilisateurs);
 router.put('/utilisateurs/:id/desactiver', proteger, estAdmin, c.desactiverUtilisateur);
-
+router.put('/utilisateurs/:id/promouvoir', proteger, estAdmin, c.promouvoirAdmin);
+router.put('/utilisateurs/:id/retrograder', proteger, estAdmin, c.retrograderAdmin);
 
 module.exports = router;

@@ -63,6 +63,11 @@ exports.creerBanniere = async (req, res, next) => {
 // Admin : modifier les dates, l'ordre et le lien d'une bannière existante
 exports.modifierBanniere = async (req, res, next) => {
   try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'ID de bannière invalide' });
+    }
+
     const { dateDebut, dateFin, ordre, lien, actif } = req.body;
     const debut = dateDebut ? new Date(dateDebut) : undefined;
     const fin = dateFin ? new Date(dateFin) : undefined;
@@ -78,6 +83,7 @@ exports.modifierBanniere = async (req, res, next) => {
     if (lien !== undefined) update.lien = lien;
     if (actif !== undefined) update.actif = actif === 'true' || actif === true;
 
+    console.log('[Banniere] Modification ID:', req.params.id, 'Update:', update);
     const banniere = await Banniere.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!banniere) return res.status(404).json({ message: 'Bannière introuvable' });
     res.json(banniere);
@@ -104,6 +110,10 @@ exports.desactiverBannieresExpirees = async () => {
 // Admin : supprimer une bannière
 exports.supprimerBanniere = async (req, res, next) => {
   try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'ID de bannière invalide' });
+    }
     await Banniere.findByIdAndDelete(req.params.id);
     res.status(204).send();
   } catch (err) { 

@@ -68,6 +68,78 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
     }
   }
 
+  Future<void> _promouvoir(String id, String nom) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Promouvoir en admin'),
+        content: Text('Donner les droits administrateur à "$nom" ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.vertPrimaire),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Promouvoir', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.service.promouvoirAdmin(id);
+      await _charger();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('$nom est désormais administrateur'),
+            backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _retrograder(String id, String nom) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Rétrograder l\'admin'),
+        content: Text('Retirer les droits administrateur à "$nom" ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Rétrograder', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.service.retrograderAdmin(id);
+      await _charger();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('$nom a été rétrogradé en utilisateur'),
+            backgroundColor: Colors.orange));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur : ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_chargement) return const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire));
@@ -124,9 +196,22 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
                 if (actif && role != 'administrateur') ...[
                   const SizedBox(width: 4),
                   IconButton(
+                    icon: const Icon(Icons.shield_outlined, color: AppColors.vertPrimaire, size: 20),
+                    tooltip: 'Promouvoir admin',
+                    onPressed: () => _promouvoir(u['_id'], u['nom'] ?? ''),
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.block, color: Colors.red, size: 20),
                     tooltip: 'Désactiver',
                     onPressed: () => _desactiver(u['_id'], u['nom'] ?? ''),
+                  ),
+                ],
+                if (role == 'administrateur') ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.shield, color: Colors.orange, size: 20),
+                    tooltip: 'Rétrograder',
+                    onPressed: () => _retrograder(u['_id'], u['nom'] ?? ''),
                   ),
                 ],
               ],
