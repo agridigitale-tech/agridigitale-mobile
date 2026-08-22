@@ -9,6 +9,7 @@ class AuthService {
   final _dio = ApiClient().dio;
 
   static const _keyToken = 'jwt_token';
+  static const _keyId = 'user_id';
   static const _keyNom = 'user_nom';
   static const _keyEmail = 'user_email';
   static const _keyRole = 'user_role';
@@ -50,6 +51,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final utilisateur = data['utilisateur'] as Map<String, dynamic>? ?? data;
     if (data['token'] != null) await prefs.setString(_keyToken, data['token']);
+    if (utilisateur['id'] != null) await prefs.setString(_keyId, utilisateur['id']);
     if (utilisateur['nom'] != null) await prefs.setString(_keyNom, utilisateur['nom']);
     if (utilisateur['email'] != null) await prefs.setString(_keyEmail, utilisateur['email']);
     if (utilisateur['role'] != null) await prefs.setString(_keyRole, utilisateur['role']);
@@ -59,6 +61,7 @@ class AuthService {
   Future<void> deconnecter() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyToken);
+    await prefs.remove(_keyId);
     await prefs.remove(_keyNom);
     await prefs.remove(_keyEmail);
     await prefs.remove(_keyRole);
@@ -78,7 +81,7 @@ class AuthService {
     final email = prefs.getString(_keyEmail);
     final role = prefs.getString(_keyRole);
     if (nom == null) return {};
-    return {'nom': nom, 'email': email, 'role': role};
+    return {'id': prefs.getString(_keyId), 'nom': nom, 'email': email, 'role': role};
   }
 
   Future<void> envoyerOTP(String email) async {

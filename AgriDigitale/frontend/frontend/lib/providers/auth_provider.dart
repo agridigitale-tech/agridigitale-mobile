@@ -7,6 +7,7 @@ class AuthProvider extends ChangeNotifier {
   final _service = AuthService();
   bool connecte = false;
   bool enVerification = true;
+  String? idUtilisateur;
   String? nomUtilisateur;
   String? emailUtilisateur;
   String? role;
@@ -18,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
     connecte = await _service.estConnecte();
     if (connecte) {
       final profil = await _service.lireProfil();
+      idUtilisateur = profil['id'];
       nomUtilisateur = profil['nom'];
       emailUtilisateur = profil['email'];
       role = profil['role'];
@@ -29,6 +31,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> connecter(String email, String mdp) async {
     final data = await _service.connecter(email, mdp);
     connecte = true;
+    idUtilisateur = data['utilisateur']?['id'] ?? data['id'];
     nomUtilisateur = data['utilisateur']?['nom'] ?? data['nom'];
     emailUtilisateur = data['utilisateur']?['email'] ?? data['email'];
     role = data['utilisateur']?['role'] ?? data['role'];
@@ -38,6 +41,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> inscrire(String nom, String email, String mdp) async {
     final data = await _service.inscrire(nom, email, mdp);
     connecte = true;
+    idUtilisateur = data['utilisateur']?['id'] ?? data['id'];
     nomUtilisateur = data['utilisateur']?['nom'] ?? data['nom'] ?? nom;
     emailUtilisateur = data['utilisateur']?['email'] ?? data['email'] ?? email;
     role = data['utilisateur']?['role'] ?? data['role'] ?? 'utilisateur';
@@ -47,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> deconnecter() async {
     await _service.deconnecter();
     connecte = false;
+    idUtilisateur = null;
     nomUtilisateur = null;
     emailUtilisateur = null;
     role = null;

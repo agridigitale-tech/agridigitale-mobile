@@ -1,6 +1,5 @@
 // src/models/Banniere.js
 const mongoose = require('mongoose');
-
 const banniereSchema = new mongoose.Schema({
   image: { 
     type: String,
@@ -41,7 +40,6 @@ const banniereSchema = new mongoose.Schema({
     required: true,
     default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
   },
-
 }, { timestamps: true });
 
 module.exports = mongoose.model('Banniere', banniereSchema);

@@ -1,7 +1,9 @@
 //permet à l'administrateur de gérer les différentes sections de l'application, telles que les statistiques, les utilisateurs, les demandes et les bannières. Il peut également publier la météo et envoyer des notifications à tous les utilisateurs. L'interface est organisée en onglets pour faciliter la navigation entre les différentes sections.
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/admin_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../core/design/app_colors.dart';
 import 'admin_meteo_screen.dart';
 import 'admin_stats_tab.dart';
@@ -72,7 +74,7 @@ class _AdminScreenState extends State<AdminScreen>
         controller: _tabController,
         children: [
           AdminStatsTab(service: _service),
-          AdminUtilisateursTab(service: _service),
+          AdminUtilisateursTab(service: _service, currentUserId: context.read<AuthProvider>().idUtilisateur ?? ''),
           AdminDemandesTab(service: _service),
           AdminBannieresTab(service: _service),
         ],

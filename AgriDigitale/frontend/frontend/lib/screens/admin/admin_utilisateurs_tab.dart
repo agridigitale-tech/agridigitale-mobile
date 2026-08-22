@@ -5,7 +5,8 @@ import 'admin_widgets.dart';
 
 class AdminUtilisateursTab extends StatefulWidget {
   final AdminService service;
-  const AdminUtilisateursTab({super.key, required this.service});
+  final String currentUserId;
+  const AdminUtilisateursTab({super.key, required this.service, required this.currentUserId});
 
   @override
   State<AdminUtilisateursTab> createState() => _AdminUtilisateursTabState();
@@ -105,6 +106,14 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
   }
 
   Future<void> _retrograder(String id, String nom) async {
+    if (id == widget.currentUserId) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Vous ne pouvez pas vous rétrograder vous-même'),
+            backgroundColor: Colors.orange));
+      }
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -206,7 +215,7 @@ class _AdminUtilisateursTabState extends State<AdminUtilisateursTab> {
                     onPressed: () => _desactiver(u['_id'], u['nom'] ?? ''),
                   ),
                 ],
-                if (role == 'administrateur') ...[
+                if (role == 'administrateur' && u['_id'] != widget.currentUserId) ...[
                   const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.shield, color: Colors.orange, size: 20),
