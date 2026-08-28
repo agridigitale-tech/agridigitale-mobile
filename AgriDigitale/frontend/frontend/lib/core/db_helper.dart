@@ -23,7 +23,7 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -35,6 +35,7 @@ class DBHelper {
               resume TEXT,
               image TEXT,
               lienSource TEXT,
+              source TEXT,
               categorie TEXT,
               datePublication TEXT,
               vues INTEGER,
@@ -57,6 +58,15 @@ class DBHelper {
             )
           ''');
         }
+        if (oldVersion < 4) {
+          // Ajoute la colonne "source" (ajoutée au modèle Article) à la table
+          // du cache d'articles pour les bases existantes.
+          try {
+            await db.execute('ALTER TABLE articles_cache ADD COLUMN source TEXT');
+          } catch (_) {
+            // colonne déjà présente
+          }
+        }
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -78,6 +88,7 @@ class DBHelper {
             resume TEXT,
             image TEXT,
             lienSource TEXT,
+            source TEXT,
             categorie TEXT,
             datePublication TEXT,
             vues INTEGER,
