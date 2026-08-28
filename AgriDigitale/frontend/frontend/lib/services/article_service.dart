@@ -50,12 +50,17 @@ class ArticleService {
         }
       }
       debugPrint('[ArticleService] ${articles.length} articles parsés OK');
-      // Sauvegarder en cache (page 1 seulement)
+      // Sauvegarder en cache (page 1 seulement) — non bloquant : un échec
+      // de cache ne doit jamais empêcher l'affichage des articles.
       if (page == 1 && !kIsWeb) {
-        await _db.sauvegarderArticles(
-          articles.map((a) => a.toMap()).toList(),
-          categorie: categorie,
-        );
+        try {
+          await _db.sauvegarderArticles(
+            articles.map((a) => a.toMap()).toList(),
+            categorie: categorie,
+          );
+        } catch (e) {
+          debugPrint('[ArticleService] Echec sauvegarde cache liste (non bloquant): $e');
+        }
       }
       return articles;
     } on DioException catch (e) {
@@ -79,7 +84,13 @@ class ArticleService {
       final rep = await _dio.get('/articles/$id');
       final raw = Article.fromJson(rep.data as Map<String, dynamic>);
       final article = raw.copyWith(image: _normaliserImage(raw.image));
-      if (!kIsWeb) await _db.sauvegarderArticleDetail(article.toMap());
+      if (!kIsWeb) {
+        try {
+          await _db.sauvegarderArticleDetail(article.toMap());
+        } catch (e) {
+          debugPrint('[ArticleService] Echec sauvegarde cache detail (non bloquant): $e');
+        }
+      }
       return article;
     } on DioException catch (e) {
       debugPrint('[ArticleService] detail hors ligne: ${e.message}');

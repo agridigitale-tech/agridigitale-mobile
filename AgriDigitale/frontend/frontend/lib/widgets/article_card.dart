@@ -177,13 +177,16 @@ class _ArticleCardState extends State<ArticleCard> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Row(
-            children: [
-              // Image gauche
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+              // Image gauche (hauteur 100% pour éviter l'overflow avec texte agrandi)
               Stack(
                 children: [
                   SizedBox(
-                    width: 110, height: 110,
+                    width: 110,
+                    height: double.infinity,
                     child: hasImage
                         ? CachedNetworkImage(imageUrl: _imgUrl(widget.article.image), fit: BoxFit.cover,
                             errorWidget: (_, __, ___) => _placeholder())
@@ -245,6 +248,7 @@ class _ArticleCardState extends State<ArticleCard> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
