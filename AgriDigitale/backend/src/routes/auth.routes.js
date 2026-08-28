@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  inscrire, connecter, profil, modifierProfil, enregistrerTokenFCM,
+  inscrire, connecter, profil, modifierProfil, enregistrerTokenFCM, supprimerCompte,
   motDePasseOublie,
   envoyerLienReset, reinitialiserMotDePasse,
 } = require('../controllers/auth.controller');
@@ -12,6 +12,7 @@ router.post('/connexion', connecter);
 router.get('/profil', proteger, profil);
 router.put('/profil', proteger, modifierProfil);
 router.post('/token-fcm', proteger, enregistrerTokenFCM);
+router.delete('/supprimer-compte', proteger, supprimerCompte);
 
 // Réinitialisation par lien deep link
 router.post('/forgot-password', envoyerLienReset);

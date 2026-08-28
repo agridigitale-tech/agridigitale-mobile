@@ -68,6 +68,21 @@ class AuthService {
     ApiClient().updateToken(null);
   }
 
+  // Supprime définitivement le compte et les données associées côté serveur
+  // (conformité Google Play : suppression de compte in-app)
+  Future<void> supprimerCompte() async {
+    try {
+      await _dio.delete(AppConstants.apiAuthDeleteAccount);
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Erreur serveur')
+          : 'Erreur réseau';
+      throw Exception(msg);
+    } finally {
+      await deconnecter();
+    }
+  }
+
   Future<bool> estConnecte() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_keyToken);

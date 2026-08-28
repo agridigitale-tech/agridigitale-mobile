@@ -32,10 +32,24 @@ class ArticleService {
           'limite': 20,
         },
       );
-      final articles = (rep.data as List)
-          .map((e) => Article.fromJson(e as Map<String, dynamic>))
-          .map((a) => a.copyWith(image: _normaliserImage(a.image)))
-          .toList();
+      debugPrint('[ArticleService] Statut: ${rep.statusCode}, type data: ${rep.data.runtimeType}');
+      if (rep.data is! List) {
+        debugPrint('[ArticleService] !! data n\'est PAS une List: ${rep.data}');
+        return const [];
+      }
+      final raw = rep.data as List;
+      final articles = <Article>[];
+      for (final e in raw) {
+        try {
+          final a = Article.fromJson(e as Map<String, dynamic>);
+          if (a.id.isEmpty) continue;
+          articles.add(a.copyWith(image: _normaliserImage(a.image)));
+        } catch (err) {
+          // Un article invalide ne doit jamais faire échouer toute la liste
+          debugPrint('[ArticleService] !! Article ignoré (parse échoué): $err');
+        }
+      }
+      debugPrint('[ArticleService] ${articles.length} articles parsés OK');
       // Sauvegarder en cache (page 1 seulement)
       if (page == 1 && !kIsWeb) {
         await _db.sauvegarderArticles(
@@ -49,9 +63,13 @@ class ArticleService {
       if (!kIsWeb) {
         final cached = await _db.listerArticlesLocaux(categorie: categorie);
         if (cached.isNotEmpty) {
+          debugPrint('[ArticleService] ${cached.length} articles depuis cache SQLite');
           return cached.map((m) => Article.fromMap(m)).toList();
         }
       }
+      rethrow;
+    } catch (e) {
+      debugPrint('[ArticleService] !! Exception non-Dio dans lister: $e');
       rethrow;
     }
   }
@@ -59,7 +77,7 @@ class ArticleService {
   Future<Article> detail(String id) async {
     try {
       final rep = await _dio.get('/articles/$id');
-      final raw = Article.fromJson(rep.data);
+      final raw = Article.fromJson(rep.data as Map<String, dynamic>);
       final article = raw.copyWith(image: _normaliserImage(raw.image));
       if (!kIsWeb) await _db.sauvegarderArticleDetail(article.toMap());
       return article;
@@ -78,10 +96,18 @@ class ArticleService {
       '/articles/recherche',
       queryParameters: {'motCle': motCle},
     );
-    final List<Article> articles = (rep.data as List)
-        .map((e) => Article.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return articles.map((a) => a.copyWith(image: _normaliserImage(a.image))).toList();
+    final raw = rep.data as List;
+    final articles = <Article>[];
+    for (final e in raw) {
+      try {
+        final a = Article.fromJson(e as Map<String, dynamic>);
+        if (a.id.isEmpty) continue;
+        articles.add(a.copyWith(image: _normaliserImage(a.image)));
+      } catch (err) {
+        debugPrint('[ArticleService] !! Article de recherche ignoré: $err');
+      }
+    }
+    return articles;
   }
 
   Future<List<String>> listerCategories() async {

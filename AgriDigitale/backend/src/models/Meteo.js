@@ -15,6 +15,9 @@ const MeteoSchema = new mongoose.Schema({
   icone: { 
     type: String
    },
+  iconeUrl: { 
+    type: String
+   },
   humidite: { 
     type: Number
    },

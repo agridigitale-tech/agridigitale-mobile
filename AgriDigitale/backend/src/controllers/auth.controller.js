@@ -3,6 +3,9 @@ const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
 const { google } = require('googleapis');
 const Utilisateur = require('../models/Utilisateur');
+const Favori = require('../models/Favori');
+const Commentaire = require('../models/Commentaire');
+const Notification = require('../models/Notification');
 const { buildOtpHtml, buildResetHtml } = require('../services/emailTemplate');
 
 const genererToken = (id, role) =>
@@ -147,6 +150,31 @@ exports.enregistrerTokenFCM = async (req, res, next) => {
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ message: "Erreur lors de l'enregistrement du token FCM" });
+  }
+};
+
+// ── 5bis. SUPPRIMER LE COMPTE (conformité Google Play)
+exports.supprimerCompte = async (req, res) => {
+  try {
+    const id = req.utilisateurId;
+    const utilisateur = await Utilisateur.findById(id);
+    if (!utilisateur) return res.status(404).json({ message: 'Compte introuvable' });
+    if (utilisateur.role === 'admin') {
+      return res.status(403).json({ message: 'Un administrateur ne peut pas supprimer son compte depuis l\'application' });
+    }
+    // Purge de toutes les données associées
+    await Promise.all([
+      Favori.deleteMany({ utilisateur: id }),
+      Commentaire.deleteMany({ auteur: id }),
+      Notification.deleteMany({ destinataire: id }),
+    ]);
+    await Utilisateur.deleteOne({ _id: id });
+    res.json({
+      success: true,
+      message: "Votre compte et toutes vos données associées ont été définitivement supprimés"
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la suppression du compte' });
   }
 };
 

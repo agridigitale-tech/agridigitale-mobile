@@ -87,7 +87,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         _page++;
         if (nouveaux.length < 20) _toutCharge = true;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[HOME] !! Erreur _chargerPlus: $e');
+    }
     setState(() => _chargement = false);
   }
 

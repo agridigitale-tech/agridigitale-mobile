@@ -118,6 +118,9 @@ const scrapeContenuInertia = async (url) => {
     }
 
     if (contenu && contenu.replace(/<[^>]*>/g, '').trim().length > 50) {
+      // Remplace les marqueurs {{BASE_URL}} par le vrai domaine pour que
+      // les images internes (src="{{BASE_URL}}/ck/xxx.jpg") chargent correctement
+      contenu = contenu.replace(/\{\{BASE_URL\}\}/g, 'https://agridigitale.com');
       return contenu;
     }
     return null;
@@ -160,6 +163,16 @@ const recupererFlux = async (tentative = 1) => {
       }
 
       const sourceResume = item.contentSnippet || item.description || '';
+      
+      // Extraire la source depuis le lien de l'article
+      let sourceArticle = 'AgriDigitale';
+      if (item.link) {
+        try {
+          const urlObj = new URL(item.link);
+          sourceArticle = urlObj.hostname.replace('www.', '');
+        } catch (_) {}
+      }
+
       const article = await Article.create({
         guid: item.guid,
         titre: item.title,
@@ -167,6 +180,7 @@ const recupererFlux = async (tentative = 1) => {
         resume: extraireResume(sourceResume),
         image,
         lienSource: item.link,
+        source: sourceArticle,
         categorie: categorieDetectee,
         datePublication: new Date(item.pubDate),
       });

@@ -48,14 +48,18 @@ exports.rechercherVille = async (req, res, next) => {
 // Admin : publier une photo météo
 exports.publierMeteoManuelle = async (req, res, next) => {
   try {
-    if (!req.file) {
+    // Supporte soit un fichier uploadé, soit une URL d'image distante
+    const imageUrl = req.file
+      ? `/uploads/${req.file.filename}`
+      : (req.body.iconeUrl && req.body.iconeUrl.trim());
+    if (!imageUrl) {
       return res.status(400).json({ message: 'Veuillez fournir une image' });
     }
-    const imageUrl = `/uploads/${req.file.filename}`;
     const meteo = await Meteo.create({
       zone: 'Météo',
-      description: 'Photo météo',
+      description: req.body.description || 'Photo météo',
       icone: imageUrl,
+      iconeUrl: req.body.iconeUrl && req.body.iconeUrl.trim() ? req.body.iconeUrl.trim() : undefined,
       source: 'manuel',
     });
     res.status(201).json(meteo);

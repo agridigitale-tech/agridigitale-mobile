@@ -90,8 +90,8 @@ class AboutScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _socialIcon(Icons.close, Colors.black, 'https://x.com/agridigitale1'),
-                  _socialIcon(Icons.email, const Color(0xFFEA4335), 'mailto:tech@agridigitale.com'),
-                  _socialIcon(Icons.phone_android, const Color(0xFF25D366), 'https://wa.me/72140057'),
+                  _socialIcon(Icons.email, const Color(0xFFEA4335), 'mailto:agridigitale@gmail.com'),
+                  _socialIcon(Icons.phone_android, const Color(0xFF25D366), 'https://wa.me/22892968803'),
                 ],
               ),
               const SizedBox(height: 16),

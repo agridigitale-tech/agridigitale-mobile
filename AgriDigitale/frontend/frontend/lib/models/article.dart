@@ -8,6 +8,7 @@ class Article {
   final String resume;
   final String? image;
   final String lienSource;
+  final String source;
   final String categorie;
   final DateTime datePublication;
   final int vues;
@@ -20,6 +21,7 @@ class Article {
     required this.resume,
     this.image,
     required this.lienSource,
+    this.source = 'AgriDigitale',
     required this.categorie,
     required this.datePublication,
     this.vues = 0,
@@ -35,8 +37,9 @@ class Article {
       resume: json['resume'] ?? '',
       image: json['image'],
       lienSource: json['lienSource'] ?? '',
+      source: json['source'] ?? 'AgriDigitale',
       categorie: json['categorie'] ?? 'Général',
-      datePublication: DateTime.parse(json['datePublication'] ?? DateTime.now().toIso8601String()),
+      datePublication: DateTime.tryParse(json['datePublication'] ?? '') ?? DateTime.now(),
       vues: json['vues'] ?? 0,
     );
   }
@@ -51,6 +54,7 @@ class Article {
       'resume': resume,
       'image': image,
       'lienSource': lienSource,
+      'source': source,
       'categorie': categorie,
       'datePublication': datePublication.toIso8601String(),
       'vues': vues,
@@ -67,8 +71,9 @@ class Article {
       resume: map['resume'] ?? '',
       image: map['image'],
       lienSource: map['lienSource'] ?? '',
+      source: map['source'] ?? 'AgriDigitale',
       categorie: map['categorie'] ?? 'Général',
-      datePublication: DateTime.parse(map['datePublication'] ?? DateTime.now().toIso8601String()),
+      datePublication: DateTime.tryParse(map['datePublication'] ?? '') ?? DateTime.now(),
       vues: map['vues'] ?? 0,
     );
   }
@@ -82,6 +87,7 @@ class Article {
       resume: resume,
       image: image ?? this.image,
       lienSource: lienSource,
+      source: source,
       categorie: categorie,
       datePublication: datePublication,
       vues: vues,

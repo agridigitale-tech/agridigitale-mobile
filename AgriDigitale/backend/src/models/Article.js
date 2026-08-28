@@ -23,12 +23,16 @@ const articleSchema = new mongoose.Schema({
  },
   lienSource: { 
     type: String
- },
+  },
+  source: {
+    type: String,
+    default: 'AgriDigitale'
+  },
   categorie: { 
     type: String, 
     index: true, 
     default: 'Non classé' 
- },
+  },
   datePublication: { 
     type: Date, 
     required: true, 

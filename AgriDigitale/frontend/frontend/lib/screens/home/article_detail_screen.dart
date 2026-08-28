@@ -263,7 +263,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   // priorité au contenu complet, fallback sur le résumé, puis message par défaut
   String _getContenuHtml(Article article) {
     final texte = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-    if (texte.isNotEmpty) return article.contenu;
+    if (texte.isNotEmpty) {
+      // Remplace le marqueur {{BASE_URL}} par le domaine réel des images internes
+      return article.contenu.replaceAll('{{BASE_URL}}', 'https://agridigitale.com');
+    }
     if (article.resume.isNotEmpty) return '<p>${article.resume}</p>';
     return '<p>Contenu non disponible.</p>';
   }
@@ -294,7 +297,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   TextButton(
                     onPressed: () {
                       final future = _articleService.detail(widget.articleId);
-                      setState(() => _future = future);
+                      setState(() {
+                        _future = future;
+                      });
                     },
                     child: const Text('Reessayer'),
                   ),
@@ -376,12 +381,21 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, height: 1.3),
             ),
             const SizedBox(height: 8),
-            // Date + vues
+            // Source + Date + vues
+            Row(
+              children: [
+                Icon(Icons.source_outlined, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Text('Source : ${article.source}',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+              ],
+            ),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey[500]),
                 const SizedBox(width: 4),
-                Text(_formaterDate(article.datePublication),
+                Text('Publié le ${_formaterDate(article.datePublication)}',
                     style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                 const SizedBox(width: 16),
                 Icon(Icons.remove_red_eye_outlined, size: 14, color: Colors.grey[500]),

@@ -56,9 +56,21 @@ class _WeatherScreenState extends State<WeatherScreen> {
     });
     try {
       final rep = await _dio.get('/meteo');
-      final icone = rep.data['icone'] as String? ?? '';
+      debugPrint('[METEO] Réponse brute: ${rep.data}');
+      final data = rep.data as Map<String, dynamic>;
+      // Priorité : iconeUrl (URL distante fiable) puis icone (chemin relatif upload)
+      final iconeDistante = data['iconeUrl'] as String? ?? '';
+      final iconeUpload = data['icone'] as String? ?? '';
       final base = ApiClient.baseUrl.replaceAll('/api', '');
-      final url = icone.startsWith('http') ? icone : '$base$icone';
+      var url = '';
+      if (iconeDistante.isNotEmpty) {
+        url = iconeDistante;
+      } else if (iconeUpload.startsWith('http')) {
+        url = iconeUpload;
+      } else if (iconeUpload.isNotEmpty) {
+        url = '$base$iconeUpload';
+      }
+      debugPrint('[METEO] URL image construite: $url');
 
       // Sauvegarder en cache local
       await _db.sauvegarderMeteoCache('__principale__', url);
@@ -69,7 +81,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
           _chargement = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[METEO] Erreur _charger: $e');
       // Tenter le cache local
       final cached = await _db.getMeteoCache('__principale__');
       if (mounted) {
