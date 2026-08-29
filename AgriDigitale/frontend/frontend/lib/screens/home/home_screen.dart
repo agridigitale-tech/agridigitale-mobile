@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                         ),
                         SizedBox(
-                          height: 210,
+                          height: 236,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.only(left: 14),

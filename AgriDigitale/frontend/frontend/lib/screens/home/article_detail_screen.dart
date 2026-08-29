@@ -440,7 +440,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 'em': Style(fontStyle: FontStyle.italic),
                 'a': Style(color: AppColors.vertPrimaire, textDecoration: TextDecoration.underline),
                 'img': Style(
-                  width: Width(double.infinity),
                   margin: Margins.symmetric(vertical: 10),
                 ),
                 'figure': Style(margin: Margins.symmetric(vertical: 10)),
