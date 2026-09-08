@@ -12,8 +12,8 @@ class ApiClient {
 
   // URL du backend Render — commune à toute l'app (mobile + web)
   static String get baseUrl {
-  return 'https://agridigitale-backend.onrender.com/api';
-}
+    return 'https://agridigitale-backend.onrender.com/api';
+  }
 
 
 

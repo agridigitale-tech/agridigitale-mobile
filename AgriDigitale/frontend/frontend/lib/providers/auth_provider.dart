@@ -1,7 +1,9 @@
 // Provider auth : gère l'état de connexion de l'utilisateur (connecte/déconnecté/admin).
 // Appelé au démarrage via verifierSession() pour restaurer la session depuis SharedPreferences.
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final _service = AuthService();
@@ -23,6 +25,8 @@ class AuthProvider extends ChangeNotifier {
       nomUtilisateur = profil['nom'];
       emailUtilisateur = profil['email'];
       role = profil['role'];
+      // Ré-envoyer le token FCM si la session est restaurée (utilisateur connecté)
+      unawaited(NotificationService().synchroniserToken());
     }
     enVerification = false;
     notifyListeners();
@@ -36,6 +40,8 @@ class AuthProvider extends ChangeNotifier {
     emailUtilisateur = data['utilisateur']?['email'] ?? data['email'];
     role = data['utilisateur']?['role'] ?? data['role'];
     notifyListeners();
+    // Envoyer le token FCM au serveur une fois connecté (protégé par JWT)
+    unawaited(NotificationService().synchroniserToken());
   }
 
   Future<void> inscrire(String nom, String email, String mdp) async {
@@ -46,6 +52,7 @@ class AuthProvider extends ChangeNotifier {
     emailUtilisateur = data['utilisateur']?['email'] ?? data['email'] ?? email;
     role = data['utilisateur']?['role'] ?? data['role'] ?? 'utilisateur';
     notifyListeners();
+    unawaited(NotificationService().synchroniserToken());
   }
 
   Future<void> deconnecter() async {

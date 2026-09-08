@@ -39,7 +39,7 @@ const notifierNouvelArticle = async (article) => {
       tokenFCM: { $ne: null },
       $or: [
         { preferencesRubriques: { $size: 0 } },
-        { preferencesRubriques: article.categorie },
+        { preferencesRubriques: { $in: [article.categorie] } },
       ],
     }).select('tokenFCM');
 

@@ -9,6 +9,7 @@ import '../core/api_client.dart';
 import '../providers/notification_provider.dart';
 
 // Handler exécuté en arrière-plan (processus isolé) quand l'app est fermée
+// FCM gère automatiquement l'affichage quand l'app est fermée (notification field présent)
 @pragma('vm:entry-point')
 Future<void> _backgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -89,8 +90,19 @@ class NotificationService {
   Future<void> _sauvegarderToken(String token) async {
     try {
       await _dio.post('/auth/token-fcm', data: {'token': token});
+      debugPrint('[FCM] Token enregistré sur le serveur');
     } catch (e) {
       debugPrint('[FCM] Erreur sauvegarde token: $e');
+    }
+  }
+
+  // Renvoie le token FCM au serveur. À appeler après connexion / déconnexion.
+  Future<void> synchroniserToken() async {
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) await _sauvegarderToken(token);
+    } catch (e) {
+      debugPrint('[FCM] Erreur synchronisation token: $e');
     }
   }
 
