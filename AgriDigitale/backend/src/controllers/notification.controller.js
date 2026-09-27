@@ -2,7 +2,19 @@ const { envoyerNotificationManuelle } = require('../services/notification.servic
 const Utilisateur = require('../models/Utilisateur');
 const Notification = require('../models/Notification');
 
-exports.envoyerManuelle = async (req, res, next) => {
+// Enregistrer le token OneSignal de l'utilisateur
+exports.enregistrerToken = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token manquant' });
+    await Utilisateur.findByIdAndUpdate(req.utilisateurId, { tokenFCM: token });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
   try {
     const { titre, message } = req.body;
 

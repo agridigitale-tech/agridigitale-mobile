@@ -25,6 +25,7 @@ void main() async {
 
   await NotificationService().initialiser();
   NotificationService().ecouterRefreshToken();
+  NotificationService.navigatorKey = GlobalKey<NavigatorState>();
 
   runApp(Phoenix(child: const MonApp()));
 }
@@ -36,7 +37,7 @@ class MonApp extends StatefulWidget {
 }
 
 class _MonAppState extends State<MonApp> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
+  GlobalKey<NavigatorState> get _navigatorKey => NotificationService.navigatorKey!;
   late final AppLinks _appLinks;
 
   @override
