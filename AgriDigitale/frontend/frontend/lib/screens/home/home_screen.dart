@@ -2,7 +2,6 @@
 // l'article à la une, le scroll horizontal "À ne pas manquer" (top 6 vues),
 // et la liste verticale "Dernières actualités" avec pagination infinie.
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/article_service.dart';
 import '../../models/article.dart';
@@ -51,10 +50,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           _scrollController.position.maxScrollExtent - 200) {
         _chargerPlus();
       }
-    });
-    // Rafraîchir le badge quand une notif FCM arrive en foreground
-    FirebaseMessaging.onMessage.listen((_) {
-      if (mounted) _chargerNotifs();
     });
   }
 
@@ -361,11 +356,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               textAlign: TextAlign.center),
         ]),
       );
-}
-
-// Classe utilitaire pour écouter les notifs FCM depuis HomeScreen
-class FirebaseMessagingListener {
-  static VoidCallback? onForegroundMessage;
 }
 
 // Widget Article à la Une

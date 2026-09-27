@@ -1,38 +1,30 @@
-const admin = require('../config/firebase');
+const https = require('https');
 const Utilisateur = require('../models/Utilisateur');
 
-const _nettoyerTokensInvalides = async (responses, tokens) => {
-  const invalides = responses
-    .map((r, i) => (!r.success && ['registration-token-not-registered', 'invalid-registration-token']
-      .includes(r.error?.code?.replace('messaging/', '')) ? tokens[i] : null))
-    .filter(Boolean);
-  if (invalides.length > 0) {
-    await Utilisateur.updateMany({ tokenFCM: { $in: invalides } }, { $unset: { tokenFCM: '' } });
-  }
-};
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
 
-const _buildMessage = (tokens, notification, data) => ({
-  tokens,
-  notification,
-  data,
-  android: {
-    priority: 'high',
-    ttl: 86400000,
-    notification: {
-      channelId: 'agridigitale_channel',
-      sound: 'default',
-      defaultVibrateTimings: true,
-      notificationPriority: 'PRIORITY_HIGH',
-      visibility: 'PUBLIC',
+const _envoyerOneSignal = (body) => new Promise((resolve, reject) => {
+  const data = JSON.stringify(body);
+  const req = https.request({
+    hostname: 'api.onesignal.com',
+    path: '/notifications',
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${ONESIGNAL_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data),
     },
-  },
-  apns: {
-    headers: { 'apns-priority': '10' },
-    payload: { aps: { sound: 'default', badge: 1, contentAvailable: true } },
-  },
+  }, (res) => {
+    let result = '';
+    res.on('data', chunk => result += chunk);
+    res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(result) }));
+  });
+  req.on('error', reject);
+  req.write(data);
+  req.end();
 });
 
-// FCM only — la sauvegarde en base est faite par rss.service.js
 const notifierNouvelArticle = async (article) => {
   try {
     const utilisateurs = await Utilisateur.find({
@@ -43,29 +35,31 @@ const notifierNouvelArticle = async (article) => {
       ],
     }).select('tokenFCM');
 
-    const tokens = utilisateurs.map(u => u.tokenFCM).filter(Boolean);
-    if (tokens.length === 0) return;
+    const playerIds = utilisateurs.map(u => u.tokenFCM).filter(Boolean);
+    if (playerIds.length === 0) return;
 
-    const result = await admin.messaging().sendEachForMulticast(_buildMessage(
-      tokens,
-      { title: 'AgriDigitale — Nouvel article', body: article.titre },
-      { articleId: article._id.toString(), type: 'nouvel_article', categorie: article.categorie || '', click_action: 'FLUTTER_NOTIFICATION_CLICK' }
-    ));
+    const result = await _envoyerOneSignal({
+      app_id: ONESIGNAL_APP_ID,
+      include_subscription_ids: playerIds,
+      headings: { en: 'AgriDigitale — Nouvel article', fr: 'AgriDigitale — Nouvel article' },
+      contents: { en: article.titre, fr: article.titre },
+      data: { type: 'nouvel_article', articleId: article._id.toString(), categorie: article.categorie || '' },
+      android_channel_id: 'agridigitale_channel',
+    });
 
-    await _nettoyerTokensInvalides(result.responses, tokens);
-    console.log(`[FCM] Article notifié à ${tokens.length} utilisateur(s)`);
+    console.log(`[OneSignal] Article notifié à ${playerIds.length} utilisateur(s) — status: ${result.status}`);
   } catch (err) {
-    console.error('[FCM] Erreur notifierNouvelArticle :', err.message);
+    console.error('[OneSignal] Erreur notifierNouvelArticle :', err.message);
   }
 };
 
-const envoyerNotificationManuelle = async (titre, message, tokens) => {
-  const result = await admin.messaging().sendEachForMulticast(_buildMessage(
-    tokens,
-    { title: titre, body: message },
-    {}
-  ));
-  await _nettoyerTokensInvalides(result.responses, tokens);
+const envoyerNotificationManuelle = async (titre, message, playerIds) => {
+  return _envoyerOneSignal({
+    app_id: ONESIGNAL_APP_ID,
+    include_subscription_ids: playerIds,
+    headings: { en: titre, fr: titre },
+    contents: { en: message, fr: message },
+  });
 };
 
 module.exports = { notifierNouvelArticle, envoyerNotificationManuelle };

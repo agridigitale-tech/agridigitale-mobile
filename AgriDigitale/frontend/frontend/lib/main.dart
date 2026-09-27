@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:app_links/app_links.dart';
 import 'providers/theme_provider.dart';
@@ -24,12 +23,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
 
-  try {
-    await Firebase.initializeApp();
-    await NotificationService().initialiser();
-  } catch (e) {
-    debugPrint('[Firebase] Non configuré : $e');
-  }
+  await NotificationService().initialiser();
+  NotificationService().ecouterRefreshToken();
 
   runApp(Phoenix(child: const MonApp()));
 }
@@ -41,7 +36,7 @@ class MonApp extends StatefulWidget {
 }
 
 class _MonAppState extends State<MonApp> {
-  final _navigatorKey = NotificationService.navigatorKey;
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final AppLinks _appLinks;
 
   @override
