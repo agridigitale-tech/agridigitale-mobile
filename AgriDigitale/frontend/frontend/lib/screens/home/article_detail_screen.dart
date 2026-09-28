@@ -441,8 +441,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 'a': Style(color: AppColors.vertPrimaire, textDecoration: TextDecoration.underline),
                 'img': Style(
                   margin: Margins.symmetric(vertical: 10),
-                  width: Width(double.infinity),
-                  display: Display.block,
                 ),
                 'figure': Style(margin: Margins.symmetric(vertical: 10)),
                 'figcaption': Style(
