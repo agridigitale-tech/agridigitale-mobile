@@ -1,68 +1,164 @@
-import 'dart:convert';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import '../core/constants.dart';
+// Service notifications push (Firebase Cloud Messaging).
+// Gère : permission, token FCM, affichage local, clic → navigation vers l'article.
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:provider/provider.dart';
+import '../core/api_client.dart';
+import '../providers/notification_provider.dart';
+
+// Handler exécuté en arrière-plan (processus isolé) quand l'app est fermée
+// FCM gère automatiquement l'affichage quand l'app est fermée (notification field présent)
+@pragma('vm:entry-point')
+Future<void> _backgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('[FCM] Background/Terminé: ${message.notification?.title}');
+}
+
+const _kChannelId = 'agridigitale_channel';
+const _kChannelName = 'AgriDigitale — Actualités';
+const _kChannelDesc = 'Notifications pour les nouveaux articles AgriDigitale';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  static const String _appId = '0e79e499-2f86-4bf0-964a-3b162fd3dbec';
+  final _messaging = FirebaseMessaging.instance;
+  final _dio = ApiClient().dio;
+  final _localNotif = FlutterLocalNotificationsPlugin();
+
+  static final navigatorKey = GlobalKey<NavigatorState>();
 
   Future<void> initialiser() async {
-    OneSignal.Debug.setLogLevel(OSLogLevel.none);
-    OneSignal.initialize(_appId);
-    await OneSignal.Notifications.requestPermission(true);
+    FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
 
-    OneSignal.Notifications.addClickListener((event) {
-      final data = event.notification.additionalData;
-      if (data != null) _traiterNavigation(data);
-    });
-  }
+    await _localNotif.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+      onDidReceiveNotificationResponse: _onNotifTap,
+    );
 
-  Future<void> synchroniserToken() async {
-    try {
-      final playerId = OneSignal.User.pushSubscription.id;
-      if (playerId == null) return;
+    await _localNotif
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+          _kChannelId,
+          _kChannelName,
+          description: _kChannelDesc,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+        ));
 
-      final prefs = await SharedPreferences.getInstance();
-      final jwt = prefs.getString('token');
-      if (jwt == null) return;
+    await _messaging.requestPermission(
+      alert: true, badge: true, sound: true, provisional: false,
+    );
 
-      print('[OneSignal] Player ID: ${playerId.substring(0, 20)}...');
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: false, badge: false, sound: false,
+    );
 
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/notifications/token'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-        body: jsonEncode({'token': playerId}),
-      );
+    await _envoyerToken();
+    _messaging.onTokenRefresh.listen(_sauvegarderToken);
 
-      if (response.statusCode == 200) {
-        print('[OneSignal] Token synchronisé avec le backend');
-      } else {
-        print('[OneSignal] Erreur sync token: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('[OneSignal] Erreur synchroniserToken: $e');
+    FirebaseMessaging.onMessage.listen(_afficherNotificationSysteme);
+    FirebaseMessaging.onMessageOpenedApp.listen(_gererClic);
+
+    final initial = await _messaging.getInitialMessage();
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _gererClic(initial));
     }
   }
 
-  Future<void> gererMessageInitial() async {
-    // Géré dans initialiser() via addClickListener
+  Future<void> _envoyerToken() async {
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) await _sauvegarderToken(token);
+    } catch (e) {
+      debugPrint('[FCM] Erreur token: $e');
+    }
   }
 
-  void ecouterRefreshToken() {
-    OneSignal.User.pushSubscription.addObserver((state) {
-      if (state.current.id != null) synchroniserToken();
-    });
+  Future<void> _sauvegarderToken(String token) async {
+    try {
+      await _dio.post('/auth/token-fcm', data: {'token': token});
+      debugPrint('[FCM] Token enregistré sur le serveur');
+    } catch (e) {
+      debugPrint('[FCM] Erreur sauvegarde token: $e');
+    }
   }
 
-  void _traiterNavigation(Map<String, dynamic> data) {
-    // Navigation selon data['type']
+  // Renvoie le token FCM au serveur. À appeler après connexion / déconnexion.
+  Future<void> synchroniserToken() async {
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) await _sauvegarderToken(token);
+    } catch (e) {
+      debugPrint('[FCM] Erreur synchronisation token: $e');
+    }
+  }
+
+  void _afficherNotificationSysteme(RemoteMessage message) {
+    final notif = message.notification;
+    if (notif == null) return;
+
+    // Incrémenter le badge compteur
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      try {
+        ctx.read<NotificationProvider>().incrementer();
+      } catch (_) {}
+    }
+
+    final articleId = message.data['articleId'] ?? '';
+    final type = message.data['type'] ?? '';
+
+    _localNotif.show(
+      message.hashCode,
+      notif.title,
+      notif.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _kChannelId,
+          _kChannelName,
+          channelDescription: _kChannelDesc,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: '$type|$articleId',
+    );
+  }
+
+  void _onNotifTap(NotificationResponse response) {
+    final parts = (response.payload ?? '').split('|');
+    final type = parts.isNotEmpty ? parts[0] : '';
+    final id = parts.length > 1 ? parts[1] : '';
+    if (type == 'nouvel_article' && id.isNotEmpty) {
+      navigatorKey.currentState?.pushNamed('/article', arguments: id);
+    }
+  }
+
+  void _gererClic(RemoteMessage message) {
+    final articleId = message.data['articleId'];
+    if (articleId != null && articleId.isNotEmpty) {
+      navigatorKey.currentState?.pushNamed('/article', arguments: articleId);
+    }
   }
 }
