@@ -5,72 +5,303 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Politique de confidentialité — AgriDigitale</title>
 <style>
-  body { font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.6; }
-  h1 { color: #3CA35A; }
-  h2 { color: #1F7A3D; margin-top: 32px; }
-  .date { color: #666; font-size: 0.9em; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4f7f4;
+    color: #222;
+    line-height: 1.7;
+  }
+  header {
+    background: linear-gradient(135deg, #2e7d32, #4CAF50);
+    color: white;
+    padding: 48px 24px 36px;
+    text-align: center;
+  }
+  header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  header p { font-size: 0.95rem; opacity: 0.85; }
+  .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.82rem;
+    margin-top: 12px;
+  }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  .intro {
+    background: white;
+    border-left: 4px solid #4CAF50;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    font-size: 0.97rem;
+    color: #444;
+  }
+  .section {
+    background: white;
+    border-radius: 10px;
+    padding: 28px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .section h2 {
+    color: #2e7d32;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section h2 .num {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  ul { padding-left: 20px; }
+  ul li { margin-bottom: 8px; font-size: 0.95rem; }
+  p { font-size: 0.95rem; margin-bottom: 10px; }
+  strong { color: #1a1a1a; }
+  a { color: #2e7d32; text-decoration: none; font-weight: 600; }
+  a:hover { text-decoration: underline; }
+  .tag {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .highlight {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    font-size: 0.92rem;
+  }
+  .no-collect {
+    background: #e8f5e9;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-top: 12px;
+    font-size: 0.92rem;
+    color: #2e7d32;
+    font-weight: 600;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 0.9rem;
+  }
+  th {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  footer {
+    text-align: center;
+    padding: 32px 24px;
+    color: #888;
+    font-size: 0.85rem;
+    border-top: 1px solid #e0e0e0;
+    background: white;
+  }
+  footer strong { color: #2e7d32; }
 </style>
 </head>
 <body>
 
-<h1>Politique de confidentialité — AgriDigitale</h1>
-<p class="date">Dernière mise à jour : 24 août 2026</p>
+<header>
+  <h1>🌾 Politique de confidentialité</h1>
+  <p>Application mobile AgriDigitale</p>
+  <span class="badge">Dernière mise à jour : 1er janvier 2027</span>
+</header>
 
-<p>La présente politique de confidentialité décrit comment AGRIDIGITALE (« nous », « notre ») collecte, utilise et protège vos données personnelles lorsque vous utilisez l'application mobile AgriDigitale (l'« Application »), disponible sur Google Play Store.</p>
+<div class="container">
 
-<h2>1. Responsable du traitement</h2>
-<p>AGRIDIGITALE — Contact : <a href="mailto:tech@agridigitale.com">tech@agridigitale.com</a> — Site web : https://agridigitale.net</p>
+  <div class="intro">
+    La présente politique de confidentialité décrit comment <strong>AGRIDIGITALE</strong> collecte, utilise et protège vos données personnelles lorsque vous utilisez l'application mobile <strong>AgriDigitale</strong>, disponible sur Google Play Store. En utilisant l'application, vous acceptez les pratiques décrites ci-dessous.
+  </div>
 
-<h2>2. Données que nous collectons</h2>
-<ul>
-  <li><strong>Données de compte</strong> : nom complet, adresse e-mail et mot de passe (chiffré) lorsque vous créez un compte ; pays de résidence (facultatif).</li>
-  <li><strong>Jeton de notification</strong> : identifiant technique Firebase Cloud Messaging (FCM) permettant de vous envoyer des notifications push.</li>
-  <li><strong>Contenu utilisateur</strong> : commentaires que vous publiez et demandes (suggestion, réclamation, partenariat) que vous envoyez via le formulaire dédié (nom, profession, e-mail, téléphone, message).</li>
-  <li><strong>Statistiques d'utilisation agrégées</strong> : nombre de vues des articles, nombre d'utilisateurs par pays/continent — utilisées uniquement à des fins statistiques internes.</li>
-  <li><strong>Stockage local</strong> : vos préférences (thème, langue), jeton de session et articles favoris sont stockés localement sur votre appareil.</li>
-</ul>
-<p>Nous ne collectons <strong>pas</strong> votre localisation géographique précise, ni aucune donnée biométrique ou financière.</p>
+  <!-- 1 -->
+  <div class="section">
+    <h2><span class="num">1</span> Responsable du traitement</h2>
+    <p><strong>AGRIDIGITALE</strong><br>
+    Site web : <a href="https://agridigitale.net" target="_blank">https://agridigitale.net</a><br>
+    E-mail : <a href="mailto:devromarictec@gmail.com">devromarictec@gmail.com</a><br>
+    WhatsApp : +228 72 14 00 57</p>
+  </div>
 
-<h2>3. Utilisation des données</h2>
-<ul>
-  <li>Créer et gérer votre compte, et vous authentifier ;</li>
-  <li>Réinitialiser votre mot de passe à votre demande (e-mail avec lien valable 15 minutes) ;</li>
-  <li>Vous envoyer des notifications sur les nouveaux articles (désactivables dans les réglages de votre téléphone) ;</li>
-  <li>Afficher vos commentaires et traiter vos demandes ;</li>
-  <li>Améliorer l'Application grâce à des statistiques agrégées.</li>
-</ul>
+  <!-- 2 -->
+  <div class="section">
+    <h2><span class="num">2</span> Données collectées</h2>
+    <table>
+      <tr>
+        <th>Catégorie</th>
+        <th>Données</th>
+        <th>Obligatoire</th>
+      </tr>
+      <tr>
+        <td><strong>Compte</strong></td>
+        <td>Nom complet, adresse e-mail, mot de passe (chiffré bcrypt), pays de résidence</td>
+        <td><span class="tag">Oui</span></td>
+      </tr>
+      <tr>
+        <td><strong>Notifications</strong></td>
+        <td>Identifiant OneSignal (Player ID) pour l'envoi de notifications push</td>
+        <td><span class="tag">Non</span></td>
+      </tr>
+      <tr>
+        <td><strong>Contenu</strong></td>
+        <td>Commentaires publiés, demandes envoyées (nom, profession, e-mail, téléphone, message)</td>
+        <td><span class="tag">Non</span></td>
+      </tr>
+      <tr>
+        <td><strong>Statistiques</strong></td>
+        <td>Nombre de vues des articles, répartition par pays/continent (données agrégées)</td>
+        <td><span class="tag">Auto</span></td>
+      </tr>
+      <tr>
+        <td><strong>Stockage local</strong></td>
+        <td>Préférences (thème, langue), jeton de session, articles favoris — stockés sur votre appareil uniquement</td>
+        <td><span class="tag">Auto</span></td>
+      </tr>
+    </table>
+    <div class="no-collect">
+      ✅ Nous ne collectons PAS : localisation GPS précise, données biométriques, données financières, contacts téléphoniques, ni aucune donnée sensible.
+    </div>
+  </div>
 
-<h2>4. Partage des données</h2>
-<p>Nous ne vendons ni ne louons vos données personnelles. Elles sont uniquement traitées par :</p>
-<ul>
-  <li><strong>Firebase / Google Cloud</strong> (notifications push) — soumis aux règles de confidentialité de Google ;</li>
-  <li><strong>MongoDB Atlas</strong> (hébergement sécurisé de la base de données) ;</li>
-  <li><strong>Gmail / Resend</strong> (envoi des e-mails de réinitialisation de mot de passe).</li>
-</ul>
+  <!-- 3 -->
+  <div class="section">
+    <h2><span class="num">3</span> Utilisation des données</h2>
+    <p>Vos données sont utilisées exclusivement pour :</p>
+    <ul>
+      <li>Créer, gérer et sécuriser votre compte ;</li>
+      <li>Vous authentifier et maintenir votre session ;</li>
+      <li>Réinitialiser votre mot de passe à votre demande (lien valable 15 minutes) ;</li>
+      <li>Vous envoyer des notifications push sur les nouveaux articles agricoles ;</li>
+      <li>Afficher vos commentaires et traiter vos demandes de support ;</li>
+      <li>Améliorer l'application via des statistiques agrégées et anonymisées.</li>
+    </ul>
+    <div class="highlight">
+      ⚠️ Vos données ne sont jamais utilisées à des fins publicitaires, ni vendues à des tiers.
+    </div>
+  </div>
 
-<h2>5. Conservation et sécurité</h2>
-<p>Vos données sont conservées tant que votre compte existe. Les mots de passe sont chiffrés (bcrypt). Les communications avec nos serveurs sont chiffrées (HTTPS).</p>
-<p><strong>Suppression de votre compte :</strong> vous pouvez supprimer votre compte et toutes vos données associées à tout moment, gratuitement :</p>
-<ul>
-  <li><strong>Depuis l'application</strong> : Paramètres → « Supprimer mon compte » ;</li>
-  <li><strong>Depuis notre page dédiée</strong> : <a href="/suppression-compte.html">Formulaire de suppression de compte</a>.</li>
-</ul>
-<p>Pour toute autre demande (accès, rectification) : <a href="mailto:tech@agridigitale.com">tech@agridigitale.com</a>.</p>
+  <!-- 4 -->
+  <div class="section">
+    <h2><span class="num">4</span> Partage des données</h2>
+    <p>Nous ne vendons ni ne louons vos données. Elles sont uniquement traitées par nos sous-traitants techniques :</p>
+    <ul>
+      <li><strong>OneSignal</strong> — envoi de notifications push (<a href="https://onesignal.com/privacy_policy" target="_blank">politique OneSignal</a>) ;</li>
+      <li><strong>MongoDB Atlas / AWS</strong> — hébergement sécurisé de la base de données ;</li>
+      <li><strong>Render</strong> — hébergement du serveur backend ;</li>
+      <li><strong>Gmail API / Google</strong> — envoi des e-mails de réinitialisation de mot de passe.</li>
+    </ul>
+    <p>Aucun partage avec des tiers à des fins commerciales ou publicitaires.</p>
+  </div>
 
-<h2>6. Vos droits</h2>
-<p>Conformément à la réglementation applicable, vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition concernant vos données personnelles. Pour exercer ces droits : <a href="mailto:tech@agridigitale.com">tech@agridigitale.com</a>.</p>
+  <!-- 5 -->
+  <div class="section">
+    <h2><span class="num">5</span> Conservation et sécurité</h2>
+    <ul>
+      <li>Vos données sont conservées tant que votre compte est actif ;</li>
+      <li>Les mots de passe sont chiffrés avec <strong>bcrypt</strong> (irréversible) ;</li>
+      <li>Toutes les communications sont chiffrées via <strong>HTTPS/TLS</strong> ;</li>
+      <li>Les tokens de session JWT expirent automatiquement après 7 jours ;</li>
+      <li>Les liens de réinitialisation de mot de passe expirent après <strong>15 minutes</strong>.</li>
+    </ul>
+  </div>
 
-<h2>7. Mineurs</h2>
-<p>L'Application n'est pas destinée aux enfants de moins de 13 ans et nous ne collectons pas sciemment de données les concernant.</p>
+  <!-- 6 -->
+  <div class="section">
+    <h2><span class="num">6</span> Suppression de votre compte</h2>
+    <p>Vous pouvez supprimer votre compte et <strong>toutes vos données associées</strong> à tout moment, gratuitement :</p>
+    <ul>
+      <li><strong>Depuis l'application</strong> : Profil → Paramètres → « Supprimer mon compte » ;</li>
+      <li><strong>Par e-mail</strong> : <a href="mailto:devromarictec@gmail.com">devromarictec@gmail.com</a> avec l'objet « Suppression de compte ».</li>
+    </ul>
+    <p>La suppression efface définitivement : compte, commentaires, favoris et notifications. Cette action est <strong>irréversible</strong>.</p>
+  </div>
 
-<h2>8. Modifications</h2>
-<p>Nous pouvons mettre à jour cette politique. Toute modification sera publiée sur cette page avec une nouvelle date de mise à jour.</p>
+  <!-- 7 -->
+  <div class="section">
+    <h2><span class="num">7</span> Vos droits</h2>
+    <p>Conformément à la réglementation applicable sur la protection des données, vous disposez des droits suivants :</p>
+    <ul>
+      <li><strong>Droit d'accès</strong> — obtenir une copie de vos données ;</li>
+      <li><strong>Droit de rectification</strong> — corriger des données inexactes ;</li>
+      <li><strong>Droit à l'effacement</strong> — supprimer vos données ;</li>
+      <li><strong>Droit d'opposition</strong> — vous opposer à certains traitements ;</li>
+      <li><strong>Droit à la portabilité</strong> — recevoir vos données dans un format structuré.</li>
+    </ul>
+    <p>Pour exercer ces droits : <a href="mailto:devromarictec@gmail.com">devromarictec@gmail.com</a></p>
+  </div>
 
-<h2>9. Contact</h2>
-<p>Pour toute question relative à la confidentialité :<br>
-AGRIDIGITALE<br>
-E-mail : <a href="mailto:tech@agridigitale.com">tech@agridigitale.com</a><br>
-WhatsApp : +228 72 14 00 57</p>
+  <!-- 8 -->
+  <div class="section">
+    <h2><span class="num">8</span> Notifications push</h2>
+    <p>L'application peut vous envoyer des notifications push pour vous informer des nouveaux articles agricoles. Vous pouvez :</p>
+    <ul>
+      <li>Accepter ou refuser les notifications lors du premier lancement ;</li>
+      <li>Les désactiver à tout moment dans les <strong>Paramètres</strong> de votre téléphone → Notifications → AgriDigitale.</li>
+    </ul>
+    <p>Le désactivation des notifications n'affecte pas les autres fonctionnalités de l'application.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section">
+    <h2><span class="num">9</span> Mineurs</h2>
+    <p>L'application AgriDigitale n'est pas destinée aux enfants de moins de <strong>13 ans</strong>. Nous ne collectons pas sciemment de données personnelles concernant des mineurs. Si vous pensez qu'un mineur nous a fourni des données, contactez-nous pour les supprimer.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section">
+    <h2><span class="num">10</span> Modifications de cette politique</h2>
+    <p>Nous pouvons mettre à jour cette politique de confidentialité à tout moment. Toute modification sera publiée sur cette page avec une nouvelle date de mise à jour. En cas de modification substantielle, nous vous en informerons via une notification dans l'application.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section">
+    <h2><span class="num">11</span> Contact</h2>
+    <p>Pour toute question relative à la confidentialité de vos données :</p>
+    <p>
+      <strong>AGRIDIGITALE</strong><br>
+      📧 <a href="mailto:devromarictec@gmail.com">devromarictec@gmail.com</a><br>
+      🌐 <a href="https://agridigitale.net" target="_blank">https://agridigitale.net</a><br>
+      📱 WhatsApp : +228 72 14 00 57
+    </p>
+  </div>
+
+</div>
+
+<footer>
+  <p>© 2027 <strong>AgriDigitale</strong> — Tous droits réservés</p>
+  <p style="margin-top:6px">Cette politique est conforme aux exigences de Google Play Store et au RGPD.</p>
+</footer>
 
 </body>
 </html>
