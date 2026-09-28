@@ -151,6 +151,8 @@ const recupererFlux = async (tentative = 1) => {
       if (!image && item.link) {
         image = await scrapeOgImage(item.link);
       }
+      // Toujours corriger .com → .net (agridigitale.com est down)
+      if (image) image = image.replace('agridigitale.com', 'agridigitale.net');
 
       // Toujours scraper le contenu complet depuis la page Inertia
       let contenu = '';
