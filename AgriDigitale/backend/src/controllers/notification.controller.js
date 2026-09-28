@@ -14,7 +14,7 @@ exports.enregistrerToken = async (req, res, next) => {
   }
 };
 
-
+exports.envoyerManuelle = async (req, res, next) => {
   try {
     const { titre, message } = req.body;
 
@@ -22,10 +22,8 @@ exports.enregistrerToken = async (req, res, next) => {
       return res.status(400).json({ message: 'Le titre et le message sont obligatoires' });
     }
 
-    // Récupérer TOUS les utilisateurs pour sauvegarder la notification en base
     const tousUtilisateurs = await Utilisateur.find({}).select('tokenFCM _id');
 
-    // Sauvegarder la notification en base pour TOUS les utilisateurs
     const notifDocs = tousUtilisateurs.map(u => ({
       titre,
       message,
@@ -36,7 +34,6 @@ exports.enregistrerToken = async (req, res, next) => {
       await Notification.insertMany(notifDocs);
     }
 
-    // Envoyer FCM uniquement aux utilisateurs avec un token
     const tokens = tousUtilisateurs.map(u => u.tokenFCM).filter(Boolean);
     if (tokens.length === 0) {
       return res.json({ success: true, message: `Notification sauvegardée pour ${tousUtilisateurs.length} utilisateur(s), aucun token FCM`, envoyes: 0 });
@@ -54,7 +51,6 @@ exports.enregistrerToken = async (req, res, next) => {
   }
 };
 
-// Compter les notifications non lues de l'utilisateur connecté
 exports.getNonLues = async (req, res, next) => {
   try {
     const count = await Notification.countDocuments({
@@ -67,14 +63,12 @@ exports.getNonLues = async (req, res, next) => {
   }
 };
 
-// Lister toutes les notifications de l'utilisateur (lues + non lues)
 exports.listerNotifications = async (req, res, next) => {
   try {
     const notifs = await Notification.find({ destinataire: req.utilisateurId })
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
-    // Ajouter articleId (string) pour le Flutter
     const result = notifs.map(n => ({
       ...n,
       articleId: n.article ? n.article.toString() : null,
@@ -85,7 +79,6 @@ exports.listerNotifications = async (req, res, next) => {
   }
 };
 
-// Marquer toutes les notifications de l'utilisateur comme lues
 exports.marquerLues = async (req, res, next) => {
   try {
     await Notification.updateMany(
