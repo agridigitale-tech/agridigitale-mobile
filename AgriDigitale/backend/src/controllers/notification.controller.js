@@ -2,6 +2,16 @@ const { envoyerNotificationManuelle } = require('../services/notification.servic
 const Utilisateur = require('../models/Utilisateur');
 const Notification = require('../models/Notification');
 
+// Enregistrer le Player ID OneSignal dans tokenFCM
+exports.enregistrerToken = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token manquant' });
+    await Utilisateur.findByIdAndUpdate(req.utilisateurId, { tokenFCM: token });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
 exports.envoyerManuelle = async (req, res, next) => {
   try {
     const { titre, message } = req.body;
