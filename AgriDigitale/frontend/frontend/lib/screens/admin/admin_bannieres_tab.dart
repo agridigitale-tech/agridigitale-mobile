@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_service.dart';
 import '../../core/design/app_colors.dart';
@@ -108,8 +108,10 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                   label: const Text('Choisir des photos'),
                   onPressed: () async {
                     final picker = ImagePicker();
-                    final picked =
-                        await picker.pickMultiImage(imageQuality: 80);
+                    final picked = await picker.pickMultiImage(
+                      imageQuality: 80,
+                      requestFullMetadata: false, // Photo Picker natif Android 13+
+                    );
                     if (picked.isNotEmpty) {
                       setS(() =>
                           images.addAll(picked.map((f) => File(f.path))));
