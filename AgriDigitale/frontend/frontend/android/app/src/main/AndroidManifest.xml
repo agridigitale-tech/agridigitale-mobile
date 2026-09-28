@@ -60,13 +60,30 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- OneSignal : icône de notification -->
+        <!-- FCM : FirebaseMessagingService est déjà déclaré par la lib firebase-messaging.
+             Pas besoin de le redéclarer ici — ça cause un conflit de merge Gradle. -->
+
+        <!-- flutter_local_notifications : réception des taps sur notifications -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Icône et couleur des notifications -->
         <meta-data
-            android:name="com.onesignal.NotificationIcon"
+            android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher"/>
         <meta-data
-            android:name="com.onesignal.NotificationAccentColor"
-            android:value="FF3CA35A"/>
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="agridigitale_channel"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

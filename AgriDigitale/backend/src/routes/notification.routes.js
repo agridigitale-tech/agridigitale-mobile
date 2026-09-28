@@ -2,10 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { proteger } = require('../middlewares/auth.middleware');
 const { estAdmin } = require('../middlewares/admin.middleware');
-const { envoyerManuelle, getNonLues, listerNotifications, marquerLues, enregistrerToken } = require('../controllers/notification.controller');
-
-// Utilisateur : enregistrer le token OneSignal
-router.post('/token', proteger, enregistrerToken);
+const { envoyerManuelle, getNonLues, listerNotifications, marquerLues } = require('../controllers/notification.controller');
 
 // Admin : envoyer une notification à tous
 router.post('/manuelle', proteger, estAdmin, envoyerManuelle);
