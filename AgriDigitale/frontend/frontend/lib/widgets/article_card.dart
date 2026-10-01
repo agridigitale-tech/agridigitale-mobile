@@ -3,7 +3,6 @@
 // ArticleCard : image à gauche (format compact), utilisée dans la liste verticale "Dernières actualités".
 // _imgUrl() : sur le web, redirige les images via le proxy backend pour éviter les erreurs CORS.
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +18,7 @@ import '../widgets/auth_gate.dart';
 // - web : passe par le proxy backend /api/proxy-image pour éviter les erreurs CORS
 String _imgUrl(String? url) {
   if (url == null || url.isEmpty) return '';
-  if (!kIsWeb) return url;
+  if (url.contains('/proxy-image')) return url; // déjà proxifié
   return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
 }
 
@@ -69,6 +68,7 @@ class ArticleCardVerticale extends StatelessWidget {
                     width: double.infinity,
                     child: hasImage
                         ? CachedNetworkImage(imageUrl: _imgUrl(article.image), fit: BoxFit.cover,
+                            httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
                             errorWidget: (_, __, ___) => _placeholder())
                         : _placeholder(),
                   ),
@@ -189,6 +189,7 @@ class _ArticleCardState extends State<ArticleCard> {
                     height: double.infinity,
                     child: hasImage
                         ? CachedNetworkImage(imageUrl: _imgUrl(widget.article.image), fit: BoxFit.cover,
+                            httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
                             errorWidget: (_, __, ___) => _placeholder())
                         : _placeholder(),
                   ),

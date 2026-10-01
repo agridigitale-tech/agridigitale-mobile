@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../providers/notification_provider.dart';
@@ -36,6 +38,11 @@ class NotificationService {
   }
 
   void ecouterRefreshToken() {
+    // Resync immédiate si l'ID est déjà disponible (évite le problème de
+    // remise à zéro qui obligeait à se déconnecter/reconnecter)
+    unawaited(synchroniserToken());
+
+    // Puis à chaque changement de subscription ID OneSignal
     OneSignal.User.pushSubscription.addObserver((state) {
       if (state.current.id != null) synchroniserToken();
     });
@@ -43,11 +50,11 @@ class NotificationService {
 
   Future<void> synchroniserToken() async {
     try {
-      final playerId = OneSignal.User.pushSubscription.id;
+      final playerId = await _attendrePlayerId();
       if (playerId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
-      final jwt = prefs.getString('token');
+      final jwt = prefs.getString(AppConstants.jwtTokenKey);
       if (jwt == null) return;
 
       await http.post(
@@ -62,6 +69,17 @@ class NotificationService {
     } catch (e) {
       debugPrint('[OneSignal] Erreur synchroniserToken: $e');
     }
+  }
+
+  // OneSignal fournit le Player ID de façon asynchrone : on attend qu'il soit
+  // disponible (max ~10s) au lieu d'abandonner immédiatement si null.
+  Future<String?> _attendrePlayerId({int maxTentatives = 20}) async {
+    for (var i = 0; i < maxTentatives; i++) {
+      final id = OneSignal.User.pushSubscription.id;
+      if (id != null) return id;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    return OneSignal.User.pushSubscription.id;
   }
 
   void _traiterNavigation(Map<String, dynamic> data) {

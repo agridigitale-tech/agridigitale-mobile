@@ -47,10 +47,10 @@ async function testerNotification(scenario) {
         payload: { aps: { sound: 'default', badge: 1, contentAvailable: true } },
       },
     });
-    console.log('✅ Notification envoyée avec succès !');
+    console.log('Notification envoyée avec succès !');
     console.log('   Message ID :', result);
   } catch (err) {
-    console.error('❌ Erreur :', err.message);
+    console.error('Erreur :', err.message);
     if (err.code) console.error('   Code FCM :', err.code);
   }
 }

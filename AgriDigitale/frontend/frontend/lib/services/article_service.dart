@@ -143,7 +143,7 @@ class ArticleService {
     } else {
       url = '$_backendBase/$t';
     }
-    if (kIsWeb && !url.startsWith(_backendBase)) {
+    if (!url.startsWith(_backendBase)) {
       return '$_backendBase/api/proxy-image?url=${Uri.encodeComponent(url)}';
     }
     return url;

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [{ "src": "*.html", "use": "@vercel/static" }],
+  "routes": [
+    { "src": "/", "dest": "/privacy_policy.html" },
+    { "src": "/privacy", "dest": "/privacy_policy.html" },
+    { "src": "/suppression", "dest": "/suppression_compte.html" }
+  ]
+}
