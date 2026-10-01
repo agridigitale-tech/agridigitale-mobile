@@ -27,27 +27,27 @@ const _envoyerOneSignal = (body) => new Promise((resolve, reject) => {
 
 const notifierNouvelArticle = async (article) => {
   try {
-    const utilisateurs = await Utilisateur.find({
-      tokenFCM: { $ne: null },
-      $or: [
-        { preferencesRubriques: { $size: 0 } },
-        { preferencesRubriques: { $in: [article.categorie] } },
-      ],
-    }).select('tokenFCM');
-
+    // Cibler par tokens individuels si disponibles, sinon envoyer à tous les abonnés
+    const utilisateurs = await Utilisateur.find({ tokenFCM: { $ne: null } }).select('tokenFCM');
     const playerIds = utilisateurs.map(u => u.tokenFCM).filter(Boolean);
-    if (playerIds.length === 0) return;
 
-    const result = await _envoyerOneSignal({
+    const body = {
       app_id: ONESIGNAL_APP_ID,
-      include_subscription_ids: playerIds,
       headings: { en: 'AgriDigitale — Nouvel article', fr: 'AgriDigitale — Nouvel article' },
       contents: { en: article.titre, fr: article.titre },
       data: { type: 'nouvel_article', articleId: article._id.toString(), categorie: article.categorie || '' },
       android_channel_id: 'agridigitale_channel',
-    });
+    };
 
-    console.log(`[OneSignal] Article notifié à ${playerIds.length} utilisateur(s) — status: ${result.status}`);
+    // Si on a des tokens → cibler ces utilisateurs, sinon envoyer à tous les abonnés OneSignal
+    if (playerIds.length > 0) {
+      body.include_subscription_ids = playerIds;
+    } else {
+      body.included_segments = ['All'];
+    }
+
+    const result = await _envoyerOneSignal(body);
+    console.log(`[OneSignal] Article notifié — status: ${result.status}, destinataires: ${playerIds.length > 0 ? playerIds.length : 'tous'}`);
   } catch (err) {
     console.error('[OneSignal] Erreur notifierNouvelArticle :', err.message);
   }
