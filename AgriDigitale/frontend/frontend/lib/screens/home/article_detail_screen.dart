@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:font_awesome_flutter/src/icon_data.dart' show FaIconData;
 import '../../services/article_service.dart';
 import '../../services/favori_service.dart';
 import '../../services/commentaire_service.dart';
@@ -201,7 +202,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   }
 
   Widget _boutonPartage({
-    required IconData icone,
+    required FaIconData icone,
     required String label,
     required Color couleur,
     required VoidCallback onTap,

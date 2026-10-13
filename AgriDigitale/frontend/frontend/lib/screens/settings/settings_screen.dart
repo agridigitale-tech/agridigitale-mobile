@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:font_awesome_flutter/src/icon_data.dart' show FaIconData;
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -20,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
 
   // Construit une ligne de paramètre avec icône (Material ou FontAwesome), titre et chevron
   Widget _ligne(BuildContext context, IconData icone, String titre,
-      {String? sousTitre, VoidCallback? onTap, Color? couleurTitre, bool isFa = false}) {
+      {String? sousTitre, VoidCallback? onTap, Color? couleurTitre, bool isFa = false, FaIconData? faIcone}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -29,8 +30,8 @@ class SettingsScreen extends StatelessWidget {
           CircleAvatar(
             backgroundColor: AppColors.grisPastille,
             radius: 18,
-            child: isFa
-                ? FaIcon(icone, color: AppColors.grisIcone, size: 16)
+            child: isFa && faIcone != null
+                ? FaIcon(faIcone, color: AppColors.grisIcone, size: 16)
                 : Icon(icone, color: AppColors.grisIcone, size: 18),
           ),
           const SizedBox(width: 16),
@@ -238,9 +239,10 @@ class SettingsScreen extends StatelessWidget {
           // Partager
           _ligne(
             context,
-            FontAwesomeIcons.shareNodes,
+            Icons.share,
             l.t('share'),
             isFa: true,
+            faIcone: FontAwesomeIcons.shareNodes,
             onTap: _partagerApplication,
           ),
           const Divider(height: 1),
