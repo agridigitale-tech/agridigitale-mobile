@@ -33,6 +33,10 @@ const urlEstSure = (urlStr) => {
 // Domaine public où sont hébergées les images de contenu (agridigitale.com est down)
 const DOMAINE_IMAGES = process.env.MEDIA_BASE_URL || 'https://agridigitale.net';
 
+// Les fichiers "ck" sont réellement servis sous "/storage/ck/" sur le site public
+// ("/ck/xxx.jpg" retombe sur la SPA et renvoie du HTML au lieu de l'image).
+const CHEMIN_CK = /^(https?:\/\/[^/]+)?\/ck\//i;
+
 // Convertit une URL d'image relative (/ck/xxx.jpg) ou un marqueur en URL absolue
 const urlAbsolue = (url) => {
   if (url == null) return url;
@@ -40,12 +44,19 @@ const urlAbsolue = (url) => {
   if (u === '') return url;
   // Data URI, ancres, protocoles non http → inchangés
   if (/^(data:|blob:|mailto:|tel:|#)/i.test(u)) return u;
-  // Déjà absolue → corriger l'ancien domaine .com
-  if (/^https?:\/\//i.test(u)) return u.replace(/agridigitale\.com/gi, 'agridigitale.net');
+  // Déjà absolue → corriger l'ancien domaine .com et le chemin /ck/
+  if (/^https?:\/\//i.test(u)) {
+    return u
+      .replace(/agridigitale\.com/gi, 'agridigitale.net')
+      .replace(CHEMIN_CK, '$1/storage/ck/');
+  }
   // Protocole-relative (//cdn.exemple.com/img.jpg)
   if (u.startsWith('//')) return `https:${u}`;
-  // Chemin relatif → préfixé par le domaine public
-  return `${DOMAINE_IMAGES}${u.startsWith('/') ? u : `/${u}`}`;
+  // Chemin relatif → préfixé par le domaine public (+ /ck/ → /storage/ck/)
+  return `${DOMAINE_IMAGES}${u.startsWith('/') ? u : `/${u}`}`.replace(
+    CHEMIN_CK,
+    '$1/storage/ck/'
+  );
 };
 
 // Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL

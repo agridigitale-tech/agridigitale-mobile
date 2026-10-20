@@ -359,11 +359,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       return url;
     }
     if (RegExp(r'^https?://', caseSensitive: false).hasMatch(u)) {
-      return _proxyImage(u.replaceAll(
-          RegExp(r'agridigitale\.com', caseSensitive: false), 'agridigitale.net'));
+      return _proxyImage(
+        u.replaceAll(
+                RegExp(r'agridigitale\.com', caseSensitive: false), 'agridigitale.net')
+            .replaceAllMapped(
+                RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
+                (m) => '${m.group(1)}/storage/ck/'),
+      );
     }
     if (u.startsWith('//')) return _proxyImage('https:$u');
-    return _proxyImage('$_domaineImages${u.startsWith('/') ? u : '/$u'}');
+    return _proxyImage(
+      '$_domaineImages${u.startsWith('/') ? u : '/$u'}'.replaceAllMapped(
+          RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
+          (m) => '${m.group(1)}/storage/ck/'),
+    );
   }
 
   // Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL
