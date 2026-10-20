@@ -37,6 +37,18 @@ const notifierNouvelArticle = async (article) => {
       contents: { en: article.titre, fr: article.titre },
       data: { type: 'nouvel_article', articleId: article._id.toString(), categorie: article.categorie || '' },
       android_channel_id: 'agridigitale_channel',
+      // Priorité haute : livraison immédiate même en arrière-plan / Doze (Android)
+      priority: 10,
+      android_visibility: 1,
+      // iOS : livrer en arrière-plan et incrémenter le badge
+      content_available: true,
+      ios_badgeType: 'Increase',
+      ios_badgeCount: 1,
+      // Image de prévisualisation (grande image) si l'article en a une
+      ...(article.image ? {
+        big_picture: article.image,
+        ios_attachments: { id1: article.image },
+      } : {}),
     };
 
     // Si on a des tokens → cibler ces utilisateurs, sinon envoyer à tous les abonnés OneSignal

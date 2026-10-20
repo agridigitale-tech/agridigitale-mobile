@@ -30,6 +30,82 @@ const urlEstSure = (urlStr) => {
   }
 };
 
+// Domaine public où sont hébergées les images de contenu (agridigitale.com est down)
+const DOMAINE_IMAGES = process.env.MEDIA_BASE_URL || 'https://agridigitale.net';
+
+// Convertit une URL d'image relative (/ck/xxx.jpg) ou un marqueur en URL absolue
+const urlAbsolue = (url) => {
+  if (url == null) return url;
+  const u = String(url).trim();
+  if (u === '') return url;
+  // Data URI, ancres, protocoles non http → inchangés
+  if (/^(data:|blob:|mailto:|tel:|#)/i.test(u)) return u;
+  // Déjà absolue → corriger l'ancien domaine .com
+  if (/^https?:\/\//i.test(u)) return u.replace(/agridigitale\.com/gi, 'agridigitale.net');
+  // Protocole-relative (//cdn.exemple.com/img.jpg)
+  if (u.startsWith('//')) return `https:${u}`;
+  // Chemin relatif → préfixé par le domaine public
+  return `${DOMAINE_IMAGES}${u.startsWith('/') ? u : `/${u}`}`;
+};
+
+// Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL
+const normaliserSrcset = (valeur) =>
+  String(valeur)
+    .split(',')
+    .map((partie) => {
+      const bits = partie.trim().split(/\s+/);
+      if (bits.length === 0 || bits[0] === '') return partie.trim();
+      bits[0] = urlAbsolue(bits[0]);
+      return bits.join(' ');
+    })
+    .join(', ');
+
+// Normalise le HTML du corps d'un article :
+//  - remplace le marqueur {{BASE_URL}} par le domaine public
+//  - corrige le domaine agridigitale.com → agridigitale.net
+//  - transforme les src / data-src / srcset relatifs en URL absolues (images inline)
+const normaliserImagesContenu = (html = '') => {
+  if (!html) return html;
+
+  let resultat = String(html)
+    .replace(/\{\{BASE_URL\}\}/gi, DOMAINE_IMAGES)
+    .replace(/agridigitale\.com/gi, 'agridigitale.net');
+
+  // Traite chaque balise <img ...> individuellement
+  resultat = resultat.replace(/<img\b[^>]*>/gi, (tag) => {
+    let t = tag;
+
+    const dataSrc = t.match(/\sdata-src\s*=\s*(["'])([\s\S]*?)\1/i);
+    const src = t.match(/\ssrc\s*=\s*(["'])([\s\S]*?)\1/i);
+    const srcVide = !src || src[2].trim() === '';
+
+    // Lazy-loading : si src absent/vide mais data-src présent → on promeut data-src en src
+    if (dataSrc && srcVide) {
+      const absolue = urlAbsolue(dataSrc[2]);
+      if (/\ssrc\s*=/i.test(t)) {
+        t = t.replace(/\ssrc\s*=\s*(["'])[\s\S]*?\1/i, ` src="${absolue}"`);
+      } else {
+        t = t.replace(/<img/i, `<img src="${absolue}"`);
+      }
+    }
+
+    // Absolutise src et data-src
+    t = t.replace(
+      /(\s(?:src|data-src)\s*=\s*)(["'])([\s\S]*?)\2/gi,
+      (m, prefixe, q, valeur) => `${prefixe}${q}${urlAbsolue(valeur)}${q}`,
+    );
+    // Absolutise srcset
+    t = t.replace(
+      /(\ssrcset\s*=\s*)(["'])([\s\S]*?)\2/gi,
+      (m, prefixe, q, valeur) => `${prefixe}${q}${normaliserSrcset(valeur)}${q}`,
+    );
+
+    return t;
+  });
+
+  return resultat;
+};
+
 // Extrait un résumé du contenu HTML en supprimant les balises et en limitant la longueur
 const extraireResume = (html = '', limite = 300) => {
   if (!html) return '';
@@ -118,9 +194,10 @@ const scrapeContenuInertia = async (url) => {
     }
 
     if (contenu && contenu.replace(/<[^>]*>/g, '').trim().length > 50) {
-      // Remplace les marqueurs {{BASE_URL}} par le vrai domaine pour que
-      // les images internes (src="{{BASE_URL}}/ck/xxx.jpg") chargent correctement
-      contenu = contenu.replace(/\{\{BASE_URL\}\}/g, 'https://agridigitale.com');
+      // Réécrit les images inline : {{BASE_URL}} + chemins relatifs → URL absolues
+      // (ex. src="{{BASE_URL}}/ck/xxx.jpg" ou src="/ck/xxx.jpg"
+      //      → https://agridigitale.net/ck/xxx.jpg)
+      contenu = normaliserImagesContenu(contenu);
       return contenu;
     }
     return null;
@@ -263,4 +340,4 @@ const demarrerScheduler = () => {
   desactiverBannieresExpirees(); // exécution immédiate au démarrage
 };
 
-module.exports = { recupererFlux, demarrerScheduler, mettreAJourContenuArticles, scrapeContenuInertia };
+module.exports = { recupererFlux, demarrerScheduler, mettreAJourContenuArticles, scrapeContenuInertia, normaliserImagesContenu };

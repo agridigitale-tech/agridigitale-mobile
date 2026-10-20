@@ -69,7 +69,7 @@ class ArticleCardVerticale extends StatelessWidget {
                     child: hasImage
                         ? CachedNetworkImage(imageUrl: _imgUrl(article.image), fit: BoxFit.cover,
                             httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
-                            errorWidget: (_, __, ___) => _placeholder())
+                            errorWidget: (_, _, _) => _placeholder())
                         : _placeholder(),
                   ),
                   Positioned(
@@ -190,7 +190,7 @@ class _ArticleCardState extends State<ArticleCard> {
                     child: hasImage
                         ? CachedNetworkImage(imageUrl: _imgUrl(widget.article.image), fit: BoxFit.cover,
                             httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
-                            errorWidget: (_, __, ___) => _placeholder())
+                            errorWidget: (_, _, _) => _placeholder())
                         : _placeholder(),
                   ),
                   Positioned(

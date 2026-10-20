@@ -45,6 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>AgriDigitale utilise votre position pour détecter automatiquement votre pays lors de l'inscription.</string>
 	<key>NSLocationAlwaysUsageDescription</key>

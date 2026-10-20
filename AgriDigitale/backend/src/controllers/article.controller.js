@@ -1,14 +1,14 @@
 const Article = require('../models/Article');
 
-// Retourne l'article le plus lu pour la section "À la une" de l'accueil
+// Retourne le dernier article du flux RSS pour la section "À la une" de l'accueil
 exports.articleUne = async (req, res, next) => {
   try {
-    // Uniquement les articles des 3 derniers mois pour la section "à la une"
-    const troisMois = new Date();
-    troisMois.setMonth(troisMois.getMonth() - 3);
-    const article = await Article.findOne({ datePublication: { $gte: troisMois } })
+    // Le dernier article publié dans le flux RSS :
+    // tri par date de publication décroissante, puis par date de récupération
+    // (tie-breaker pour les articles publiés au même instant).
+    const article = await Article.findOne({})
       .select('guid titre resume image lienSource source categorie datePublication vues')
-      .sort({ vues: -1 });
+      .sort({ datePublication: -1, dateRecuperation: -1 });
     if (!article) return res.status(404).json({ message: 'Aucun article' });
     res.json(article);
   } catch (err) { next(err); }
@@ -56,6 +56,13 @@ exports.detailArticle = async (req, res, next) => {
           await Article.updateOne({ _id: article._id }, { $set: { contenu: nouveauContenu } });
         }
       } catch (_) { /* scrape optionnel, on continue sans */ }
+    }
+
+    // Corrige les images du corps des articles déjà en base
+    // ({{BASE_URL}}, chemins relatifs, domaine .com → .net)
+    if (article.contenu) {
+      const { normaliserImagesContenu } = require('../services/rss.service');
+      article.contenu = normaliserImagesContenu(article.contenu);
     }
 
     res.json(article);
