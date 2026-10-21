@@ -2,7 +2,6 @@
 // Sur mobile : synchronise avec SQLite pour un accès hors ligne.
 // Sur web : uniquement via l'API (pas de SQLite).
 import 'package:flutter/foundation.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/api_client.dart';
 import '../core/db_helper.dart';
 import '../models/article.dart';
@@ -31,17 +30,25 @@ class FavoriService {
   }
 
   Future<void> ajouter(Article article) async {
-    await _dio.post('/favoris', data: {'articleId': article.id});
+    // 1. Sauvegarde locale SQLite immédiate (fonctionne 100% hors ligne et sans compte)
     if (!kIsWeb) {
       await _db.sauvegarderFavori(article.toSqlite());
+    }
+    // 2. Synchronisation facultative avec le serveur si connecté
+    try {
+      await _dio.post('/favoris', data: {'articleId': article.id});
+    } catch (_) {
+      // Ignoré si visiteur ou serveur hors ligne
     }
   }
 
   Future<void> retirer(String articleId) async {
-    await _dio.delete('/favoris/$articleId');
     if (!kIsWeb) {
       await _db.supprimerFavori(articleId);
     }
+    try {
+      await _dio.delete('/favoris/$articleId');
+    } catch (_) {}
   }
 
   // Vérifie si un article est en favori :
@@ -62,10 +69,36 @@ class FavoriService {
 
   Future<List<Article>> lister() async {
     if (!kIsWeb) {
-      final connectivite = await Connectivity().checkConnectivity();
-      if (connectivite.contains(ConnectivityResult.none)) {
-        final rows = await _db.listerFavorisLocaux();
-        return rows.map((r) => Article.fromSqlite(r)).toList();
+      final rows = await _db.listerFavorisLocaux();
+      final favorisLocaux = rows.map((r) => Article.fromSqlite(r)).toList();
+
+      // Tentative de synchronisation avec le serveur si l'utilisateur est connecté
+      try {
+        final rep = await _dio.get('/favoris');
+        final data = rep.data as List;
+        final favorisServeur = data
+            .where((e) => e != null)
+            .map((e) {
+              final article = Article.fromJson(e as Map<String, dynamic>);
+              return article.copyWith(image: _normaliserImage(article.image));
+            })
+            .toList();
+
+        for (final a in favorisServeur) {
+          await _db.sauvegarderFavori(a.toSqlite());
+        }
+
+        final setIds = <String>{};
+        final listeFinale = <Article>[];
+        for (final a in [...favorisLocaux, ...favorisServeur]) {
+          if (setIds.add(a.id)) {
+            listeFinale.add(a);
+          }
+        }
+        return listeFinale;
+      } catch (_) {
+        // Mode hors ligne ou non connecté : retourne les favoris enregistrés dans le téléphone
+        return favorisLocaux;
       }
     }
     final rep = await _dio.get('/favoris');
@@ -77,11 +110,6 @@ class FavoriService {
           return article.copyWith(image: _normaliserImage(article.image));
         })
         .toList();
-    if (!kIsWeb) {
-      for (final a in articles) {
-        await _db.sauvegarderFavori(a.toSqlite());
-      }
-    }
     return articles;
   }
 }

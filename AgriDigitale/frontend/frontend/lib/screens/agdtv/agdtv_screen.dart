@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../services/agdtv_service.dart';
 import '../../models/video_agdtv.dart';
@@ -284,7 +285,7 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
   }
 }
 
-// Widget miniature YouTube (thumbnail)
+// Widget miniature YouTube (thumbnail mise en cache pour chargement instantané)
 class _Thumbnail extends StatelessWidget {
   final VideoAGDTV video;
   final double? height;
@@ -295,12 +296,14 @@ class _Thumbnail extends StatelessWidget {
     final url = video.vignette.isNotEmpty
         ? video.vignette
         : 'https://img.youtube.com/vi/${video.idYoutube}/hqdefault.jpg';
-    return Image.network(
-      url,
+    return CachedNetworkImage(
+      imageUrl: url,
       width: double.infinity,
       height: height,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
+      memCacheWidth: 400,
+      maxWidthDiskCache: 600,
+      errorWidget: (context, error, stackTrace) => Container(
         height: height,
         color: Colors.grey[800],
         child: const Icon(Icons.play_circle, color: Colors.white54, size: 40),

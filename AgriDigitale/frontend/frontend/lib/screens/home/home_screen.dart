@@ -77,15 +77,22 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     try {
       final nouveaux =
           await _service.lister(categorie: _categorieActive, page: _page);
-      setState(() {
-        _articles.addAll(nouveaux);
-        _page++;
-        if (nouveaux.length < 20) _toutCharge = true;
-      });
+      if (mounted) {
+        setState(() {
+          final Set<String> idsExistants = _articles.map((a) => a.id).toSet();
+          final aAjouter = nouveaux.where((a) => !idsExistants.contains(a.id)).toList();
+          _articles.addAll(aAjouter);
+          _page++;
+          // Si moins de 20 reçus ou aucun nouvel article unique (ex. cache hors-ligne), arrêter le scroll infini
+          if (nouveaux.length < 20 || (nouveaux.isNotEmpty && aAjouter.isEmpty)) {
+            _toutCharge = true;
+          }
+        });
+      }
     } catch (e) {
       debugPrint('[HOME] !! Erreur _chargerPlus: $e');
     }
-    setState(() => _chargement = false);
+    if (mounted) setState(() => _chargement = false);
   }
 
   // Filtre les articles par catégorie (null = toutes) et recharge depuis la page 1
@@ -393,6 +400,8 @@ class _ArticleUne extends StatelessWidget {
                       height: 220,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      memCacheWidth: 900,
+                      maxWidthDiskCache: 1200,
                       httpHeaders: const {'Accept': 'image/*'},
                       placeholder: (ctx, url) => Container(
                           height: 220, color: Colors.grey[200]),

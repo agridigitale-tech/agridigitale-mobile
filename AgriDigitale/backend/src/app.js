@@ -28,6 +28,9 @@ app.use((req, res, next) => {
 app.use(morgan('dev'));
 app.use(express.json());
 
+// Proxy d'image (exempté du rate limit global pour éviter le blocage 429)
+app.use('/api/proxy-image', require('./routes/proxy.routes'));
+
 // Rate limiter global
 const limiterGlobal = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 app.use('/api/', limiterGlobal);
@@ -46,7 +49,6 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 // Permet d'accéder aux images via http://localhost:5000/uploads/nom-de-la-photo.jpg
 app.use('/api/bannieres', require('./routes/banniere.routes'));
-app.use('/api/proxy-image', require('./routes/proxy.routes'));
 app.use('/api/articles/:articleId/commentaires', require('./routes/commentaire.routes'));
 app.use('/uploads', express.static('public/uploads'));
 

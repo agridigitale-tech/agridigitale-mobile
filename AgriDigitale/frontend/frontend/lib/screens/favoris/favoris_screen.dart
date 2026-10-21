@@ -4,7 +4,6 @@ import '../../services/favori_service.dart';
 import '../../models/article.dart';
 import '../../widgets/article_card.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/auth_gate.dart';
 import '../../core/design/app_colors.dart';
 import '../home/article_detail_screen.dart';
 
@@ -20,25 +19,24 @@ class _FavorisScreenState extends State<FavorisScreen> {
   List<Article> _filtres = [];
   bool _chargement = false;
   String? _erreur;
-  bool _estConnecte = false;
+  bool? _dernierStatutAuth;
   String _triActif = 'recent';
   String _recherche = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _charger();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = context.watch<AuthProvider>();
-    if (auth.connecte && !_estConnecte) {
-      _estConnecte = true;
+    if (_dernierStatutAuth != null && _dernierStatutAuth != auth.connecte) {
       _charger();
-    } else if (!auth.connecte) {
-      _estConnecte = false;
-      setState(() {
-        _favoris = [];
-        _filtres = [];
-        _erreur = null;
-      });
     }
+    _dernierStatutAuth = auth.connecte;
   }
 
   Future<void> _charger() async {
@@ -121,17 +119,16 @@ class _FavorisScreenState extends State<FavorisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          auth.connecte ? 'Mes favoris (${_filtres.length})' : 'Mes favoris',
+          _filtres.isNotEmpty ? 'Mes favoris (${_filtres.length})' : 'Mes favoris',
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         actions: [
-          if (auth.connecte && _favoris.isNotEmpty) ...[
+          if (_favoris.isNotEmpty) ...[
             PopupMenuButton<String>(
               icon: const Icon(Icons.sort),
               onSelected: (val) => setState(() {
@@ -181,34 +178,9 @@ class _FavorisScreenState extends State<FavorisScreen> {
           ],
         ],
       ),
-      body: !auth.connecte
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.bookmark_border,
-                      size: 56, color: AppColors.grisIcone),
-                  const SizedBox(height: 14),
-                  const Text('Connecte-toi pour voir tes favoris',
-                      style: TextStyle(fontSize: 15)),
-                  const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final ok = await exigerConnexion(context,
-                          motif: 'accéder à tes favoris');
-                      if (ok && mounted) _charger();
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.vertPrimaire),
-                    child: const Text('Se connecter',
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              ),
-            )
-          : _chargement
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppColors.vertPrimaire))
+      body: _chargement
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.vertPrimaire))
               : _erreur != null
                   ? Center(
                       child: Column(

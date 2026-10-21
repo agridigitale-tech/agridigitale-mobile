@@ -22,10 +22,15 @@ class MainNavigationScreen extends StatefulWidget {
 
 class MainNavigationScreenState extends State<MainNavigationScreen> {
   int _index = 0;
+  // Ne charge un onglet que lorsqu'il est visité pour la première fois (évite 7 requêtes simultanées au démarrage)
+  final Set<int> _ongletsVisites = {0};
 
   // Permet à HomeScreen de naviguer vers l'onglet favoris (index 3) depuis l'AppBar
   void changerOnglet(int index) {
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      _ongletsVisites.add(index);
+    });
   }
 
   final _icones = [
@@ -60,7 +65,13 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: _ecrans),
+      body: IndexedStack(
+        index: _index,
+        children: List.generate(
+          _ecrans.length,
+          (i) => _ongletsVisites.contains(i) ? _ecrans[i] : const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -97,7 +108,12 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
                   final actif = i == _index;
                   return Expanded(
                     child: InkWell(
-                      onTap: () => setState(() => _index = i),
+                      onTap: () {
+                        setState(() {
+                          _index = i;
+                          _ongletsVisites.add(i);
+                        });
+                      },
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

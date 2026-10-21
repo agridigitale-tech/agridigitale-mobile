@@ -1,7 +1,8 @@
-// Service articles : récupère les articles depuis le backend avec fallback cache SQLite.
+// Service articles : récupère les articles depuis le backend avec fallback cache SQLite et flux RSS direct.
 // Sur le web, le cache SQLite est désactivé (kIsWeb). Les images passent par le proxy CORS.
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../core/api_client.dart';
 import '../core/db_helper.dart';
 import '../models/article.dart';
@@ -18,6 +19,14 @@ class ArticleService {
       final article = Article.fromJson(rep.data);
       return article.copyWith(image: _normaliserImage(article.image));
     } catch (_) {
+      // 1. Essai depuis le cache SQLite local
+      if (!kIsWeb) {
+        final cached = await _db.listerArticlesLocaux(limite: 1);
+        if (cached.isNotEmpty) return Article.fromMap(cached.first);
+      }
+      // 2. Essai direct via le flux RSS officiel (le premier article = à la une)
+      final rssArticles = await recupererDepuisRss();
+      if (rssArticles.isNotEmpty) return rssArticles.first;
       return null;
     }
   }
@@ -27,7 +36,7 @@ class ArticleService {
       final rep = await _dio.get(
         '/articles',
         queryParameters: {
-          'categorie': ?categorie,
+          if (categorie != null) 'categorie': categorie,
           'page': page,
           'limite': 20,
         },
@@ -66,15 +75,20 @@ class ArticleService {
     } on DioException catch (e) {
       debugPrint('[ArticleService] Erreur réseau, lecture cache: ${e.message}');
       if (!kIsWeb) {
-        final cached = await _db.listerArticlesLocaux(categorie: categorie);
+        final cached = await _db.listerArticlesLocaux(categorie: categorie, page: page, limite: 20);
         if (cached.isNotEmpty) {
           debugPrint('[ArticleService] ${cached.length} articles depuis cache SQLite');
           return cached.map((m) => Article.fromMap(m)).toList();
         }
       }
+      // Si le cache local est vide, secours direct sur le flux RSS d'agridigitale.net
+      final rss = await recupererDepuisRss(categorie: categorie);
+      if (rss.isNotEmpty) return rss;
       rethrow;
     } catch (e) {
       debugPrint('[ArticleService] !! Exception non-Dio dans lister: $e');
+      final rss = await recupererDepuisRss(categorie: categorie);
+      if (rss.isNotEmpty) return rss;
       rethrow;
     }
   }
@@ -98,7 +112,112 @@ class ArticleService {
         final cached = await _db.getArticleDetail(id);
         if (cached != null) return Article.fromMap(cached);
       }
+      // Secours RSS si non trouvé en cache
+      final rssArticles = await recupererDepuisRss();
+      final trouve = rssArticles.where((a) => a.id == id || a.guid == id || a.lienSource.contains(id)).firstOrNull;
+      if (trouve != null) return trouve;
       rethrow;
+    }
+  }
+
+  // Parse direct du flux RSS public d'AgriDigitale (agridigitale.net/feed)
+  // Permet à l'application de fonctionner 100% de manière autonome sans serveur Render
+  Future<List<Article>> recupererDepuisRss({String? categorie}) async {
+    try {
+      final rep = await _dio.get<String>(
+        'https://agridigitale.net/feed',
+        options: Options(
+          responseType: ResponseType.plain,
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 10),
+        ),
+      );
+      final xml = rep.data ?? '';
+      if (xml.isEmpty) return const [];
+
+      final itemRegex = RegExp(r'<item>([\s\S]*?)<\/item>', multiLine: true);
+      final articles = <Article>[];
+
+      String extraireBalise(String itemStr, String tag) {
+        final reg = RegExp('<$tag>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/$tag>', caseSensitive: false);
+        final m = reg.firstMatch(itemStr);
+        return m != null ? m.group(1)!.trim() : '';
+      }
+
+      for (final match in itemRegex.allMatches(xml)) {
+        final itemStr = match.group(1) ?? '';
+        final titre = extraireBalise(itemStr, 'title');
+        if (titre.isEmpty) continue;
+
+        final link = extraireBalise(itemStr, 'link');
+        final guid = extraireBalise(itemStr, 'guid');
+        final description = extraireBalise(itemStr, 'description');
+        var content = extraireBalise(itemStr, 'content');
+        content = content.replaceAll('{{BASE_URL}}', 'https://agridigitale.net');
+        final auteur = extraireBalise(itemStr, 'author');
+        final pubDateStr = extraireBalise(itemStr, 'pubDate');
+        final cat = extraireBalise(itemStr, 'category');
+
+        final catFinale = cat.isNotEmpty ? cat : 'Général';
+        if (categorie != null &&
+            categorie.isNotEmpty &&
+            !catFinale.toLowerCase().contains(categorie.toLowerCase())) {
+          continue;
+        }
+
+        // Image de l'article (première image dans le corps)
+        final imgMatch = RegExp(r'<img[^>]+src="([^">]+)"', caseSensitive: false).firstMatch(content);
+        String? image = imgMatch?.group(1);
+        if (image != null) {
+          image = image.replaceFirst('agridigitale.com', 'agridigitale.net');
+        }
+
+        // Légende de l'image
+        final figMatch = RegExp(r'<figcaption[^>]*>([\s\S]*?)<\/figcaption>', caseSensitive: false).firstMatch(content);
+        final legendeImage = figMatch != null
+            ? figMatch.group(1)!.replaceAll(RegExp(r'<[^>]*>'), '').trim()
+            : '';
+
+        final id = guid.isNotEmpty
+            ? guid.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
+            : (link.isNotEmpty ? link.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_') : titre.hashCode.toString());
+
+        DateTime pubDate = DateTime.now();
+        if (pubDateStr.isNotEmpty) {
+          try {
+            pubDate = DateFormat('EEE, dd MMM yyyy HH:mm:ss Z', 'en_US').parse(pubDateStr.trim());
+          } catch (_) {
+            pubDate = DateTime.tryParse(pubDateStr) ?? DateTime.now();
+          }
+        }
+
+        articles.add(Article(
+          id: id,
+          guid: guid.isNotEmpty ? guid : id,
+          titre: titre,
+          contenu: content.isNotEmpty ? content : description,
+          resume: description,
+          image: image,
+          legendeImage: legendeImage,
+          auteur: auteur.isNotEmpty ? auteur : 'La Rédaction',
+          lienSource: link.isNotEmpty ? link : 'https://agridigitale.net',
+          source: 'AgriDigitale',
+          categorie: catFinale,
+          datePublication: pubDate,
+          vues: 0,
+        ));
+      }
+
+      if (!kIsWeb && articles.isNotEmpty) {
+        try {
+          await _db.sauvegarderArticles(articles.map((a) => a.toMap()).toList(), categorie: categorie);
+        } catch (_) {}
+      }
+
+      return articles;
+    } catch (e) {
+      debugPrint('[ArticleService] Erreur lecture flux RSS direct: $e');
+      return const [];
     }
   }
 
@@ -130,8 +249,9 @@ class ArticleService {
     }
   }
 
-  // Normalise une URL image : ajoute le domaine backend si relative,
-  // et redirige via le proxy CORS sur le web pour éviter les erreurs cross-origin
+  // Normalise une URL image :
+  // - Sur mobile : URL directe vers agridigitale.net (très rapide, pas de restriction CORS).
+  // - Sur web : passe par le proxy backend uniquement si nécessaire.
   String? _normaliserImage(String? image) {
     if (image == null || image.trim().isEmpty) return null;
     final t = image.trim();
@@ -139,11 +259,14 @@ class ArticleService {
     if (t.startsWith('http://') || t.startsWith('https://')) {
       url = t;
     } else if (t.startsWith('/')) {
-      url = '$_backendBase$t';
+      url = 'https://agridigitale.net$t';
     } else {
-      url = '$_backendBase/$t';
+      url = 'https://agridigitale.net/$t';
     }
-    if (!url.startsWith(_backendBase)) {
+    // Remplacement systématique de .com par .net
+    url = url.replaceFirst('agridigitale.com', 'agridigitale.net');
+
+    if (kIsWeb && !url.startsWith(_backendBase)) {
       return '$_backendBase/api/proxy-image?url=${Uri.encodeComponent(url)}';
     }
     return url;

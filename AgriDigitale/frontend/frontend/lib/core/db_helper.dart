@@ -23,7 +23,7 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -59,13 +59,15 @@ class DBHelper {
           ''');
         }
         if (oldVersion < 4) {
-          // Ajoute la colonne "source" (ajoutée au modèle Article) à la table
-          // du cache d'articles pour les bases existantes.
           try {
             await db.execute('ALTER TABLE articles_cache ADD COLUMN source TEXT');
-          } catch (_) {
-            // colonne déjà présente
-          }
+          } catch (_) {}
+        }
+        if (oldVersion < 5) {
+          try {
+            await db.execute('ALTER TABLE articles_cache ADD COLUMN legendeImage TEXT');
+            await db.execute('ALTER TABLE articles_cache ADD COLUMN auteur TEXT');
+          } catch (_) {}
         }
       },
       onCreate: (db, version) async {
@@ -75,6 +77,8 @@ class DBHelper {
             titre TEXT,
             resume TEXT,
             image TEXT,
+            legendeImage TEXT,
+            auteur TEXT,
             categorie TEXT,
             datePublication TEXT
           )
@@ -87,6 +91,8 @@ class DBHelper {
             contenu TEXT,
             resume TEXT,
             image TEXT,
+            legendeImage TEXT,
+            auteur TEXT,
             lienSource TEXT,
             source TEXT,
             categorie TEXT,
@@ -130,20 +136,14 @@ class DBHelper {
     return db.query('favoris_cache');
   }
 
-  // ── Cache articles : TTL 6h, minimum 20 articles avant de tomber sur les anciens
-  static const _maxAge = Duration(hours: 6);
-  static const _minArticles = 20;
+  // ── Cache articles
+
 
   Future<void> sauvegarderArticles(List<Map<String, dynamic>> articles, {String? categorie}) async {
     final db = await database;
     if (db == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final batch = db.batch();
-    if (categorie == null) {
-      batch.delete('articles_cache');
-    } else {
-      batch.delete('articles_cache', where: 'categorie = ?', whereArgs: [categorie]);
-    }
     for (final a in articles) {
       batch.insert('articles_cache', {...a, 'cachedAt': now},
           conflictAlgorithm: ConflictAlgorithm.replace);
@@ -151,27 +151,21 @@ class DBHelper {
     await batch.commit(noResult: true);
   }
 
-  Future<List<Map<String, dynamic>>> listerArticlesLocaux({String? categorie}) async {
+  Future<List<Map<String, dynamic>>> listerArticlesLocaux({
+    String? categorie,
+    int page = 1,
+    int limite = 20,
+  }) async {
     final db = await database;
     if (db == null) return [];
-    final cutoff = DateTime.now().subtract(_maxAge).millisecondsSinceEpoch;
-
-    // D'abord essayer les articles récents (< 6h)
-    final recents = await db.query(
-      'articles_cache',
-      where: categorie != null ? 'categorie = ? AND cachedAt > ?' : 'cachedAt > ?',
-      whereArgs: categorie != null ? [categorie, cutoff] : [cutoff],
-      orderBy: 'datePublication DESC',
-    );
-    if (recents.length >= _minArticles) return recents;
-
-    // Sinon retourner tous les articles en cache (même anciens) jusqu'à 20
+    final offset = (page - 1) * limite;
     return db.query(
       'articles_cache',
       where: categorie != null ? 'categorie = ?' : null,
       whereArgs: categorie != null ? [categorie] : null,
       orderBy: 'datePublication DESC',
-      limit: _minArticles,
+      limit: limite,
+      offset: offset,
     );
   }
 

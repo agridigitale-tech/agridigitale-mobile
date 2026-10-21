@@ -1,14 +1,19 @@
 const Article = require('../models/Article');
 
-// Retourne l'article le plus lu pour la section "À la une" de l'accueil
+// Retourne l'article pour la section "À la une" de l'accueil (le plus récent ou mis en avant)
 exports.articleUne = async (req, res, next) => {
   try {
-    // Uniquement les articles des 3 derniers mois pour la section "à la une"
     const troisMois = new Date();
     troisMois.setMonth(troisMois.getMonth() - 3);
-    const article = await Article.findOne({ datePublication: { $gte: troisMois } })
-      .select('guid titre resume image lienSource source categorie datePublication vues')
-      .sort({ vues: -1 });
+    let article = await Article.findOne({ datePublication: { $gte: troisMois } })
+      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
+      .sort({ datePublication: -1 });
+
+    if (!article) {
+      article = await Article.findOne({})
+        .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
+        .sort({ vues: -1 });
+    }
     if (!article) return res.status(404).json({ message: 'Aucun article' });
     res.json(article);
   } catch (err) { next(err); }
@@ -27,7 +32,7 @@ exports.listerArticles = async (req, res, next) => {
     }
 
     const articles = await Article.find(filtre)
-      .select('guid titre resume image lienSource source categorie datePublication vues')
+      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
       .sort({ datePublication: -1 })
       .skip((page - 1) * limite)
       .limit(Number(limite));
@@ -44,21 +49,22 @@ exports.detailArticle = async (req, res, next) => {
     );
     if (!article) return res.status(404).json({ message: 'Article introuvable' });
 
-    // Si le contenu est vide ou trop court, tenter un scrape à la volée
+    // Réponse immédiate au client mobile (latence quasi-nulle)
+    res.json(article);
+
+    // Si le contenu est incomplet, tenter le scrape en arrière-plan sans faire attendre l'utilisateur
     const contenuTexte = (article.contenu || '').replace(/<[^>]*>/g, '').trim();
     if (contenuTexte.length < 100 && article.lienSource) {
-      try {
-        const { scrapeContenuInertia } = require('../services/rss.service');
-        const nouveauContenu = await scrapeContenuInertia(article.lienSource);
-        if (nouveauContenu && nouveauContenu.replace(/<[^>]*>/g, '').trim().length > contenuTexte.length) {
-          article.contenu = nouveauContenu;
-          // Sauvegarder en base pour les prochaines fois
-          await Article.updateOne({ _id: article._id }, { $set: { contenu: nouveauContenu } });
-        }
-      } catch (_) { /* scrape optionnel, on continue sans */ }
+      setImmediate(async () => {
+        try {
+          const { scrapeContenuInertia } = require('../services/rss.service');
+          const nouveauContenu = await scrapeContenuInertia(article.lienSource);
+          if (nouveauContenu && nouveauContenu.replace(/<[^>]*>/g, '').trim().length > contenuTexte.length) {
+            await Article.updateOne({ _id: article._id }, { $set: { contenu: nouveauContenu } });
+          }
+        } catch (_) { /* scrape silencieux en tâche de fond */ }
+      });
     }
-
-    res.json(article);
   } catch (err) { next(err); }
 };
 
@@ -86,7 +92,7 @@ exports.rechercherArticles = async (req, res, next) => {
       filtre.datePublication = { ...filtre.datePublication, $gte: troisMois };
     }
     const articles = await Article.find(filtre)
-      .select('guid titre resume image lienSource source categorie datePublication vues')
+      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
       .sort({ datePublication: -1 });
     res.json(articles);
   } catch (err) { next(err); }

@@ -2,6 +2,7 @@
 // ArticleCardVerticale : grande image en haut, utilisée dans le scroll horizontal "À ne pas manquer".
 // ArticleCard : image à gauche (format compact), utilisée dans la liste verticale "Dernières actualités".
 // _imgUrl() : sur le web, redirige les images via le proxy backend pour éviter les erreurs CORS.
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
@@ -11,15 +12,17 @@ import '../core/design/app_colors.dart';
 import '../core/api_client.dart';
 import '../services/favori_service.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/auth_gate.dart';
 
 // Retourne l'URL de l'image :
-// - mobile : URL directe (pas de restriction CORS)
-// - web : passe par le proxy backend /api/proxy-image pour éviter les erreurs CORS
+// - mobile : URL directe (pas de restriction CORS, téléchargement ultra rapide)
+// - web : passe par le proxy backend /api/proxy-image pour contourner CORS
 String _imgUrl(String? url) {
   if (url == null || url.isEmpty) return '';
-  if (url.contains('/proxy-image')) return url; // déjà proxifié
-  return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
+  if (url.contains('/proxy-image')) return url;
+  if (kIsWeb) {
+    return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
+  }
+  return url.replaceFirst('agridigitale.com', 'agridigitale.net');
 }
 
 // Couleur du badge catégorie selon la catégorie de l'article
@@ -67,9 +70,14 @@ class ArticleCardVerticale extends StatelessWidget {
                     height: 130,
                     width: double.infinity,
                     child: hasImage
-                        ? CachedNetworkImage(imageUrl: _imgUrl(article.image), fit: BoxFit.cover,
+                        ? CachedNetworkImage(
+                            imageUrl: _imgUrl(article.image),
+                            fit: BoxFit.cover,
+                            memCacheWidth: 400,
+                            maxWidthDiskCache: 600,
                             httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
-                            errorWidget: (_, __, ___) => _placeholder())
+                            errorWidget: (_, __, ___) => _placeholder(),
+                          )
                         : _placeholder(),
                   ),
                   Positioned(
@@ -142,16 +150,24 @@ class _ArticleCardState extends State<ArticleCard> {
   }
 
   Future<void> _toggleFavori() async {
-    final connecte = await exigerConnexion(context, motif: 'enregistrer cet article');
-    if (!connecte) return;
     setState(() => _enCours = true);
     try {
       if (_enFavori) {
         await _favoriService.retirer(widget.article.id);
-        if (mounted) setState(() => _enFavori = false);
+        if (mounted) {
+          setState(() => _enFavori = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Retiré des favoris'), duration: Duration(seconds: 1)),
+          );
+        }
       } else {
         await _favoriService.ajouter(widget.article);
-        if (mounted) setState(() => _enFavori = true);
+        if (mounted) {
+          setState(() => _enFavori = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ajouté aux favoris'), duration: Duration(seconds: 1)),
+          );
+        }
       }
     } catch (e) {
       if (mounted && e.toString().contains('409')) setState(() => _enFavori = true);
@@ -188,9 +204,14 @@ class _ArticleCardState extends State<ArticleCard> {
                     width: 110,
                     height: double.infinity,
                     child: hasImage
-                        ? CachedNetworkImage(imageUrl: _imgUrl(widget.article.image), fit: BoxFit.cover,
+                        ? CachedNetworkImage(
+                            imageUrl: _imgUrl(widget.article.image),
+                            fit: BoxFit.cover,
+                            memCacheWidth: 350,
+                            maxWidthDiskCache: 500,
                             httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
-                            errorWidget: (_, __, ___) => _placeholder())
+                            errorWidget: (_, __, ___) => _placeholder(),
+                          )
                         : _placeholder(),
                   ),
                   Positioned(

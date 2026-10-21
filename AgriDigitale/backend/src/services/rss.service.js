@@ -6,13 +6,15 @@ const Article = require('../models/Article');
 const { notifierNouvelArticle } = require('./notification.service');
 const { desactiverBannieresExpirees } = require('../controllers/banniere.controller');
 
-//pour parser les flux RSS avec des champs personnalisés (content:encoded, media:content, enclosure)
+//pour parser les flux RSS avec des champs personnalisés (content:encoded, media:content, enclosure, author)
 const parser = new Parser({
   customFields: {
     item: [
       ['content:encoded', 'contentEncoded'],
       ['media:content', 'mediaContent'],
       ['enclosure', 'enclosure'],
+      ['dc:creator', 'creator'],
+      ['author', 'author'],
     ],
   },
 });
@@ -118,9 +120,8 @@ const scrapeContenuInertia = async (url) => {
     }
 
     if (contenu && contenu.replace(/<[^>]*>/g, '').trim().length > 50) {
-      // Remplace les marqueurs {{BASE_URL}} par le vrai domaine pour que
-      // les images internes (src="{{BASE_URL}}/ck/xxx.jpg") chargent correctement
-      contenu = contenu.replace(/\{\{BASE_URL\}\}/g, 'https://agridigitale.com');
+      // Remplace les marqueurs {{BASE_URL}} par le domaine officiel agridigitale.net
+      contenu = contenu.replace(/\{\{BASE_URL\}\}/g, 'https://agridigitale.net');
       return contenu;
     }
     return null;
@@ -175,6 +176,16 @@ const recupererFlux = async (tentative = 1) => {
         } catch (_) {}
       }
 
+      // Extraire la légende de la photo si présente dans le contenu (balise figcaption)
+      let legendeImage = null;
+      const matchFigcaption = (contenu || '').match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
+      if (matchFigcaption) {
+        legendeImage = matchFigcaption[1].replace(/<[^>]*>/g, '').trim();
+      }
+
+      // Extraire l'auteur de l'article
+      const auteurArticle = item.author || item.creator || 'Agridigitale Admin';
+
       const article = await Article.create({
         guid: item.guid,
         titre: item.title,
@@ -185,6 +196,8 @@ const recupererFlux = async (tentative = 1) => {
         source: sourceArticle,
         categorie: categorieDetectee,
         datePublication: new Date(item.pubDate),
+        auteur: auteurArticle,
+        legendeImage: legendeImage,
       });
 
       nouveaux++;

@@ -111,27 +111,13 @@ class _MonAppState extends State<MonApp> {
   }
 }
 
-// Redirige vers LoginScreen si non connecté, MainNavigationScreen sinon.
+// Ouvre directement l'application principale (mode invité/visiteur).
+// L'authentification est contextuelle (demandée uniquement pour les favoris, commentaires, demandes).
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
-    // Pendant la vérification de session → écran de chargement
-    if (auth.enVerification) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Connecté → app principale
-    if (auth.connecte) {
-      return const MainNavigationScreen();
-    }
-
-    // Non connecté → écran de connexion
-    return const LoginScreen();
+    return const MainNavigationScreen();
   }
 }
