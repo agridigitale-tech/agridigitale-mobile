@@ -13,11 +13,18 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    const isLocalhost = /^http:\/\/localhost(:\d+)?$/.test(origin);
+    // Autorise les origines locales de développement (localhost et 127.0.0.1),
+    // quel que soit le port : flutter run -d chrome peut servir l'app depuis
+    // l'un ou l'autre selon la machine.
+    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const isVercel = /\.vercel\.app$/.test(origin);
-    const allowed = ['https://agridigitale-production.up.railway.app'];
-    if (isLocalhost || isVercel || allowed.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    const allowed = [
+      'https://agridigitale-production.up.railway.app',
+      'https://agridigitale.net',
+      'https://www.agridigitale.net',
+    ];
+    if (isLocal || isVercel || allowed.includes(origin)) return callback(null, true);
+    return callback(null, false);
   },
   credentials: true,
 }));

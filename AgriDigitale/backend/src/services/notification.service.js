@@ -93,35 +93,37 @@ const notifierNouvelArticle = async (article) => {
     // Un token non-UUID fait échouer toute la requête (HTTP 400) : on filtre.
     const playerIds = await filtrerTokensValides(utilisateurs);
 
+    // Pour maximiser la livraison en ARRIÈRE-PLAN (Android/iOS), on évite
+    // big_picture/ios_attachments qui peuvent bloquer l'affichage quand l'app
+    // est tuée. Les données (articleId) permettent l'ouverture au clic.
     const body = {
       app_id: ONESIGNAL_APP_ID,
       headings: { en: 'AgriDigitale — Nouvel article', fr: 'AgriDigitale — Nouvel article' },
       contents: { en: article.titre, fr: article.titre },
       data: { type: 'nouvel_article', articleId: article._id.toString(), categorie: article.categorie || '' },
       android_channel_id: 'agridigitale_channel',
-      // Priorité haute : livraison immédiate même en arrière-plan / Doze (Android)
       priority: 10,
       android_visibility: 1,
-      // iOS : livrer en arrière-plan et incrémenter le badge
       content_available: true,
       ios_badgeType: 'Increase',
       ios_badgeCount: 1,
-      // Image de prévisualisation (grande image) si l'article en a une
-      ...(article.image ? {
-        big_picture: article.image,
-        ios_attachments: { id1: article.image },
-      } : {}),
+      ttl: 259200,
+      collapse_id: `article_${article._id.toString()}`,
     };
 
-    // Si on a des tokens → cibler ces utilisateurs, sinon envoyer à tous les abonnés OneSignal
-    if (playerIds.length > 0) {
+    // Envoyer à TOUS les abonnés OneSignal (segment All) est plus fiable
+    // pour la livraison en arrière-plan que de cibler une liste de tokens.
+    // On garde un ciblage réduit uniquement s'il y a peu de tokens valides.
+    if (playerIds.length > 0 && playerIds.length <= 150) {
       body.include_subscription_ids = playerIds;
+      console.log(`[OneSignal] Article ciblé par ${playerIds.length} subscription_id(s)`);
     } else {
       body.included_segments = ['All'];
+      console.log(`[OneSignal] Article envoyé au segment All (tokens valides en base: ${playerIds.length})`);
     }
 
     const result = await _envoyerOneSignal(body);
-    console.log(`[OneSignal] Article notifié — status: ${result.status}, destinataires: ${playerIds.length > 0 ? playerIds.length : 'tous'}`);
+    console.log(`[OneSignal] Article notifié — status: ${result.status}, mode: ${body.included_segments ? 'All' : 'ciblé'}`);
 
     // OneSignal peut répondre 200 tout en signalant des subscription_id invalides
     // (app désinstallée, réinscription) : on les purge pour ne plus les cibler.
