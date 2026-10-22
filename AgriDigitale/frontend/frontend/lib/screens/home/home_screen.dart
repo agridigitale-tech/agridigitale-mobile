@@ -2,7 +2,8 @@
 // l'article à la une, le scroll horizontal "À ne pas manquer" (top 6 vues),
 // et la liste verticale "Dernières actualités" avec pagination infinie.
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/article_service.dart';
 import '../../models/article.dart';
@@ -52,10 +53,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         _chargerPlus();
       }
     });
-    // Rafraîchir le badge quand une notif FCM arrive en foreground
-    FirebaseMessaging.onMessage.listen((_) {
-      if (mounted) _chargerNotifs();
-    });
+    // Rafraîchir le badge quand une notif OneSignal arrive au premier plan.
+    // (event.notification.display() est déjà géré par NotificationService,
+    //  on ne le rappelle pas ici pour éviter un double affichage.)
+    if (!kIsWeb) {
+      try {
+        OneSignal.Notifications.addForegroundWillDisplayListener((_) {
+          if (mounted) _chargerNotifs();
+        });
+      } catch (_) {}
+    }
   }
 
   @override
@@ -128,135 +135,278 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     super.build(context);
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text('AGRIDIGITALE', style: Theme.of(context).textTheme.titleLarge),
-        actions: [
-          // Icône favoris → navigue vers l'onglet favoris
-          IconButton(
-            icon: const Icon(Icons.bookmark_border, color: AppColors.vertPrimaire),
-            tooltip: 'Mes favoris',
-            onPressed: _allerFavoris,
-          ),
-          // Icône notification avec badge
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none),
-                tooltip: 'Notifications',
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NotificationsListScreen()),
-                  );
-                  // Rafraîchir le badge après retour
-                  if (mounted) _chargerNotifs();
-                },
-              ),
-              if (_notifCount > 0)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: IgnorePointer(
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Text(
-                        _notifCount > 99 ? '99+' : '$_notifCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF8F9FA),
       body: RefreshIndicator(
+        color: AppColors.vertPrimaire,
+        backgroundColor: Colors.white,
         onRefresh: _actualiser,
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
+            SliverAppBar(
+              expandedHeight: 110,
+              floating: true,
+              pinned: true,
+              elevation: 0,
+              backgroundColor: AppColors.vertFonce,
+              automaticallyImplyLeading: false,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF0F4C2A),
+                        AppColors.vertFonce,
+                        AppColors.vertPrimaire,
+                      ],
+                    ),
+                  ),
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.eco, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'AGRIDIGITALE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+                titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
+              ),
+              actions: [
+                Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.bookmark_border, color: Colors.white),
+                    tooltip: 'Mes favoris',
+                    onPressed: _allerFavoris,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none, color: Colors.white),
+                        tooltip: 'Notifications',
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const NotificationsListScreen()),
+                          );
+                          if (mounted) _chargerNotifs();
+                        },
+                      ),
+                      if (_notifCount > 0)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: IgnorePointer(
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints:
+                                  const BoxConstraints(minWidth: 18, minHeight: 18),
+                              child: Text(
+                                _notifCount > 99 ? '99+' : '$_notifCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: BannerCarousel()),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: l.t('search'),
-                    prefixIcon:
-                        const Icon(Icons.search, color: AppColors.grisIcone),
-                  ),
-                  readOnly: true,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SearchScreen())),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.vertPrimaire.withOpacity(0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(color: AppColors.vertPrimaire.withOpacity(0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.vertPrimaire.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.search, color: AppColors.vertPrimaire, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          l.t('search'),
+                          style: TextStyle(
+                            color: AppColors.grisTexte.withOpacity(0.7),
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.tune, color: AppColors.grisIcone.withOpacity(0.5), size: 20),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
-              child: FutureBuilder<List<String>>(
-                future: _categoriesFuture,
-                builder: (context, snap) {
-                  final categories = ['Home', 'Togo', 'Afrique', 'Monde', ...(snap.data ?? []).where((c) => !['Togo','Afrique','Monde'].contains(c))];
-                  return SizedBox(
-                    height: 42,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: categories.length,
-                      itemBuilder: (context, i) {
-                        final cat = categories[i];
-                        final actif = (cat == 'Home' &&
-                                _categorieActive == null) ||
-                            cat == _categorieActive;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 20),
-                          child: GestureDetector(
-                            onTap: () =>
-                                _filtrer(cat == 'Home' ? null : cat),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(cat.toUpperCase(),
-                                    style: TextStyle(
-                                      fontWeight: actif
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: actif
-                                          ? AppColors.texteFort
-                                          : AppColors.grisTexte,
-                                      fontSize: 13.5,
-                                    )),
-                                const SizedBox(height: 4),
-                                Container(
-                                    height: 2,
-                                    width: 28,
-                                    color: actif
-                                        ? AppColors.vertPrimaire
-                                        : Colors.transparent),
-                              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [AppColors.vertPrimaire, AppColors.vertFonce],
                             ),
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Catégories',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.texteFort,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                  FutureBuilder<List<String>>(
+                    future: _categoriesFuture,
+                    builder: (context, snap) {
+                      final categories = ['Home', 'Togo', 'Afrique', 'Monde', ...(snap.data ?? []).where((c) => !['Togo','Afrique','Monde'].contains(c))];
+                      return SizedBox(
+                        height: 44,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: categories.length,
+                          itemBuilder: (context, i) {
+                            final cat = categories[i];
+                            final actif = (cat == 'Home' &&
+                                    _categorieActive == null) ||
+                                cat == _categorieActive;
+                            final displayCat = cat == 'Home' ? 'Tout' : cat;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      _filtrer(cat == 'Home' ? null : cat),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      gradient: actif
+                                          ? const LinearGradient(
+                                              colors: [AppColors.vertPrimaire, AppColors.vertFonce],
+                                            )
+                                          : null,
+                                      color: actif ? null : Colors.white,
+                                      borderRadius: BorderRadius.circular(25),
+                                      boxShadow: actif
+                                          ? [
+                                              BoxShadow(
+                                                color: AppColors.vertPrimaire.withOpacity(0.3),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ]
+                                          : [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.03),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                      border: Border.all(
+                                        color: actif ? Colors.transparent : AppColors.grisLigne.withOpacity(0.5),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      displayCat.toUpperCase(),
+                                      style: TextStyle(
+                                        fontWeight: actif ? FontWeight.w700 : FontWeight.w600,
+                                        color: actif ? Colors.white : AppColors.grisTexte,
+                                        fontSize: 12,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
-              const SliverToBoxAdapter(child: Divider(height: 1)),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (_articles.isEmpty && _chargement)
                 const SliverFillRemaining(
                     child: Center(
@@ -267,62 +417,164 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     child: _etatMessage(Icons.article_outlined,
                         l.t('no_articles'), l.t('no_articles_sub')))
               else ...[
-                // Article à la une
-                if (_articleUne != null && _categorieActive == null)
-                  SliverToBoxAdapter(
-                    child: _ArticleUne(
-                      article: _articleUne!,
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id))),
-                    ),
-                  ),
-                // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
-                if (_articles.length > 1 && _categorieActive == null)
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(14, 14, 14, 8),
-                          child: Text('À ne pas manquer',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                        ),
-                        SizedBox(
-                          height: 210,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.only(left: 14),
-                            itemBuilder: (context, i) {
-                              final plusVus = [..._articles]..sort((a, b) => b.vues.compareTo(a.vues));
-                              final top = plusVus.take(6).toList();
-                              if (i >= top.length) return null;
-                              final a = top[i];
-                              return ArticleCardVerticale(
-                                article: a,
-                                onTap: () => Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
-                              );
-                            },
+                  // Article à la une
+                  if (_articleUne != null && _categorieActive == null)
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.redAccent, Colors.orange],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'À LA UNE',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.texteFort,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    '🔥 TENDANCE',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.redAccent,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(14, 14, 14, 4),
-                          child: Text('Dernières actualités',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                        ),
-                      ],
+                          _ArticleUne(
+                            article: _articleUne!,
+                            onTap: () => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id))),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
+                  if (_articles.length > 1 && _categorieActive == null)
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [AppColors.vertPrimaire, Color(0xFF2D9C5C)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'À ne pas manquer',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.texteFort,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 215,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.only(left: 16),
+                              itemBuilder: (context, i) {
+                                final plusVus = [..._articles]..sort((a, b) => b.vues.compareTo(a.vues));
+                                final top = plusVus.take(6).toList();
+                                if (i >= top.length) return null;
+                                final a = top[i];
+                                return ArticleCardVerticale(
+                                  article: a,
+                                  onTap: () => Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                                );
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Dernières actualités',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.texteFort,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 // Liste verticale = tous les articles par date
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
                       if (i >= _articles.length) return null;
                       final a = _articles[i];
-                      return ArticleCard(
-                        article: a,
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: ArticleCard(
+                          article: a,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                        ),
                       );
                     },
                     childCount: _articles.length,
@@ -330,12 +582,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 ),
               ],
             if (_chargement)
-              const SliverToBoxAdapter(
+              const               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   child: Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.vertPrimaire)),
+                      child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const CircularProgressIndicator(
+                        color: AppColors.vertPrimaire, strokeWidth: 2.5),
+                  )),
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -363,10 +629,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       );
 }
 
-// Classe utilitaire pour écouter les notifs FCM depuis HomeScreen
-class FirebaseMessagingListener {
-  static VoidCallback? onForegroundMessage;
-}
+
 
 // Widget Article à la Une
 class _ArticleUne extends StatelessWidget {
@@ -381,43 +644,56 @@ class _ArticleUne extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: AppColors.vertPrimaire.withOpacity(0.15),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
             )
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Stack(
             children: [
               // Grande image pleine largeur
               hasImage
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
-                      height: 220,
+                      height: 240,
                       width: double.infinity,
                       fit: BoxFit.cover,
                       httpHeaders: const {'Accept': 'image/*'},
                       placeholder: (ctx, url) => Container(
-                          height: 220, color: Colors.grey[200]),
+                          height: 240,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFF0F4F1), Color(0xFFE8F5E9)],
+                            ),
+                          )),
                       errorWidget: (ctx, url, err) => Container(
-                        height: 220,
-                        color: Colors.green[50],
+                        height: 240,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFF0F4F1), Color(0xFFE8F5E9)],
+                          ),
+                        ),
                         child: const Icon(Icons.article,
-                            size: 60, color: Colors.green),
+                            size: 60, color: AppColors.vertPrimaire),
                       ),
                     )
                   : Container(
-                      height: 220,
-                      color: Colors.green[50],
+                      height: 240,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFF0F4F1), Color(0xFFE8F5E9)],
+                        ),
+                      ),
                       child: const Icon(Icons.article,
-                          size: 60, color: Colors.green),
+                          size: 60, color: AppColors.vertPrimaire),
                     ),
               // Dégradé bas
               Positioned(
@@ -425,59 +701,118 @@ class _ArticleUne extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 120,
+                  height: 160,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.75),
+                        Colors.black.withOpacity(0.9),
+                        Colors.black.withOpacity(0.4),
                         Colors.transparent,
                       ],
+                      stops: const [0.0, 0.6, 1.0],
                     ),
                   ),
                 ),
               ),
               // Badge "À la une"
               Positioned(
-                top: 12,
-                left: 12,
+                top: 16,
+                left: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.vertPrimaire,
-                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      colors: [Colors.redAccent, Color(0xFFFF6B6B)],
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.redAccent.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.star, color: Colors.white, size: 12),
+                      Icon(Icons.flash_on, color: Colors.white, size: 14),
                       SizedBox(width: 4),
-                      Text('À la une',
+                      Text('À LA UNE',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 11,
-                              fontWeight: FontWeight.bold)),
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8)),
                     ],
                   ),
                 ),
               ),
               // Titre en bas
               Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
-                child: Text(
-                  article.titre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                  ),
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.vertPrimaire,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        article.categorie.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      article.titre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 12, color: Colors.white.withOpacity(0.8)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatDate(article.datePublication),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.remove_red_eye_outlined, size: 12, color: Colors.white.withOpacity(0.8)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${article.vues} vues',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -485,5 +820,21 @@ class _ArticleUne extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays == 0) {
+      if (diff.inHours == 0) {
+        return 'Il y a ${diff.inMinutes} min';
+      }
+      return 'Il y a ${diff.inHours}h';
+    } else if (diff.inDays == 1) {
+      return 'Hier';
+    } else if (diff.inDays < 7) {
+      return 'Il y a ${diff.inDays}j';
+    }
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
