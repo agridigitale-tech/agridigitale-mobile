@@ -143,7 +143,22 @@ const recupererFlux = async (tentative = 1) => {
     for (const item of feed.items) {
       if (!item.guid) continue;
       const existe = await Article.findOne({ guid: item.guid });
-      if (existe) continue;
+      if (existe) {
+        // Si l'article existe déjà, mettre à jour le titre ou le résumé si la rédaction les a modifiés sur le site
+        const updates = {};
+        if (item.title && existe.titre !== item.title) {
+          updates.titre = item.title;
+        }
+        const resumeItem = item.contentSnippet || item.description || '';
+        if (resumeItem && existe.resume !== resumeItem) {
+          updates.resume = resumeItem;
+        }
+        if (Object.keys(updates).length > 0) {
+          await Article.updateOne({ _id: existe._id }, { $set: updates });
+          console.log(`[RSS] Article actualisé : "${item.title}" (${item.guid})`);
+        }
+        continue;
+      }
 
       const categorieDetectee =
         item.categories && item.categories.length > 0 ? item.categories[0] : 'Général';
