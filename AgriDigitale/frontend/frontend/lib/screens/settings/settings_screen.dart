@@ -21,17 +21,18 @@ class SettingsScreen extends StatelessWidget {
   // Construit une ligne de paramètre avec icône (Material ou FontAwesome), titre et chevron
   Widget _ligne(BuildContext context, IconData icone, String titre,
       {String? sousTitre, VoidCallback? onTap, Color? couleurTitre, bool isFa = false, FaIconData? faIcone}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(children: [
           CircleAvatar(
-            backgroundColor: AppColors.grisPastille,
+            backgroundColor: isDark ? AppColors.surfaceSombreLegere : AppColors.grisPastille,
             radius: 18,
             child: isFa && faIcone != null
-                ? FaIcon(faIcone, color: AppColors.grisIcone, size: 16)
-                : Icon(icone, color: AppColors.grisIcone, size: 18),
+                ? FaIcon(faIcone, color: isDark ? AppColors.vertClair : AppColors.grisIcone, size: 16)
+                : Icon(icone, color: isDark ? AppColors.vertClair : AppColors.grisIcone, size: 18),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -39,12 +40,12 @@ class SettingsScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w600,
-                    color: couleurTitre)),
+                    color: couleurTitre ?? (isDark ? AppColors.texteSombreFort : AppColors.texteFort))),
           ),
           if (sousTitre != null)
-            Text(sousTitre, style: const TextStyle(color: AppColors.grisTexte)),
+            Text(sousTitre, style: TextStyle(color: isDark ? AppColors.texteSombreMoyen : AppColors.grisTexte)),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, color: AppColors.grisIcone, size: 18),
+          Icon(Icons.chevron_right, color: isDark ? AppColors.texteSombreMoyen : AppColors.grisIcone, size: 18),
         ]),
       ),
     );
@@ -283,11 +284,17 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 40),
           Container(
             width: double.infinity,
-            color: const Color(0xFFF3F3F3),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.surfaceSombre
+                : const Color(0xFFF3F3F3),
             padding: const EdgeInsets.all(20),
-            child: const Text('Copyright © 2026 Agridigitale',
+            child: Text('Copyright © 2026 Agridigitale',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.vertPrimaire)),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.vertClair
+                      : AppColors.vertPrimaire,
+                )),
           ),
         ],
       ),

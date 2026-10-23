@@ -64,6 +64,11 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
       l.t('settings'),
     ];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final vertActif = isDark ? AppColors.vertClair : AppColors.vertPrimaire;
+    final inactifColor = isDark ? AppColors.texteSombreMoyen : Colors.black54;
+    final navBg = isDark ? AppColors.surfaceSombre : Colors.white;
+
     return Scaffold(
       body: IndexedStack(
         index: _index,
@@ -73,77 +78,88 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (auth.estAdmin)
-              InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminScreen()),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  color: AppColors.vertPrimaire,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.admin_panel_settings,
-                          color: Colors.white, size: 18),
-                      SizedBox(width: 8),
-                      Text('Panneau administrateur',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ],
-                  ),
-                ),
-              ),
-            SizedBox(
-              height: 62,
-              child: Row(
-                children: List.generate(_icones.length, (i) {
-                  final actif = i == _index;
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _index = i;
-                          _ongletsVisites.add(i);
-                        });
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(_icones[i],
-                              color: actif ? AppColors.vertPrimaire : Colors.black54,
-                              size: 22),
-                          const SizedBox(height: 2),
-                          if (actif)
-                            Text(labels[i],
-                                style: const TextStyle(
-                                    color: AppColors.vertPrimaire,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 10)),
-                          const SizedBox(height: 2),
-                          Container(
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                  color: actif
-                                      ? AppColors.vertPrimaire
-                                      : Colors.transparent,
-                                  shape: BoxShape.circle)),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+        child: Container(
+          decoration: BoxDecoration(
+            color: navBg,
+            border: Border(
+              top: BorderSide(
+                color: isDark ? AppColors.bordureSombre : const Color(0xFFEAEAEA),
+                width: 0.8,
               ),
             ),
-          ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (auth.estAdmin)
+                InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminScreen()),
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    color: AppColors.vertPrimaire,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.admin_panel_settings,
+                            color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Panneau administrateur',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              SizedBox(
+                height: 62,
+                child: Row(
+                  children: List.generate(_icones.length, (i) {
+                    final actif = i == _index;
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _index = i;
+                            _ongletsVisites.add(i);
+                          });
+                        },
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_icones[i],
+                                color: actif ? vertActif : inactifColor,
+                                size: 22),
+                            const SizedBox(height: 2),
+                            if (actif)
+                              Text(labels[i],
+                                  style: TextStyle(
+                                      color: vertActif,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10)),
+                            const SizedBox(height: 2),
+                            Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                    color: actif
+                                        ? vertActif
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

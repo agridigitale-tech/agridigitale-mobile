@@ -124,8 +124,6 @@ class _FavorisScreenState extends State<FavorisScreen> {
         title: Text(
           _filtres.isNotEmpty ? 'Mes favoris (${_filtres.length})' : 'Mes favoris',
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
         actions: [
           if (_favoris.isNotEmpty) ...[

@@ -139,15 +139,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context);
     final l = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text('AGRIDIGITALE',
+        title: Text('AGRIDIGITALE',
             style: TextStyle(
-              color: AppColors.vertFonce,
+              color: isDark ? AppColors.vertClair : AppColors.vertFonce,
               fontWeight: FontWeight.w900,
               fontSize: 17,
               letterSpacing: 1.2,
@@ -155,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         actions: [
           // Icône favoris → navigue vers l'onglet favoris
           IconButton(
-            icon: const Icon(Icons.bookmark_border, color: AppColors.vertPrimaire),
+            icon: Icon(Icons.bookmark_border, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
             tooltip: 'Mes favoris',
             onPressed: _allerFavoris,
           ),
@@ -164,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_none, color: AppColors.texteFort),
+                icon: Icon(Icons.notifications_none, color: isDark ? AppColors.texteSombreFort : AppColors.texteFort),
                 tooltip: 'Notifications',
                 onPressed: () async {
                   await Navigator.push(
@@ -257,8 +259,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                           ? FontWeight.w700
                                           : FontWeight.w500,
                                       color: actif
-                                          ? AppColors.texteFort
-                                          : AppColors.grisTexte,
+                                          ? (isDark ? AppColors.vertClair : AppColors.vertFonce)
+                                          : (isDark ? AppColors.texteSombreMoyen : AppColors.grisTexte),
                                       fontSize: 13.5,
                                     )),
                                 const SizedBox(height: 4),

@@ -47,6 +47,7 @@ class ArticleCardVerticale extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasImage = article.image != null && article.image!.isNotEmpty;
     final couleur = _couleurCategorie(article.categorie);
     return GestureDetector(
@@ -55,9 +56,16 @@ class ArticleCardVerticale extends StatelessWidget {
         width: width,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? AppColors.surfaceSombre : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))],
+          border: isDark ? Border.all(color: AppColors.bordureSombre, width: 0.8) : null,
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
@@ -188,6 +196,7 @@ class _ArticleCardState extends State<ArticleCard> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasImage = widget.article.image != null && widget.article.image!.isNotEmpty;
     final couleur = _couleurCategorie(widget.article.categorie);
 
@@ -196,9 +205,16 @@ class _ArticleCardState extends State<ArticleCard> {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? AppColors.surfaceSombre : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
+          border: isDark ? Border.all(color: AppColors.bordureSombre, width: 0.8) : null,
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
@@ -256,7 +272,11 @@ class _ArticleCardState extends State<ArticleCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(widget.article.resume, maxLines: 2, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
+                            height: 1.4,
+                          )),
                       const SizedBox(height: 8),
                       Row(children: [
                         Icon(Icons.access_time, size: 10, color: Colors.grey[400]),

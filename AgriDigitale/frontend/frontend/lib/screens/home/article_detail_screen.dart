@@ -1010,6 +1010,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   // ── Bouton Écoute Flottant Fixe en bas à gauche avec animation horizontale ──
   Widget _buildBoutonEcouteFlottant(Article article) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       child: Material(
         color: Colors.transparent,
@@ -1018,15 +1019,19 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           curve: Curves.easeOutCubic,
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? AppColors.surfaceSombre : Colors.white,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
-              color: _ttsEnLecture ? AppColors.vertPrimaire : Colors.grey.shade300,
+              color: _ttsEnLecture
+                  ? (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
+                  : (isDark ? AppColors.bordureSombre : Colors.grey.shade300),
               width: _ttsEnLecture ? 1.5 : 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : Colors.black.withValues(alpha: 0.16),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),

@@ -23,7 +23,7 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -69,6 +69,23 @@ class DBHelper {
             await db.execute('ALTER TABLE articles_cache ADD COLUMN auteur TEXT');
           } catch (_) {}
         }
+        if (oldVersion < 6) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS meteo_bulletins_semestriels (
+              id TEXT PRIMARY KEY,
+              date TEXT NOT NULL,
+              titre TEXT,
+              resumeMatin TEXT,
+              resumeApresMidi TEXT,
+              tempMin REAL,
+              tempMax REAL,
+              conseilAgricole TEXT,
+              regionsJson TEXT,
+              imageUrl TEXT,
+              enregistreAt INTEGER NOT NULL
+            )
+          ''');
+        }
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -112,6 +129,21 @@ class DBHelper {
           CREATE TABLE meteo_historique (
             ville TEXT PRIMARY KEY,
             consultéAt INTEGER NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS meteo_bulletins_semestriels (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL,
+            titre TEXT,
+            resumeMatin TEXT,
+            resumeApresMidi TEXT,
+            tempMin REAL,
+            tempMax REAL,
+            conseilAgricole TEXT,
+            regionsJson TEXT,
+            imageUrl TEXT,
+            enregistreAt INTEGER NOT NULL
           )
         ''');
       },
@@ -230,5 +262,51 @@ class DBHelper {
     final db = await database;
     if (db == null) return;
     await db.delete('meteo_historique', where: 'ville = ?', whereArgs: [ville.toLowerCase()]);
+  }
+
+  // ── Sauvegarde semestrielle des bulletins météo (6 mois / 180 jours max sur le téléphone)
+  Future<void> sauvegarderBulletinSemestriel(Map<String, dynamic> bulletin) async {
+    final db = await database;
+    if (db == null) return;
+    await db.insert(
+      'meteo_bulletins_semestriels',
+      {
+        'id': bulletin['id'] ?? DateTime.now().toIso8601String().substring(0, 10),
+        'date': bulletin['date'] ?? DateTime.now().toIso8601String(),
+        'titre': bulletin['titre'] ?? 'Bulletin agro-météorologique',
+        'resumeMatin': bulletin['resumeMatin'] ?? '',
+        'resumeApresMidi': bulletin['resumeApresMidi'] ?? '',
+        'tempMin': bulletin['tempMin'] ?? 30.0,
+        'tempMax': bulletin['tempMax'] ?? 37.0,
+        'conseilAgricole': bulletin['conseilAgricole'] ?? '',
+        'regionsJson': bulletin['regionsJson'] ?? '',
+        'imageUrl': bulletin['imageUrl'] ?? '',
+        'enregistreAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    // Purger automatiquement les bulletins de plus de 180 jours (6 mois)
+    await purgerAnciensBulletins();
+  }
+
+  Future<List<Map<String, dynamic>>> getBulletinsSemestriels({int limite = 180}) async {
+    final db = await database;
+    if (db == null) return [];
+    return db.query(
+      'meteo_bulletins_semestriels',
+      orderBy: 'enregistreAt DESC',
+      limit: limite,
+    );
+  }
+
+  Future<void> purgerAnciensBulletins() async {
+    final db = await database;
+    if (db == null) return;
+    final cutoff180Jours = DateTime.now().subtract(const Duration(days: 180)).millisecondsSinceEpoch;
+    await db.delete(
+      'meteo_bulletins_semestriels',
+      where: 'enregistreAt < ?',
+      whereArgs: [cutoff180Jours],
+    );
   }
 }

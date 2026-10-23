@@ -39,13 +39,45 @@ const MeteoSchema = new mongoose.Schema({
   dateMiseAJour: { 
     type: Date, 
     default: Date.now
-   },
+  },
+
+  // Données synthétiques et régionales du bulletin officiel (ANAMET / AgriDigitale)
+  resumeMatin: {
+    type: String,
+    default: 'Au cours de cette matinée, on observe un ciel nuageux sur l\'ensemble du pays avec des brumes matinales locales.',
+  },
+  resumeApresMidi: {
+    type: String,
+    default: 'Dans l\'après-midi, des orages associés à quelques pluies localisées sont attendus dans la Maritime et les Plateaux.',
+  },
+  tempMin: {
+    type: Number,
+    default: 30,
+  },
+  tempMax: {
+    type: Number,
+    default: 37,
+  },
+  conseilAgricole: {
+    type: String,
+    default: 'Maritime & Plateaux : Attention aux averses orageuses pour les travaux champêtres et le séchage. Nord : Poursuite des récoltes par temps chaud.',
+  },
+  regions: [{
+    code: String, // 'maritime', 'plateaux', 'centrale', 'kara', 'savanes'
+    nom: String,
+    chefLieu: String,
+    condition: String,
+    icone: String,
+    tempMin: Number,
+    tempMax: Number,
+    pluie: Boolean,
+  }],
 
   // Champs administratifs (optionnels)
   publiePar: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Utilisateur'
-   }
+  }
 
    
 }, { timestamps: true });
