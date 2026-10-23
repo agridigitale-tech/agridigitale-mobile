@@ -35,6 +35,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
     super.initState();
     _charger();
     _chargerHistorique();
+    _rechercherVille('Lomé'); // Affiche immédiatement la météo en direct du Togo (Lomé)
   }
 
   @override
@@ -204,20 +205,32 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     child:
                         CircularProgressIndicator(color: AppColors.vertPrimaire),
                   ))
-                : _erreur || _imageUrl == null
-                    ? Column(children: [
-                        const SizedBox(height: 40),
-                        const Icon(Icons.cloud_off,
-                            size: 64, color: AppColors.grisIcone),
-                        const SizedBox(height: 16),
-                        const Text('Aucune photo météo disponible',
-                            style: TextStyle(
-                                fontSize: 16, color: AppColors.grisTexte),
-                            textAlign: TextAlign.center),
-                        TextButton(
-                            onPressed: _charger,
-                            child: const Text('Réessayer')),
-                      ])
+                : _erreur || _imageUrl == null || _imageUrl!.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.shade100),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.wb_sunny_outlined, size: 48, color: AppColors.vertPrimaire),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Bulletin agro-météorologique officiel',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Le prochain bulletin officiel sera publié par la rédaction.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12.5, color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      )
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: CachedNetworkImage(
@@ -231,16 +244,30 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                   color: AppColors.vertPrimaire),
                             ),
                           ),
-                          errorWidget: (context, url, error) => const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.broken_image,
-                                  size: 64, color: AppColors.grisIcone),
-                              SizedBox(height: 12),
-                              Text('Image non disponible',
-                                  style:
-                                      TextStyle(color: AppColors.grisTexte)),
-                            ],
+                          errorWidget: (context, url, error) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade100),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.wb_sunny_outlined, size: 48, color: AppColors.vertPrimaire),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Bulletin agro-météorologique officiel',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Le bulletin du jour est en cours d\'actualisation.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12.5, color: Colors.grey[700]),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

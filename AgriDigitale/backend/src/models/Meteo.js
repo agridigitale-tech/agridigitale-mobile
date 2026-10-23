@@ -18,6 +18,14 @@ const MeteoSchema = new mongoose.Schema({
   iconeUrl: { 
     type: String
    },
+  donneesPhoto: {
+    type: Buffer,
+    select: false, // Ne pas charger le gros buffer binaire dans les requêtes de liste
+  },
+  mimeType: {
+    type: String,
+    default: 'image/jpeg',
+  },
   humidite: { 
     type: Number
    },
