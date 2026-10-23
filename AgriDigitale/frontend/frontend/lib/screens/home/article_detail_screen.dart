@@ -2,7 +2,7 @@
 // la synthèse vocale (lecture audio), la traduction en anglais, le contenu HTML soigné,
 // les réseaux sociaux, les commentaires et les articles similaires.
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -54,6 +54,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   bool _ttsEnPause = false;
   double _ttsVitesse = 0.5;
   bool _audioMenuOuvert = false;
+  List<String> _morceauxAudio = [];
+  int _indexMorceauAudio = 0;
+  bool _audioArretDemande = false;
 
   // ── Mode Anglais / Traduction ──
   bool _modeAnglais = false;
@@ -81,31 +84,45 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   Future<void> _initTts() async {
     try {
-      await _tts.setLanguage('fr-FR');
+      await _tts.awaitSpeakCompletion(true);
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await _tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playback,
+          [
+            IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+            IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+            IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+          ],
+          IosTextToSpeechAudioMode.defaultMode,
+        );
+      }
+      final dispo = await _tts.isLanguageAvailable('fr-FR');
+      if (dispo == true) {
+        await _tts.setLanguage('fr-FR');
+      } else {
+        await _tts.setLanguage('fr');
+      }
       await _tts.setSpeechRate(_ttsVitesse);
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
 
-      _tts.setStartHandler(() {
-        if (mounted) setState(() { _ttsEnLecture = true; _ttsEnPause = false; });
+      _tts.setErrorHandler((msg) {
+        debugPrint('[TTS] Erreur TTS : $msg');
+        if (mounted) {
+          setState(() {
+            _ttsEnLecture = false;
+            _ttsEnPause = false;
+          });
+        }
       });
-      _tts.setCompletionHandler(() {
-        if (mounted) setState(() { _ttsEnLecture = false; _ttsEnPause = false; });
-      });
-      _tts.setCancelHandler(() {
-        if (mounted) setState(() { _ttsEnLecture = false; _ttsEnPause = false; });
-      });
-      _tts.setPauseHandler(() {
-        if (mounted) setState(() { _ttsEnLecture = false; _ttsEnPause = true; });
-      });
-      _tts.setErrorHandler((_) {
-        if (mounted) setState(() { _ttsEnLecture = false; _ttsEnPause = false; });
-      });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TTS] Initialisation ignorée : $e');
+    }
   }
 
   @override
   void dispose() {
+    _audioArretDemande = true;
     _scrollCtrl.removeListener(_majProgression);
     _progression.dispose();
     _tts.stop();
@@ -114,30 +131,166 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     super.dispose();
   }
 
-  // ── Gestion de la lecture vocale ──
-  Future<void> _lireArticle(Article article) async {
-    if (_ttsEnLecture) {
-      await _tts.pause();
-      return;
-    }
-    if (_ttsEnPause) {
-      // Reprendre
-    }
-    final rawContenu = article.contenu
+  // Nettoie les balises et entités HTML pour une prononciation naturelle
+  String _nettoyerTextePourAudio(String html) {
+    return html
         .replaceAll(RegExp(r'<[^>]*>'), ' ')
         .replaceAll('&nbsp;', ' ')
+        .replaceAll('&rsquo;', "'")
+        .replaceAll('&lsquo;', "'")
+        .replaceAll('&#8217;', "'")
+        .replaceAll('&#039;', "'")
+        .replaceAll('&ldquo;', '"')
+        .replaceAll('&rdquo;', '"')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&amp;', ' et ')
+        .replaceAll('&eacute;', 'é')
+        .replaceAll('&egrave;', 'è')
+        .replaceAll('&agrave;', 'à')
+        .replaceAll('&ccedil;', 'ç')
+        .replaceAll('&ocirc;', 'ô')
+        .replaceAll('&ecirc;', 'ê')
+        .replaceAll('&icirc;', 'î')
         .replaceAll('{{BASE_URL}}', '')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+  }
 
-    final texte = '${article.titre}. ${article.resume}. $rawContenu';
-    await _tts.setLanguage(_modeAnglais ? 'en-US' : 'fr-FR');
-    await _tts.setSpeechRate(_ttsVitesse);
-    await _tts.speak(texte);
+  // Découpe le texte en blocs de ~600 caractères pour respecter la limite
+  // native Android (4000 chars max par appel à speak) et permettre la pause/reprise
+  List<String> _decouperEnMorceaux(String texte) {
+    final phrases = RegExp(r'[^.!?\n]+[.!?\n]+')
+        .allMatches(texte)
+        .map((m) => m.group(0)!.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (phrases.isEmpty && texte.trim().isNotEmpty) {
+      return [texte.trim()];
+    }
+    final List<String> morceaux = [];
+    var buffer = StringBuffer();
+    for (final p in phrases) {
+      if (buffer.length + p.length > 600) {
+        morceaux.add(buffer.toString().trim());
+        buffer = StringBuffer();
+      }
+      buffer.write('$p ');
+    }
+    if (buffer.isNotEmpty) {
+      morceaux.add(buffer.toString().trim());
+    }
+    return morceaux;
+  }
+
+  // ── Gestion de la lecture vocale ──
+  Future<void> _lireArticle(Article article) async {
+    // Si en cours de lecture → Mettre en pause
+    if (_ttsEnLecture) {
+      _audioArretDemande = true;
+      await _tts.stop();
+      if (mounted) {
+        setState(() {
+          _ttsEnLecture = false;
+          _ttsEnPause = true;
+        });
+      }
+      return;
+    }
+
+    // Si en pause → Reprendre
+    if (_ttsEnPause && _morceauxAudio.isNotEmpty) {
+      _audioArretDemande = false;
+      if (mounted) {
+        setState(() {
+          _ttsEnLecture = true;
+          _ttsEnPause = false;
+        });
+      }
+      _jouerMorceauxAudio();
+      return;
+    }
+
+    // Nouveau démarrage de lecture
+    final titre = _nettoyerTextePourAudio(article.titre);
+    final resume = _nettoyerTextePourAudio(article.resume);
+    final corps = _nettoyerTextePourAudio(article.contenu);
+    final texteComplet = '$titre. $resume. $corps';
+
+    _morceauxAudio = _decouperEnMorceaux(texteComplet);
+    _indexMorceauAudio = 0;
+    _audioArretDemande = false;
+
+    if (_morceauxAudio.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aucun texte à lire disponible.')),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _ttsEnLecture = true;
+        _ttsEnPause = false;
+        _audioMenuOuvert = true;
+      });
+    }
+
+    _jouerMorceauxAudio();
+  }
+
+  Future<void> _jouerMorceauxAudio() async {
+    try {
+      await _tts.setLanguage(_modeAnglais ? 'en-US' : 'fr-FR');
+      await _tts.setSpeechRate(_ttsVitesse);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+
+      while (_indexMorceauAudio < _morceauxAudio.length && !_audioArretDemande) {
+        final morceau = _morceauxAudio[_indexMorceauAudio];
+        await _tts.speak(morceau);
+        if (_audioArretDemande) break;
+        _indexMorceauAudio++;
+      }
+
+      if (!_audioArretDemande && _indexMorceauAudio >= _morceauxAudio.length) {
+        if (mounted) {
+          setState(() {
+            _ttsEnLecture = false;
+            _ttsEnPause = false;
+            _indexMorceauAudio = 0;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[TTS] Erreur : $e');
+      if (mounted) {
+        setState(() {
+          _ttsEnLecture = false;
+          _ttsEnPause = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de lecture audio : $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _arreterLecture() async {
+    _audioArretDemande = true;
+    _indexMorceauAudio = 0;
+    _morceauxAudio.clear();
     await _tts.stop();
-    if (mounted) setState(() { _ttsEnLecture = false; _ttsEnPause = false; });
+    if (mounted) {
+      setState(() {
+        _ttsEnLecture = false;
+        _ttsEnPause = false;
+      });
+    }
   }
 
   void _changerVitesseTts() {
@@ -803,10 +956,38 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 color: _modeAnglais ? AppColors.vertPrimaire : Colors.grey[700],
               ),
             ),
-            onPressed: () {
-              setState(() => _modeAnglais = !_modeAnglais);
+            onPressed: () async {
+              final nouvelEtat = !_modeAnglais;
+              setState(() => _modeAnglais = nouvelEtat);
               _arreterLecture();
               context.read<LanguageProvider>().basculerLangue();
+
+              if (nouvelEtat) {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final a = await _future;
+                  if (mounted && a.lienSource.isNotEmpty) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Articles rédigés en français. Ouvrir la version anglaise via Google Traduction ?',
+                          style: TextStyle(fontSize: 12.5),
+                        ),
+                        action: SnackBarAction(
+                          label: 'Ouvrir',
+                          textColor: Colors.amberAccent,
+                          onPressed: () {
+                            final url =
+                                'https://translate.google.com/translate?sl=fr&tl=en&u=${Uri.encodeComponent(a.lienSource)}';
+                            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                          },
+                        ),
+                        duration: const Duration(seconds: 6),
+                      ),
+                    );
+                  }
+                } catch (_) {}
+              }
             },
           ),
           // Bouton Favori
