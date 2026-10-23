@@ -136,6 +136,67 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text('AGRIDIGITALE',
+            style: TextStyle(
+              color: AppColors.vertFonce,
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+              letterSpacing: 1.2,
+            )),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_border, color: AppColors.vertPrimaire),
+            tooltip: 'Mes favoris',
+            onPressed: _allerFavoris,
+          ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationsListScreen()),
+                  );
+                  if (mounted) _chargerNotifs();
+                },
+              ),
+              if (_notifCount > 0)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        _notifCount > 99 ? '99+' : '$_notifCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         color: AppColors.vertPrimaire,
         backgroundColor: Colors.white,
@@ -143,115 +204,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            SliverAppBar(
-              expandedHeight: 110,
-              floating: true,
-              pinned: true,
-              elevation: 0,
-              backgroundColor: AppColors.vertFonce,
-              automaticallyImplyLeading: false,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF0F4C2A),
-                        AppColors.vertFonce,
-                        AppColors.vertPrimaire,
-                      ],
-                    ),
-                  ),
-                ),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.eco, color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'AGRIDIGITALE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
-              ),
-              actions: [
-                Container(
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.bookmark_border, color: Colors.white),
-                    tooltip: 'Mes favoris',
-                    onPressed: _allerFavoris,
-                  ),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none, color: Colors.white),
-                        tooltip: 'Notifications',
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const NotificationsListScreen()),
-                          );
-                          if (mounted) _chargerNotifs();
-                        },
-                      ),
-                      if (_notifCount > 0)
-                        Positioned(
-                          right: 4,
-                          top: 4,
-                          child: IgnorePointer(
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints:
-                                  const BoxConstraints(minWidth: 18, minHeight: 18),
-                              child: Text(
-                                _notifCount > 99 ? '99+' : '$_notifCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: BannerCarousel()),
             SliverToBoxAdapter(
@@ -513,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             ),
                           ),
                           SizedBox(
-                            height: 215,
+                            height: 232,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.only(left: 16),
@@ -582,26 +534,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 ),
               ],
             if (_chargement)
-              const               SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Center(
-                      child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 10,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const CircularProgressIndicator(
+                          color: AppColors.vertPrimaire, strokeWidth: 2.5),
                     ),
-                    child: const CircularProgressIndicator(
-                        color: AppColors.vertPrimaire, strokeWidth: 2.5),
-                  )),
+                  ),
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),

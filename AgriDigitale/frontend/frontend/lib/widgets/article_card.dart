@@ -90,7 +90,10 @@ class ArticleCardVerticale extends StatelessWidget {
                     Row(children: [
                       Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
-                      Text(_date(article.datePublication), style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      Expanded(
+                        child: Text(_date(article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      ),
                       const SizedBox(width: 8),
                       Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
@@ -100,7 +103,10 @@ class ArticleCardVerticale extends StatelessWidget {
                     Row(children: [
                       Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
-                      Text(article.source, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      Expanded(
+                        child: Text(article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      ),
                     ]),
                   ],
                 ),
@@ -242,7 +248,10 @@ class _ArticleCardState extends State<ArticleCard> {
                       Row(children: [
                         Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
-                        Text(widget.article.source, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        Expanded(
+                          child: Text(widget.article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        ),
                       ]),
                     ],
                   ),

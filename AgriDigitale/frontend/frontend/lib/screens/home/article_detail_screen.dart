@@ -860,10 +860,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 'body': Style(
                   margin: Margins.zero,
                   padding: HtmlPaddings.zero,
-                  fontSize: FontSize(16),
-                  lineHeight: LineHeight(1.85),
+                  fontSize: FontSize(17),
+                  lineHeight: LineHeight(1.9),
                   color: AppColors.texteFort,
-                  fontFamily: GoogleFonts.ptSerif().fontFamily,
+                  fontFamily: 'Times New Roman',
                 ),
                 'p': Style(
                   textAlign: TextAlign.justify,
