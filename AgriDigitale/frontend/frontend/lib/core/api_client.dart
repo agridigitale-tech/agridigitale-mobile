@@ -10,9 +10,9 @@ class ApiClient {
   late final Dio dio;
   String? _token;
 
-  // URL du backend Render — commune à toute l'app (mobile + web)
+  // URL du backend Render officiel
   static String get baseUrl {
-    return 'https://agridigitale-backend.onrender.com/api';
+    return 'https://agridigitale-mobile.onrender.com/api';
   }
 
 
