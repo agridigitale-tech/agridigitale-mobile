@@ -20,6 +20,8 @@ app.use(cors({
     const isVercel = /\.vercel\.app$/.test(origin);
     const allowed = [
       'https://agridigitale-production.up.railway.app',
+      'https://agridigitale-mobile.onrender.com',
+      'https://agridigitale-backend.onrender.com',
       'https://agridigitale.net',
       'https://www.agridigitale.net',
     ];
@@ -34,6 +36,15 @@ app.use((req, res, next) => {
 });
 app.use(morgan('dev'));
 app.use(express.json());
+
+// Routes de santé / ping (exemptées de rate limit pour Render, UptimeRobot et KeepAlive)
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'agridigitale-backend', uptime: Math.round(process.uptime()) });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'agridigitale-backend', timestamp: new Date().toISOString() });
+});
 
 // Proxy d'image (exempté du rate limit global pour éviter le blocage 429)
 app.use('/api/proxy-image', require('./routes/proxy.routes'));

@@ -374,9 +374,9 @@ const mettreAJourContenuArticles = async () => {
 };
 
 const demarrerScheduler = () => {
-  cron.schedule('*/15 * * * *', recupererFlux);
+  cron.schedule('*/5 * * * *', recupererFlux);
   recupererFlux();
-  console.log('[RSS] Scheduler démarré (toutes les 15 min)');
+  console.log('[RSS] Scheduler démarré (toutes les 5 min)');
   cron.schedule('0 3 * * *', mettreAJourContenuArticles);
   // Désactivation automatique des bannières expirées toutes les heures
   cron.schedule('0 * * * *', desactiverBannieresExpirees);
