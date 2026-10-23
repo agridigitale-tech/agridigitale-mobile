@@ -1,6 +1,7 @@
 // Écran détail d'un article : affiche l'image sans rognage, la légende photo,
 // la synthèse vocale (lecture audio), la traduction en anglais, le contenu HTML soigné,
 // les réseaux sociaux, les commentaires et les articles similaires.
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
@@ -19,6 +20,7 @@ import '../../models/article.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../widgets/auth_gate.dart';
+import '../../widgets/karaoke_reader.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
 
@@ -48,15 +50,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   bool _favoriTraite = false;
   bool _estFavori = false;
 
-  // ── Synthèse vocale (Text-To-Speech) ──
+  // ── Synthèse vocale (Text-To-Speech) & Suivi Karaoké ──
   final FlutterTts _tts = FlutterTts();
   bool _ttsEnLecture = false;
   bool _ttsEnPause = false;
   double _ttsVitesse = 0.5;
-  bool _audioMenuOuvert = false;
   List<String> _morceauxAudio = [];
   int _indexMorceauAudio = 0;
   bool _audioArretDemande = false;
+  Timer? _timerProgressionFallback;
+  DateTime _dernierTickProgress = DateTime.now();
+  Article? _articleCourant;
+
+  final ValueNotifier<EtatLectureAudio> _etatLectureNotifier =
+      ValueNotifier<EtatLectureAudio>(EtatLectureAudio.initial());
 
   // ── Mode Anglais / Traduction ──
   bool _modeAnglais = false;
@@ -106,14 +113,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
 
+      _tts.setProgressHandler((String text, int start, int end, String word) {
+        _surProgressionTts(text, start, end, word);
+      });
+
       _tts.setErrorHandler((msg) {
         debugPrint('[TTS] Erreur TTS : $msg');
-        if (mounted) {
-          setState(() {
-            _ttsEnLecture = false;
-            _ttsEnPause = false;
-          });
-        }
+        _arreterLecture();
       });
     } catch (e) {
       debugPrint('[TTS] Initialisation ignorée : $e');
@@ -123,9 +129,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   @override
   void dispose() {
     _audioArretDemande = true;
+    _annulerTimerFallback();
     _scrollCtrl.removeListener(_majProgression);
     _progression.dispose();
     _tts.stop();
+    _etatLectureNotifier.dispose();
     _commentaireCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -156,8 +164,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         .trim();
   }
 
-  // Découpe le texte en blocs de ~600 caractères pour respecter la limite
-  // native Android (4000 chars max par appel à speak) et permettre la pause/reprise
+  // Découpe le texte en blocs de ~350 caractères pour respecter les limites
+  // de synthèse vocale, cadencer les phrases et afficher le texte en karaoké.
   List<String> _decouperEnMorceaux(String texte) {
     final phrases = RegExp(r'[^.!?\n]+[.!?\n]+')
         .allMatches(texte)
@@ -170,7 +178,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final List<String> morceaux = [];
     var buffer = StringBuffer();
     for (final p in phrases) {
-      if (buffer.length + p.length > 600) {
+      if (buffer.length + p.length > 350 && buffer.isNotEmpty) {
         morceaux.add(buffer.toString().trim());
         buffer = StringBuffer();
       }
@@ -179,14 +187,80 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (buffer.isNotEmpty) {
       morceaux.add(buffer.toString().trim());
     }
-    return morceaux;
+    return morceaux.where((s) => s.isNotEmpty).toList();
+  }
+
+  // ── Synchronisation du mot en temps réel (Karaoké) ──
+  void _surProgressionTts(String text, int start, int end, String word) {
+    _dernierTickProgress = DateTime.now();
+    final mots = _etatLectureNotifier.value.mots;
+    if (mots.isEmpty) return;
+
+    int indexTrouve = -1;
+    // 1. Recherche par position start/end absolue dans le morceau
+    for (int i = 0; i < mots.length; i++) {
+      final m = mots[i];
+      if ((start >= m.debut && start < m.fin) ||
+          (end > m.debut && end <= m.fin) ||
+          (m.debut >= start && m.fin <= end)) {
+        indexTrouve = i;
+        break;
+      }
+    }
+
+    // 2. Repli par correspondance textuelle si les index ne concordent pas
+    if (indexTrouve == -1 && word.trim().isNotEmpty) {
+      final motPropre = word.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
+      final debutRecherche = _etatLectureNotifier.value.indexMotActuel.clamp(0, mots.length - 1);
+      for (int i = debutRecherche; i < mots.length; i++) {
+        final mPropre = mots[i].mot.toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
+        if (mPropre == motPropre) {
+          indexTrouve = i;
+          break;
+        }
+      }
+    }
+
+    if (indexTrouve != -1 && indexTrouve != _etatLectureNotifier.value.indexMotActuel) {
+      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+        indexMotActuel: indexTrouve,
+      );
+    }
+  }
+
+  void _demarrerTimerProgressionFallback(List<MotLecture> mots) {
+    _annulerTimerFallback();
+    if (mots.isEmpty) return;
+    _dernierTickProgress = DateTime.now();
+    _timerProgressionFallback = Timer.periodic(const Duration(milliseconds: 90), (_) {
+      if (!_ttsEnLecture || _ttsEnPause) return;
+      final diff = DateTime.now().difference(_dernierTickProgress).inMilliseconds;
+      final dureeParMotMs = (380 / (_ttsVitesse / 0.5)).clamp(180, 800).round();
+      if (diff > dureeParMotMs) {
+        final idx = _etatLectureNotifier.value.indexMotActuel;
+        if (idx < mots.length - 1) {
+          _dernierTickProgress = DateTime.now();
+          _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+            indexMotActuel: idx + 1,
+          );
+        }
+      }
+    });
+  }
+
+  void _annulerTimerFallback() {
+    _timerProgressionFallback?.cancel();
+    _timerProgressionFallback = null;
   }
 
   // ── Gestion de la lecture vocale ──
   Future<void> _lireArticle(Article article) async {
+    _articleCourant = article;
+
     // Si en cours de lecture → Mettre en pause
     if (_ttsEnLecture) {
       _audioArretDemande = true;
+      _annulerTimerFallback();
       await _tts.stop();
       if (mounted) {
         setState(() {
@@ -194,6 +268,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           _ttsEnPause = true;
         });
       }
+      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+        estEnLecture: false,
+        estEnPause: true,
+      );
       return;
     }
 
@@ -206,6 +284,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           _ttsEnPause = false;
         });
       }
+      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+        estEnLecture: true,
+        estEnPause: false,
+      );
       _jouerMorceauxAudio();
       return;
     }
@@ -233,7 +315,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       setState(() {
         _ttsEnLecture = true;
         _ttsEnPause = false;
-        _audioMenuOuvert = true;
       });
     }
 
@@ -249,27 +330,49 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
       while (_indexMorceauAudio < _morceauxAudio.length && !_audioArretDemande) {
         final morceau = _morceauxAudio[_indexMorceauAudio];
+        final mots = MotLecture.extraireMots(morceau);
+
+        _etatLectureNotifier.value = EtatLectureAudio(
+          estActif: true,
+          estEnLecture: true,
+          estEnPause: false,
+          vitesse: _ttsVitesse,
+          indexMorceau: _indexMorceauAudio,
+          totalMorceaux: _morceauxAudio.length,
+          morceauTexte: morceau,
+          mots: mots,
+          indexMotActuel: 0,
+          titreArticle: _articleCourant?.titre ?? '',
+          estReduit: _etatLectureNotifier.value.estReduit,
+        );
+
+        // Auto-défilement progressif du corps de l'article pour suivre la voix
+        if (_scrollCtrl.hasClients && _morceauxAudio.isNotEmpty) {
+          final ratio = _indexMorceauAudio / _morceauxAudio.length;
+          final maxScroll = _scrollCtrl.position.maxScrollExtent;
+          final target = (ratio * maxScroll * 0.85).clamp(0.0, maxScroll);
+          _scrollCtrl.animateTo(
+            target,
+            duration: const Duration(milliseconds: 650),
+            curve: Curves.easeInOutCubic,
+          );
+        }
+
+        _demarrerTimerProgressionFallback(mots);
         await _tts.speak(morceau);
+        _annulerTimerFallback();
+
         if (_audioArretDemande) break;
         _indexMorceauAudio++;
       }
 
       if (!_audioArretDemande && _indexMorceauAudio >= _morceauxAudio.length) {
-        if (mounted) {
-          setState(() {
-            _ttsEnLecture = false;
-            _ttsEnPause = false;
-            _indexMorceauAudio = 0;
-          });
-        }
+        _arreterLecture();
       }
     } catch (e) {
       debugPrint('[TTS] Erreur : $e');
+      _arreterLecture();
       if (mounted) {
-        setState(() {
-          _ttsEnLecture = false;
-          _ttsEnPause = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur de lecture audio : $e'),
@@ -280,11 +383,87 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
+  // Sauter directement à un mot précis dans la phrase
+  Future<void> _sauterVersMot(int indexMot) async {
+    if (_morceauxAudio.isEmpty || _indexMorceauAudio >= _morceauxAudio.length) return;
+    final mots = _etatLectureNotifier.value.mots;
+    if (indexMot < 0 || indexMot >= mots.length) return;
+
+    _audioArretDemande = true;
+    _annulerTimerFallback();
+    await _tts.stop();
+
+    final morceau = _morceauxAudio[_indexMorceauAudio];
+    final debutMot = mots[indexMot].debut;
+    final textePartiel = morceau.substring(debutMot);
+
+    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+      estActif: true,
+      estEnLecture: true,
+      estEnPause: false,
+      indexMotActuel: indexMot,
+    );
+
+    if (mounted) {
+      setState(() {
+        _ttsEnLecture = true;
+        _ttsEnPause = false;
+      });
+    }
+
+    _audioArretDemande = false;
+    _demarrerTimerProgressionFallback(mots);
+    try {
+      await _tts.speak(textePartiel);
+      _annulerTimerFallback();
+      if (!_audioArretDemande) {
+        _indexMorceauAudio++;
+        _jouerMorceauxAudio();
+      }
+    } catch (_) {
+      _annulerTimerFallback();
+    }
+  }
+
+  Future<void> _morceauPrecedent() async {
+    if (_indexMorceauAudio <= 0) return;
+    _audioArretDemande = true;
+    _annulerTimerFallback();
+    await _tts.stop();
+    _indexMorceauAudio--;
+    _audioArretDemande = false;
+    if (mounted) {
+      setState(() {
+        _ttsEnLecture = true;
+        _ttsEnPause = false;
+      });
+    }
+    _jouerMorceauxAudio();
+  }
+
+  Future<void> _morceauSuivant() async {
+    if (_indexMorceauAudio >= _morceauxAudio.length - 1) return;
+    _audioArretDemande = true;
+    _annulerTimerFallback();
+    await _tts.stop();
+    _indexMorceauAudio++;
+    _audioArretDemande = false;
+    if (mounted) {
+      setState(() {
+        _ttsEnLecture = true;
+        _ttsEnPause = false;
+      });
+    }
+    _jouerMorceauxAudio();
+  }
+
   Future<void> _arreterLecture() async {
     _audioArretDemande = true;
+    _annulerTimerFallback();
     _indexMorceauAudio = 0;
     _morceauxAudio.clear();
     await _tts.stop();
+    _etatLectureNotifier.value = EtatLectureAudio.initial();
     if (mounted) {
       setState(() {
         _ttsEnLecture = false;
@@ -294,151 +473,42 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   }
 
   void _changerVitesseTts() {
-    setState(() {
-      if (_ttsVitesse == 0.5) {
-        _ttsVitesse = 0.65; // ~1.25x
-      } else if (_ttsVitesse == 0.65) {
-        _ttsVitesse = 0.8;  // ~1.5x
-      } else {
-        _ttsVitesse = 0.5;  // 1.0x normal
-      }
-    });
-    _tts.setSpeechRate(_ttsVitesse);
+    double nouvelleVitesse;
+    if (_ttsVitesse == 0.5) {
+      nouvelleVitesse = 0.65; // ~1.25x
+    } else if (_ttsVitesse == 0.65) {
+      nouvelleVitesse = 0.8;  // ~1.5x
+    } else {
+      nouvelleVitesse = 0.5;  // 1.0x normal
+    }
+    setState(() => _ttsVitesse = nouvelleVitesse);
+    _tts.setSpeechRate(nouvelleVitesse);
+    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(vitesse: nouvelleVitesse);
   }
 
-  // ── Bouton d'écoute flottant en bas à gauche avec dropdown horizontal ──
-  Widget _buildBoutonEcouteFlottant(Article article) {
-    return SafeArea(
-      child: Material(
-        color: Colors.transparent,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: _ttsEnLecture ? AppColors.vertPrimaire : Colors.grey.shade300,
-              width: _ttsEnLecture ? 1.5 : 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Bouton Casque (Toggle)
-              InkWell(
-                onTap: () {
-                  setState(() => _audioMenuOuvert = !_audioMenuOuvert);
-                },
-                borderRadius: BorderRadius.circular(26),
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: _ttsEnLecture
-                          ? const [AppColors.vertPrimaire, Color(0xFF66BB6A)]
-                          : const [AppColors.vertFonce, AppColors.vertPrimaire],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(
-                        Icons.headphones_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      if (_ttsEnLecture)
-                        Positioned(
-                          top: 9,
-                          right: 9,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.amberAccent,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Dropdown horizontal animé de gauche à droite
-              ClipRect(
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.centerLeft,
-                  child: _audioMenuOuvert
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(width: 4),
-                            // Bouton Lecture / Pause
-                            IconButton(
-                              icon: Icon(
-                                _ttsEnLecture ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: AppColors.vertPrimaire,
-                                size: 28,
-                              ),
-                              tooltip: _ttsEnLecture ? 'Pause' : 'Écouter',
-                              onPressed: () => _lireArticle(article),
-                            ),
-                            // Bouton Arrêter (si actif)
-                            if (_ttsEnLecture || _ttsEnPause) ...[
-                              IconButton(
-                                icon: const Icon(Icons.stop_rounded, color: Colors.redAccent, size: 22),
-                                tooltip: 'Arrêter',
-                                onPressed: _arreterLecture,
-                              ),
-                            ],
-                            // Vitesse
-                            InkWell(
-                              onTap: _changerVitesseTts,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.vertPrimaire.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  '${_ttsVitesse == 0.5 ? '1.0' : (_ttsVitesse == 0.65 ? '1.25' : '1.5')}x',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.vertPrimaire,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-            ],
-          ),
-        ),
+  void _ouvrirPrompteurPleinEcran(Article article) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => PrompteurPleinEcranSheet(
+        notifier: _etatLectureNotifier,
+        onLectureToggle: () => _lireArticle(article),
+        onPrecedent: _morceauPrecedent,
+        onSuivant: _morceauSuivant,
+        onChangerVitesse: _changerVitesseTts,
+        onArreter: () {
+          Navigator.pop(ctx);
+          _arreterLecture();
+        },
+        onSauterVersMot: _sauterVersMot,
       ),
     );
+  }
+
+  void _basculerReductionLecteur() {
+    final actuel = _etatLectureNotifier.value.estReduit;
+    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(estReduit: !actuel);
   }
 
   // ── Gestion Commentaires ──
@@ -1051,13 +1121,26 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   _buildContenu(article),
                   _buildSectionCommentaires(auth),
                   _buildAutresArticles(),
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
                 ],
               ),
               Positioned(
-                left: 16,
-                bottom: 20,
-                child: _buildBoutonEcouteFlottant(article),
+                left: 14,
+                right: 14,
+                bottom: 16,
+                child: SafeArea(
+                  child: BandeauKaraokeLecture(
+                    notifier: _etatLectureNotifier,
+                    onLectureToggle: () => _lireArticle(article),
+                    onPrecedent: _morceauPrecedent,
+                    onSuivant: _morceauSuivant,
+                    onChangerVitesse: _changerVitesseTts,
+                    onArreter: _arreterLecture,
+                    onOuvrirPrompteur: () => _ouvrirPrompteurPleinEcran(article),
+                    onSauterVersMot: _sauterVersMot,
+                    onBasculerReduction: _basculerReductionLecteur,
+                  ),
+                ),
               ),
             ],
           );
