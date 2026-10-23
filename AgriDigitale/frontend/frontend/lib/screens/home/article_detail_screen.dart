@@ -1,5 +1,6 @@
 // Écran détail d'un article : affiche l'image sans rognage, la légende photo,
-// la synthèse vocale (lecture audio), la traduction en anglais, le contenu HTML soigné,
+// la synthèse vocale (lecture audio) avec surlignage mot par mot en direct sur le texte,
+// le bouton flottant discret en bas à gauche, la traduction en anglais,
 // les réseaux sociaux, les commentaires et les articles similaires.
 import 'dart:async';
 import 'dart:io';
@@ -10,12 +11,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import '../../services/article_service.dart';
 import '../../services/favori_service.dart';
@@ -24,9 +25,82 @@ import '../../models/article.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../widgets/auth_gate.dart';
-import '../../widgets/karaoke_reader.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
+
+// ── Types et modèles de blocs pour le rendu direct et le suivi mot par mot ──
+enum TypeBlocArticle {
+  titre,
+  resume,
+  paragraphe,
+  titreSection,
+  citation,
+  liste,
+  image,
+}
+
+class MotLecture {
+  final String mot;
+  final int debut;
+  final int fin;
+
+  const MotLecture({required this.mot, required this.debut, required this.fin});
+
+  static List<MotLecture> extraireMots(String texte) {
+    final List<MotLecture> resultat = [];
+    final matches = RegExp(r'\S+').allMatches(texte);
+    for (final m in matches) {
+      resultat.add(MotLecture(
+        mot: m.group(0)!,
+        debut: m.start,
+        fin: m.end,
+      ));
+    }
+    return resultat;
+  }
+}
+
+class BlocArticle {
+  final int id;
+  final TypeBlocArticle type;
+  final String texte;
+  final List<MotLecture> mots;
+  final String? imageUrl;
+  final String? imageLegende;
+  final double imageRatio;
+  final GlobalKey key = GlobalKey();
+
+  BlocArticle({
+    required this.id,
+    required this.type,
+    this.texte = '',
+    this.mots = const [],
+    this.imageUrl,
+    this.imageLegende,
+    this.imageRatio = 16 / 9,
+  });
+}
+
+class PositionLecture {
+  final int blocId;
+  final int motIndex;
+  final bool estEnLecture;
+  final bool estEnPause;
+
+  const PositionLecture({
+    required this.blocId,
+    required this.motIndex,
+    required this.estEnLecture,
+    required this.estEnPause,
+  });
+
+  static const initial = PositionLecture(
+    blocId: -1,
+    motIndex: -1,
+    estEnLecture: false,
+    estEnPause: false,
+  );
+}
 
 class ArticleDetailScreen extends StatefulWidget {
   final String articleId;
@@ -54,20 +128,24 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   bool _favoriTraite = false;
   bool _estFavori = false;
 
-  // ── Synthèse vocale (Text-To-Speech) & Suivi Karaoké ──
+  // ── Synthèse vocale (Text-To-Speech) & Suivi en Direct sur le texte ──
   final FlutterTts _tts = FlutterTts();
   bool _ttsEnLecture = false;
   bool _ttsEnPause = false;
   double _ttsVitesse = 0.5;
-  List<String> _morceauxAudio = [];
-  int _indexMorceauAudio = 0;
+  bool _audioMenuOuvert = false;
   bool _audioArretDemande = false;
   Timer? _timerProgressionFallback;
   DateTime _dernierTickProgress = DateTime.now();
-  Article? _articleCourant;
 
-  final ValueNotifier<EtatLectureAudio> _etatLectureNotifier =
-      ValueNotifier<EtatLectureAudio>(EtatLectureAudio.initial());
+  Article? _articleCourant;
+  final List<BlocArticle> _blocsArticle = [];
+  final List<BlocArticle> _blocsAudio = [];
+  int _indexBlocAudioActuel = 0;
+  int _indexMotActuel = -1;
+
+  final ValueNotifier<PositionLecture> _positionLectureNotifier =
+      ValueNotifier<PositionLecture>(PositionLecture.initial);
 
   // ── Mode Anglais / Traduction ──
   bool _modeAnglais = false;
@@ -137,7 +215,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     _scrollCtrl.removeListener(_majProgression);
     _progression.dispose();
     _tts.stop();
-    _etatLectureNotifier.dispose();
+    _positionLectureNotifier.dispose();
     _commentaireCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -168,40 +246,278 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         .trim();
   }
 
-  // Découpe le texte en blocs de ~350 caractères pour respecter les limites
-  // de synthèse vocale, cadencer les phrases et afficher le texte en karaoké.
-  List<String> _decouperEnMorceaux(String texte) {
-    final phrases = RegExp(r'[^.!?\n]+[.!?\n]+')
-        .allMatches(texte)
-        .map((m) => m.group(0)!.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (phrases.isEmpty && texte.trim().isNotEmpty) {
-      return [texte.trim()];
-    }
-    final List<String> morceaux = [];
-    var buffer = StringBuffer();
-    for (final p in phrases) {
-      if (buffer.length + p.length > 350 && buffer.isNotEmpty) {
-        morceaux.add(buffer.toString().trim());
-        buffer = StringBuffer();
+  // ── Préparation des blocs de contenu et des blocs audio ──
+  void _preparerBlocsArticle(Article article) {
+    _blocsArticle.clear();
+    _blocsAudio.clear();
+    int nextId = 0;
+
+    // 1. Bloc Titre
+    final titreNettoye = _nettoyerTextePourAudio(article.titre);
+    final blocTitre = BlocArticle(
+      id: nextId++,
+      type: TypeBlocArticle.titre,
+      texte: titreNettoye,
+      mots: MotLecture.extraireMots(titreNettoye),
+    );
+    _blocsArticle.add(blocTitre);
+    _blocsAudio.add(blocTitre);
+
+    // 2. Bloc Résumé (si présent)
+    if (article.resume.trim().isNotEmpty) {
+      final resumeNettoye = _nettoyerTextePourAudio(article.resume);
+      if (resumeNettoye.isNotEmpty) {
+        final blocResume = BlocArticle(
+          id: nextId++,
+          type: TypeBlocArticle.resume,
+          texte: resumeNettoye,
+          mots: MotLecture.extraireMots(resumeNettoye),
+        );
+        _blocsArticle.add(blocResume);
+        _blocsAudio.add(blocResume);
       }
-      buffer.write('$p ');
     }
-    if (buffer.isNotEmpty) {
-      morceaux.add(buffer.toString().trim());
+
+    // 3. Blocs issus du corps HTML
+    final contenuHtml = _getContenuHtml(article);
+    try {
+      final fragment = html_parser.parseFragment(contenuHtml);
+      for (final node in fragment.nodes) {
+        _extraireBlocsDepuisNoeud(node, nextId, (bloc) {
+          nextId++;
+          _blocsArticle.add(bloc);
+          if (bloc.type != TypeBlocArticle.image && bloc.texte.trim().isNotEmpty) {
+            _blocsAudio.add(bloc);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[Parser] Erreur parsing HTML : $e');
     }
-    return morceaux.where((s) => s.isNotEmpty).toList();
+
+    // Si le corps HTML n'a fourni aucun bloc textuel, découpage de secours
+    final blocsTexte = _blocsArticle.where((b) => b.type != TypeBlocArticle.titre && b.type != TypeBlocArticle.resume && b.type != TypeBlocArticle.image);
+    if (blocsTexte.isEmpty && article.contenu.trim().isNotEmpty) {
+      final brut = _nettoyerTextePourAudio(article.contenu);
+      final paragraphes = brut.split(RegExp(r'\n{2,}'));
+      for (final p in paragraphes) {
+        final pTrim = p.trim();
+        if (pTrim.isNotEmpty) {
+          final b = BlocArticle(
+            id: nextId++,
+            type: TypeBlocArticle.paragraphe,
+            texte: pTrim,
+            mots: MotLecture.extraireMots(pTrim),
+          );
+          _blocsArticle.add(b);
+          _blocsAudio.add(b);
+        }
+      }
+    }
   }
 
-  // ── Synchronisation du mot en temps réel (Karaoké) ──
+  void _extraireBlocsDepuisNoeud(
+    dom.Node node,
+    int currentId,
+    void Function(BlocArticle) onAjout,
+  ) {
+    if (node is dom.Text) {
+      final t = _nettoyerTextePourAudio(node.text);
+      if (t.isNotEmpty) {
+        onAjout(BlocArticle(
+          id: currentId,
+          type: TypeBlocArticle.paragraphe,
+          texte: t,
+          mots: MotLecture.extraireMots(t),
+        ));
+      }
+      return;
+    }
+
+    if (node is! dom.Element) return;
+    final elem = node;
+    final tag = elem.localName?.toLowerCase() ?? '';
+
+    // 1. Image directe ou figure
+    if (tag == 'img' || tag == 'figure') {
+      final (url, legende, ratio) = _extraireDonneesImageDepuisElement(elem);
+      if (url != null && url.isNotEmpty) {
+        onAjout(BlocArticle(
+          id: currentId,
+          type: TypeBlocArticle.image,
+          imageUrl: url,
+          imageLegende: legende ?? 'Photo : © agridigitale.net',
+          imageRatio: ratio,
+        ));
+      }
+      return;
+    }
+
+    // 2. Paragraphe contenant une ou plusieurs images imbriquées
+    final imgs = elem.getElementsByTagName('img');
+    if (imgs.isNotEmpty) {
+      for (final img in imgs) {
+        final (url, legende, ratio) = _extraireDonneesImageDepuisElement(img);
+        if (url != null && url.isNotEmpty) {
+          onAjout(BlocArticle(
+            id: currentId,
+            type: TypeBlocArticle.image,
+            imageUrl: url,
+            imageLegende: legende ?? 'Photo : © agridigitale.net',
+            imageRatio: ratio,
+          ));
+        }
+      }
+      final textSansImg = _nettoyerTextePourAudio(elem.text);
+      if (textSansImg.isNotEmpty) {
+        onAjout(BlocArticle(
+          id: currentId,
+          type: TypeBlocArticle.paragraphe,
+          texte: textSansImg,
+          mots: MotLecture.extraireMots(textSansImg),
+        ));
+      }
+      return;
+    }
+
+    // 3. Titre de section h1, h2, h3, h4, h5, h6
+    if (tag.startsWith('h') && tag.length == 2) {
+      final t = _nettoyerTextePourAudio(elem.text);
+      if (t.isNotEmpty) {
+        onAjout(BlocArticle(
+          id: currentId,
+          type: TypeBlocArticle.titreSection,
+          texte: t,
+          mots: MotLecture.extraireMots(t),
+        ));
+      }
+      return;
+    }
+
+    // 4. Citation (blockquote)
+    if (tag == 'blockquote') {
+      final t = _nettoyerTextePourAudio(elem.text);
+      if (t.isNotEmpty) {
+        onAjout(BlocArticle(
+          id: currentId,
+          type: TypeBlocArticle.citation,
+          texte: t,
+          mots: MotLecture.extraireMots(t),
+        ));
+      }
+      return;
+    }
+
+    // 5. Listes à puces (ul, ol)
+    if (tag == 'ul' || tag == 'ol') {
+      final lis = elem.getElementsByTagName('li');
+      for (final li in lis) {
+        final t = _nettoyerTextePourAudio(li.text);
+        if (t.isNotEmpty) {
+          onAjout(BlocArticle(
+            id: currentId,
+            type: TypeBlocArticle.liste,
+            texte: '• $t',
+            mots: MotLecture.extraireMots(t),
+          ));
+        }
+      }
+      return;
+    }
+
+    // 6. Div ou conteneur générique
+    if (tag == 'div' || tag == 'section' || tag == 'article') {
+      for (final child in elem.nodes) {
+        _extraireBlocsDepuisNoeud(child, currentId, onAjout);
+      }
+      return;
+    }
+
+    // 7. Paragraphe standard
+    final t = _nettoyerTextePourAudio(elem.text);
+    if (t.isNotEmpty) {
+      onAjout(BlocArticle(
+        id: currentId,
+        type: TypeBlocArticle.paragraphe,
+        texte: t,
+        mots: MotLecture.extraireMots(t),
+      ));
+    }
+  }
+
+  (String?, String?, double) _extraireDonneesImageDepuisElement(dom.Element element) {
+    dom.Element? imgElement;
+    String? legende;
+
+    if (element.localName?.toLowerCase() == 'img') {
+      imgElement = element;
+      legende = imgElement.attributes['alt'] ?? imgElement.attributes['title'];
+    } else {
+      final figcaptions = element.getElementsByTagName('figcaption');
+      if (figcaptions.isNotEmpty && figcaptions.first.text.trim().isNotEmpty) {
+        legende = figcaptions.first.text.trim();
+      }
+      final imgs = element.getElementsByTagName('img');
+      if (imgs.isNotEmpty) {
+        imgElement = imgs.first;
+        if (legende == null || legende.isEmpty) {
+          legende = imgElement.attributes['alt'] ?? imgElement.attributes['title'];
+        }
+      }
+    }
+
+    if (imgElement == null) {
+      return (null, legende, 16 / 9);
+    }
+
+    final attrs = imgElement.attributes;
+    final dataSrc = attrs['data-src']?.trim() ?? '';
+    final lazySrc = attrs['data-lazy-src']?.trim() ?? '';
+    final origFile = attrs['data-orig-file']?.trim() ?? '';
+    final largeFile = attrs['data-large-file']?.trim() ?? '';
+    final rawSrc = attrs['src']?.trim() ?? '';
+    final srcset = attrs['srcset']?.trim() ?? '';
+
+    String srcTrouve = '';
+    for (final s in [dataSrc, lazySrc, origFile, largeFile, rawSrc]) {
+      if (s.isNotEmpty && !s.startsWith('data:image/gif') && !s.startsWith('data:image/svg')) {
+        srcTrouve = s;
+        break;
+      }
+    }
+    if (srcTrouve.isEmpty && srcset.isNotEmpty) {
+      srcTrouve = srcset.split(',').first.trim().split(RegExp(r'\s+')).first;
+    }
+    if (srcTrouve.isEmpty) srcTrouve = rawSrc;
+
+    double ratio = 16 / 9;
+    final wStr = attrs['width']?.replaceAll('px', '').trim() ?? '';
+    final hStr = attrs['height']?.replaceAll('px', '').trim() ?? '';
+    final w = double.tryParse(wStr);
+    final h = double.tryParse(hStr);
+    if (w != null && h != null && w > 0 && h > 0) {
+      ratio = (w / h).clamp(0.75, 2.2);
+    }
+
+    if (legende != null) {
+      final l = legende.trim();
+      if (RegExp(r'^(image|img|photo|\d+)\.(jpg|png|webp|jpeg)$', caseSensitive: false).hasMatch(l)) {
+        legende = null;
+      }
+    }
+
+    return (srcTrouve.isNotEmpty ? srcTrouve : null, legende, ratio);
+  }
+
+  // ── Synchronisation du mot en temps réel sur le texte de l'article ──
   void _surProgressionTts(String text, int start, int end, String word) {
     _dernierTickProgress = DateTime.now();
-    final mots = _etatLectureNotifier.value.mots;
+    if (_indexBlocAudioActuel >= _blocsAudio.length) return;
+    final bloc = _blocsAudio[_indexBlocAudioActuel];
+    final mots = bloc.mots;
     if (mots.isEmpty) return;
 
     int indexTrouve = -1;
-    // 1. Recherche par position start/end absolue dans le morceau
     for (int i = 0; i < mots.length; i++) {
       final m = mots[i];
       if ((start >= m.debut && start < m.fin) ||
@@ -212,10 +528,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       }
     }
 
-    // 2. Repli par correspondance textuelle si les index ne concordent pas
     if (indexTrouve == -1 && word.trim().isNotEmpty) {
       final motPropre = word.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
-      final debutRecherche = _etatLectureNotifier.value.indexMotActuel.clamp(0, mots.length - 1);
+      final debutRecherche = _indexMotActuel.clamp(0, mots.length - 1);
       for (int i = debutRecherche; i < mots.length; i++) {
         final mPropre = mots[i].mot.toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
         if (mPropre == motPropre) {
@@ -225,9 +540,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       }
     }
 
-    if (indexTrouve != -1 && indexTrouve != _etatLectureNotifier.value.indexMotActuel) {
-      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
-        indexMotActuel: indexTrouve,
+    if (indexTrouve != -1 && indexTrouve != _indexMotActuel) {
+      _indexMotActuel = indexTrouve;
+      _positionLectureNotifier.value = PositionLecture(
+        blocId: bloc.id,
+        motIndex: indexTrouve,
+        estEnLecture: true,
+        estEnPause: false,
       );
     }
   }
@@ -237,16 +556,22 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (mots.isEmpty) return;
     _dernierTickProgress = DateTime.now();
     _timerProgressionFallback = Timer.periodic(const Duration(milliseconds: 90), (_) {
-      if (!_ttsEnLecture || _ttsEnPause) return;
+      if (!_ttsEnLecture || _ttsEnPause || _audioArretDemande) return;
       final diff = DateTime.now().difference(_dernierTickProgress).inMilliseconds;
-      final dureeParMotMs = (380 / (_ttsVitesse / 0.5)).clamp(180, 800).round();
+      final dureeParMotMs = (370 / (_ttsVitesse / 0.5)).clamp(170, 750).round();
       if (diff > dureeParMotMs) {
-        final idx = _etatLectureNotifier.value.indexMotActuel;
-        if (idx < mots.length - 1) {
-          _dernierTickProgress = DateTime.now();
-          _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
-            indexMotActuel: idx + 1,
-          );
+        if (_indexBlocAudioActuel < _blocsAudio.length) {
+          final bloc = _blocsAudio[_indexBlocAudioActuel];
+          if (_indexMotActuel < mots.length - 1) {
+            _dernierTickProgress = DateTime.now();
+            _indexMotActuel++;
+            _positionLectureNotifier.value = PositionLecture(
+              blocId: bloc.id,
+              motIndex: _indexMotActuel,
+              estEnLecture: true,
+              estEnPause: false,
+            );
+          }
         }
       }
     });
@@ -257,11 +582,25 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     _timerProgressionFallback = null;
   }
 
+  void _faireDefilerVersBloc(BlocArticle bloc) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = bloc.key.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
+          alignment: 0.22,
+        );
+      }
+    });
+  }
+
   // ── Gestion de la lecture vocale ──
   Future<void> _lireArticle(Article article) async {
     _articleCourant = article;
 
-    // Si en cours de lecture → Mettre en pause
+    // Si en cours de lecture -> Mettre en pause
     if (_ttsEnLecture) {
       _audioArretDemande = true;
       _annulerTimerFallback();
@@ -272,15 +611,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           _ttsEnPause = true;
         });
       }
-      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+      final curBloc = (_indexBlocAudioActuel < _blocsAudio.length)
+          ? _blocsAudio[_indexBlocAudioActuel]
+          : null;
+      _positionLectureNotifier.value = PositionLecture(
+        blocId: curBloc?.id ?? -1,
+        motIndex: _indexMotActuel,
         estEnLecture: false,
         estEnPause: true,
       );
       return;
     }
 
-    // Si en pause → Reprendre
-    if (_ttsEnPause && _morceauxAudio.isNotEmpty) {
+    // Si en pause -> Reprendre
+    if (_ttsEnPause && _blocsAudio.isNotEmpty) {
       _audioArretDemande = false;
       if (mounted) {
         setState(() {
@@ -288,25 +632,22 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           _ttsEnPause = false;
         });
       }
-      _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
+      final curBloc = (_indexBlocAudioActuel < _blocsAudio.length)
+          ? _blocsAudio[_indexBlocAudioActuel]
+          : null;
+      _positionLectureNotifier.value = PositionLecture(
+        blocId: curBloc?.id ?? -1,
+        motIndex: _indexMotActuel >= 0 ? _indexMotActuel : 0,
         estEnLecture: true,
         estEnPause: false,
       );
-      _jouerMorceauxAudio();
+      _jouerBlocsAudio();
       return;
     }
 
     // Nouveau démarrage de lecture
-    final titre = _nettoyerTextePourAudio(article.titre);
-    final resume = _nettoyerTextePourAudio(article.resume);
-    final corps = _nettoyerTextePourAudio(article.contenu);
-    final texteComplet = '$titre. $resume. $corps';
-
-    _morceauxAudio = _decouperEnMorceaux(texteComplet);
-    _indexMorceauAudio = 0;
-    _audioArretDemande = false;
-
-    if (_morceauxAudio.isEmpty) {
+    _preparerBlocsArticle(article);
+    if (_blocsAudio.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Aucun texte à lire disponible.')),
@@ -315,62 +656,49 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       return;
     }
 
+    _indexBlocAudioActuel = 0;
+    _indexMotActuel = -1;
+    _audioArretDemande = false;
+
     if (mounted) {
       setState(() {
         _ttsEnLecture = true;
         _ttsEnPause = false;
+        _audioMenuOuvert = true;
       });
     }
 
-    _jouerMorceauxAudio();
+    _jouerBlocsAudio();
   }
 
-  Future<void> _jouerMorceauxAudio() async {
+  Future<void> _jouerBlocsAudio() async {
     try {
       await _tts.setLanguage(_modeAnglais ? 'en-US' : 'fr-FR');
       await _tts.setSpeechRate(_ttsVitesse);
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
 
-      while (_indexMorceauAudio < _morceauxAudio.length && !_audioArretDemande) {
-        final morceau = _morceauxAudio[_indexMorceauAudio];
-        final mots = MotLecture.extraireMots(morceau);
+      while (_indexBlocAudioActuel < _blocsAudio.length && !_audioArretDemande) {
+        final bloc = _blocsAudio[_indexBlocAudioActuel];
+        _faireDefilerVersBloc(bloc);
 
-        _etatLectureNotifier.value = EtatLectureAudio(
-          estActif: true,
+        _indexMotActuel = 0;
+        _positionLectureNotifier.value = PositionLecture(
+          blocId: bloc.id,
+          motIndex: 0,
           estEnLecture: true,
           estEnPause: false,
-          vitesse: _ttsVitesse,
-          indexMorceau: _indexMorceauAudio,
-          totalMorceaux: _morceauxAudio.length,
-          morceauTexte: morceau,
-          mots: mots,
-          indexMotActuel: 0,
-          titreArticle: _articleCourant?.titre ?? '',
-          estReduit: _etatLectureNotifier.value.estReduit,
         );
 
-        // Auto-défilement progressif du corps de l'article pour suivre la voix
-        if (_scrollCtrl.hasClients && _morceauxAudio.isNotEmpty) {
-          final ratio = _indexMorceauAudio / _morceauxAudio.length;
-          final maxScroll = _scrollCtrl.position.maxScrollExtent;
-          final target = (ratio * maxScroll * 0.85).clamp(0.0, maxScroll);
-          _scrollCtrl.animateTo(
-            target,
-            duration: const Duration(milliseconds: 650),
-            curve: Curves.easeInOutCubic,
-          );
-        }
-
-        _demarrerTimerProgressionFallback(mots);
-        await _tts.speak(morceau);
+        _demarrerTimerProgressionFallback(bloc.mots);
+        await _tts.speak(bloc.texte);
         _annulerTimerFallback();
 
         if (_audioArretDemande) break;
-        _indexMorceauAudio++;
+        _indexBlocAudioActuel++;
       }
 
-      if (!_audioArretDemande && _indexMorceauAudio >= _morceauxAudio.length) {
+      if (!_audioArretDemande && _indexBlocAudioActuel >= _blocsAudio.length) {
         _arreterLecture();
       }
     } catch (e) {
@@ -387,87 +715,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
-  // Sauter directement à un mot précis dans la phrase
-  Future<void> _sauterVersMot(int indexMot) async {
-    if (_morceauxAudio.isEmpty || _indexMorceauAudio >= _morceauxAudio.length) return;
-    final mots = _etatLectureNotifier.value.mots;
-    if (indexMot < 0 || indexMot >= mots.length) return;
-
-    _audioArretDemande = true;
-    _annulerTimerFallback();
-    await _tts.stop();
-
-    final morceau = _morceauxAudio[_indexMorceauAudio];
-    final debutMot = mots[indexMot].debut;
-    final textePartiel = morceau.substring(debutMot);
-
-    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(
-      estActif: true,
-      estEnLecture: true,
-      estEnPause: false,
-      indexMotActuel: indexMot,
-    );
-
-    if (mounted) {
-      setState(() {
-        _ttsEnLecture = true;
-        _ttsEnPause = false;
-      });
-    }
-
-    _audioArretDemande = false;
-    _demarrerTimerProgressionFallback(mots);
-    try {
-      await _tts.speak(textePartiel);
-      _annulerTimerFallback();
-      if (!_audioArretDemande) {
-        _indexMorceauAudio++;
-        _jouerMorceauxAudio();
-      }
-    } catch (_) {
-      _annulerTimerFallback();
-    }
-  }
-
-  Future<void> _morceauPrecedent() async {
-    if (_indexMorceauAudio <= 0) return;
-    _audioArretDemande = true;
-    _annulerTimerFallback();
-    await _tts.stop();
-    _indexMorceauAudio--;
-    _audioArretDemande = false;
-    if (mounted) {
-      setState(() {
-        _ttsEnLecture = true;
-        _ttsEnPause = false;
-      });
-    }
-    _jouerMorceauxAudio();
-  }
-
-  Future<void> _morceauSuivant() async {
-    if (_indexMorceauAudio >= _morceauxAudio.length - 1) return;
-    _audioArretDemande = true;
-    _annulerTimerFallback();
-    await _tts.stop();
-    _indexMorceauAudio++;
-    _audioArretDemande = false;
-    if (mounted) {
-      setState(() {
-        _ttsEnLecture = true;
-        _ttsEnPause = false;
-      });
-    }
-    _jouerMorceauxAudio();
-  }
-
   Future<void> _arreterLecture() async {
     _audioArretDemande = true;
     _annulerTimerFallback();
-    _indexMorceauAudio = 0;
-    _morceauxAudio.clear();
+    _indexBlocAudioActuel = 0;
+    _indexMotActuel = -1;
     await _tts.stop();
-    _etatLectureNotifier.value = EtatLectureAudio.initial();
+    _positionLectureNotifier.value = PositionLecture.initial;
     if (mounted) {
       setState(() {
         _ttsEnLecture = false;
@@ -487,32 +741,406 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
     setState(() => _ttsVitesse = nouvelleVitesse);
     _tts.setSpeechRate(nouvelleVitesse);
-    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(vitesse: nouvelleVitesse);
   }
 
-  void _ouvrirPrompteurPleinEcran(Article article) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => PrompteurPleinEcranSheet(
-        notifier: _etatLectureNotifier,
-        onLectureToggle: () => _lireArticle(article),
-        onPrecedent: _morceauPrecedent,
-        onSuivant: _morceauSuivant,
-        onChangerVitesse: _changerVitesseTts,
-        onArreter: () {
-          Navigator.pop(ctx);
-          _arreterLecture();
-        },
-        onSauterVersMot: _sauterVersMot,
+  // ── Rendu des blocs de texte avec surlignage mot par mot en direct ──
+  Widget _buildBlocTexte(BlocArticle bloc) {
+    final styleBase = _stylePourBloc(bloc.type);
+
+    return ValueListenableBuilder<PositionLecture>(
+      valueListenable: _positionLectureNotifier,
+      builder: (context, pos, _) {
+        final estBlocActuel = (pos.blocId == bloc.id);
+        final indexMotActuel = estBlocActuel ? pos.motIndex : -1;
+
+        // Bloc inactif : affichage fluide et propre sans surcharge
+        if (!estBlocActuel) {
+          return Container(
+            key: bloc.key,
+            padding: _paddingPourBloc(bloc.type),
+            decoration: _decorationPourBloc(bloc.type, false),
+            child: Text(
+              bloc.texte,
+              style: styleBase,
+              textAlign: bloc.type == TypeBlocArticle.paragraphe
+                  ? TextAlign.justify
+                  : TextAlign.start,
+            ),
+          );
+        }
+
+        // Bloc en cours de lecture : effet karaoké mot par mot directement dans l'article
+        final spans = <InlineSpan>[];
+        for (int i = 0; i < bloc.mots.length; i++) {
+          final estMotActuel = (i == indexMotActuel);
+          final estPasse = (i < indexMotActuel);
+
+          spans.add(
+            TextSpan(
+              text: bloc.mots[i].mot + (i < bloc.mots.length - 1 ? ' ' : ''),
+              style: estMotActuel
+                  ? styleBase.copyWith(
+                      backgroundColor: AppColors.vertPrimaire.withValues(alpha: 0.28),
+                      color: AppColors.vertFonce,
+                      fontWeight: FontWeight.w900,
+                    )
+                  : estPasse
+                      ? styleBase.copyWith(color: AppColors.texteFort)
+                      : styleBase.copyWith(color: AppColors.texteFort.withValues(alpha: 0.85)),
+            ),
+          );
+        }
+
+        return AnimatedContainer(
+          key: bloc.key,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: _paddingPourBloc(bloc.type),
+          decoration: _decorationPourBloc(bloc.type, true),
+          child: Text.rich(
+            TextSpan(children: spans),
+            style: styleBase,
+            textAlign: bloc.type == TypeBlocArticle.paragraphe
+                ? TextAlign.justify
+                : TextAlign.start,
+          ),
+        );
+      },
+    );
+  }
+
+  TextStyle _stylePourBloc(TypeBlocArticle type) {
+    switch (type) {
+      case TypeBlocArticle.titre:
+        return const TextStyle(
+          fontSize: 23,
+          fontWeight: FontWeight.w800,
+          height: 1.3,
+          letterSpacing: -0.3,
+          color: AppColors.texteFort,
+        );
+      case TypeBlocArticle.resume:
+        return TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          fontStyle: FontStyle.italic,
+          height: 1.6,
+          color: Colors.grey[800],
+        );
+      case TypeBlocArticle.titreSection:
+        return const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          height: 1.4,
+          color: AppColors.texteFort,
+        );
+      case TypeBlocArticle.citation:
+        return const TextStyle(
+          fontSize: 16,
+          fontStyle: FontStyle.italic,
+          height: 1.6,
+          color: AppColors.texteFort,
+        );
+      case TypeBlocArticle.liste:
+        return const TextStyle(
+          fontSize: 16.5,
+          height: 1.65,
+          color: AppColors.texteFort,
+        );
+      case TypeBlocArticle.paragraphe:
+      case TypeBlocArticle.image:
+        return const TextStyle(
+          fontSize: 16.5,
+          height: 1.75,
+          color: AppColors.texteFort,
+        );
+    }
+  }
+
+  EdgeInsetsGeometry _paddingPourBloc(TypeBlocArticle type) {
+    switch (type) {
+      case TypeBlocArticle.titre:
+        return const EdgeInsets.only(bottom: 10);
+      case TypeBlocArticle.resume:
+        return const EdgeInsets.symmetric(vertical: 8);
+      case TypeBlocArticle.titreSection:
+        return const EdgeInsets.only(top: 18, bottom: 8);
+      case TypeBlocArticle.citation:
+        return const EdgeInsets.symmetric(horizontal: 14, vertical: 12);
+      case TypeBlocArticle.liste:
+        return const EdgeInsets.symmetric(vertical: 4, horizontal: 8);
+      case TypeBlocArticle.paragraphe:
+        return const EdgeInsets.symmetric(vertical: 6, horizontal: 4);
+      case TypeBlocArticle.image:
+        return EdgeInsets.zero;
+    }
+  }
+
+  BoxDecoration? _decorationPourBloc(TypeBlocArticle type, bool estActif) {
+    if (type == TypeBlocArticle.citation) {
+      return BoxDecoration(
+        color: const Color(0xFFF1F8E9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          left: BorderSide(
+            color: estActif ? AppColors.vertPrimaire : const Color(0xFF81C784),
+            width: estActif ? 5.0 : 4.0,
+          ),
+        ),
+      );
+    }
+    if (estActif) {
+      return BoxDecoration(
+        color: AppColors.vertPrimaire.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: const Border(
+          left: BorderSide(color: AppColors.vertPrimaire, width: 3.5),
+        ),
+      );
+    }
+    return null;
+  }
+
+  // ── Rendu soigné pour TOUTES les images dans les articles ──
+  Widget _buildBlocImage(BlocArticle bloc) {
+    final urlFinale = _normaliserUrlImage(bloc.imageUrl ?? '');
+    if (urlFinale.isEmpty) return const SizedBox.shrink();
+
+    final legendeFinale = (bloc.imageLegende != null && bloc.imageLegende!.trim().isNotEmpty)
+        ? bloc.imageLegende!.trim()
+        : 'Photo : © agridigitale.net';
+
+    return Padding(
+      key: bloc.key,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            onTap: () => _afficherImagePleinEcran(urlFinale),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200, width: 1.0),
+                ),
+                child: AspectRatio(
+                  aspectRatio: bloc.imageRatio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: urlFinale,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 1080,
+                        maxWidthDiskCache: 1200,
+                        placeholder: (_, __) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.vertPrimaire,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: Colors.green[50],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Image non disponible',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.fullscreen_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.camera_alt_outlined, size: 12.5, color: Colors.grey[600]),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    legendeFinale,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[700],
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _basculerReductionLecteur() {
-    final actuel = _etatLectureNotifier.value.estReduit;
-    _etatLectureNotifier.value = _etatLectureNotifier.value.copyWith(estReduit: !actuel);
+  // ── Bouton Écoute Flottant Fixe en bas à gauche avec animation horizontale ──
+  Widget _buildBoutonEcouteFlottant(Article article) {
+    return SafeArea(
+      child: Material(
+        color: Colors.transparent,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: _ttsEnLecture ? AppColors.vertPrimaire : Colors.grey.shade300,
+              width: _ttsEnLecture ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Bouton Casque
+              InkWell(
+                onTap: () {
+                  setState(() => _audioMenuOuvert = !_audioMenuOuvert);
+                },
+                borderRadius: BorderRadius.circular(26),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _ttsEnLecture
+                          ? const [AppColors.vertPrimaire, Color(0xFF66BB6A)]
+                          : const [AppColors.vertFonce, AppColors.vertPrimaire],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.headphones_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      if (_ttsEnLecture)
+                        Positioned(
+                          top: 9,
+                          right: 9,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.amberAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Dropdown horizontal animé de gauche à droite
+              ClipRect(
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.centerLeft,
+                  child: _audioMenuOuvert
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(width: 4),
+                            // Lecture / Pause
+                            IconButton(
+                              icon: Icon(
+                                _ttsEnLecture ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: AppColors.vertPrimaire,
+                                size: 28,
+                              ),
+                              tooltip: _ttsEnLecture ? 'Pause' : 'Écouter',
+                              onPressed: () => _lireArticle(article),
+                            ),
+                            // Bouton Arrêter
+                            if (_ttsEnLecture || _ttsEnPause) ...[
+                              IconButton(
+                                icon: const Icon(Icons.stop_rounded, color: Colors.redAccent, size: 22),
+                                tooltip: 'Arrêter',
+                                onPressed: _arreterLecture,
+                              ),
+                            ],
+                            // Vitesse
+                            InkWell(
+                              onTap: _changerVitesseTts,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  '${_ttsVitesse == 0.5 ? '1.0' : (_ttsVitesse == 0.65 ? '1.25' : '1.5')}x',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.vertPrimaire,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ── Gestion Commentaires ──
@@ -580,7 +1208,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         : 'https://agridigitale.net';
     final texte = '${article.titre}\n\n$lien\n\nRetrouvez toute l\'actualité agricole sur AgriDigitale.';
 
-    // Téléchargement / mise en cache de l'image locale pour la miniature de partage
     String? cheminImageLocale;
     if (article.image != null && article.image!.trim().isNotEmpty) {
       try {
@@ -614,7 +1241,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Barre supérieure
             Center(
               child: Container(
                 width: 42,
@@ -627,7 +1253,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Aperçu de l'article avec miniature photo
+            // Carte d'aperçu de l'article avec miniature photo
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -843,8 +1469,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  // Sur le web, les images agridigitale.net n'exposent pas d'en-tête CORS :
-  // on passe donc par le proxy backend. Sur mobile, l'accès direct fonctionne.
   String _proxyImage(String url) {
     if (!kIsWeb) return url;
     if (!url.startsWith('https://agridigitale.net') &&
@@ -856,16 +1480,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
   }
 
-  // Normalise une URL d'image pour garantir un affichage parfait :
-  // - remplace agridigitale.com (inaccessible) par agridigitale.net
-  // - force HTTPS pour éviter le blocage Android sur cleartext HTTP
-  // - convertit les chemins relatifs /ck/ en /storage/ck/
-  // - préfixe les chemins relatifs par https://agridigitale.net
-  // - applique le proxy web si nécessaire
   String _normaliserUrlImage(String url) {
     var u = url.trim().replaceAll(RegExp(r'[\r\n\t]'), '');
     if (u.isEmpty) return '';
-    // Ignorer les pixels de tracking ou placeholders 1x1 base64
     if (u.startsWith('data:image/gif') || u.startsWith('data:image/svg')) {
       return '';
     }
@@ -887,7 +1504,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       u = 'https://agridigitale.net$u';
     }
 
-    // Corriger le chemin /ck/ en /storage/ck/ (sans doubler si déjà /storage/ck/)
     u = u.replaceAllMapped(
       RegExp(r'(https?://[^/]+)?(?<!/storage)/ck/', caseSensitive: false),
       (m) => '${m.group(1) ?? "https://agridigitale.net"}/storage/ck/',
@@ -896,7 +1512,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return _proxyImage(u);
   }
 
-  // Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL
   String _normaliserSrcset(String valeur) => valeur.split(',').map((partie) {
         final bits = partie.trim().split(RegExp(r'\s+'));
         if (bits.isEmpty || bits[0].isEmpty) return partie.trim();
@@ -904,8 +1519,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         return bits.join(' ');
       }).join(', ');
 
-  // Filtre de réécriture du HTML pour normaliser les balises <img> :
-  // promeut data-src si src est vide/placeholder, et absolutise toutes les URLs
   String _normaliserImagesContenu(String html) {
     if (html.isEmpty) return html;
     var resultat = html
@@ -954,7 +1567,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return resultat;
   }
 
-  // Nettoyage et normalisation du contenu HTML avec domaine officiel agridigitale.net
   String _getContenuHtml(Article article) {
     final texte = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     if (texte.isNotEmpty) {
@@ -964,218 +1576,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '<p>Contenu en cours de chargement...</p>';
   }
 
-  // Rendu soigné pour TOUTES les images dans les articles (<figure> ou <img>) :
-  // - Corrige l'aspect bizarre en utilisant un ratio d'aspect maîtrisé (16:9 par défaut ou ratio natif)
-  // - Affiche SYSTÉMATIQUEMENT la légende et le crédit sous l'image (exigence du DG)
-  // - Ajoute le badge d'agrandissement et le clic plein écran
-  Widget _construireImageHtml(ExtensionContext context) {
-    // Si c'est une balise <img> déjà englobée dans un <figure>,
-    // ne pas la doubler car le builder <figure> la traite déjà
-    if (context.elementName == 'img' && context.element?.parent?.localName == 'figure') {
-      return const SizedBox.shrink();
-    }
-
-    final donnees = _extraireDonneesImage(context);
-    final srcBrut = donnees.$1;
-    final legendeExtrait = donnees.$2;
-    final ratio = donnees.$3;
-
-    if (srcBrut == null || srcBrut.trim().isEmpty) {
-      if (legendeExtrait != null && legendeExtrait.isNotEmpty) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            legendeExtrait,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        );
-      }
-      return const SizedBox.shrink();
-    }
-
-    final urlFinale = _normaliserUrlImage(srcBrut);
-    if (urlFinale.isEmpty) return const SizedBox.shrink();
-
-    // Légende sur TOUTES les images (règle stricte demandée par le DG)
-    final legendeFinale = (legendeExtrait != null && legendeExtrait.trim().isNotEmpty)
-        ? legendeExtrait.trim()
-        : 'Photo : © agridigitale.net';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GestureDetector(
-            onTap: () => _afficherImagePleinEcran(urlFinale),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200, width: 1.0),
-                ),
-                child: AspectRatio(
-                  aspectRatio: ratio,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: urlFinale,
-                        fit: BoxFit.cover,
-                        memCacheWidth: 1080,
-                        maxWidthDiskCache: 1200,
-                        placeholder: (_, __) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.vertPrimaire,
-                            ),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: Colors.green[50],
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Image non disponible',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Badge agrandir plein écran en bas à droite
-                      Positioned(
-                        right: 8,
-                        bottom: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.fullscreen_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Légende & Crédit photo sous TOUTES les images
-          Padding(
-            padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.camera_alt_outlined, size: 12.5, color: Colors.grey[600]),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    legendeFinale,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey[700],
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Extrait précisément l'URL, la légende et les dimensions d'une image dans le HTML
-  (String?, String?, double) _extraireDonneesImage(ExtensionContext context) {
-    dom.Element? imgElement;
-    String? legende;
-
-    if (context.elementName == 'img' && context.element != null) {
-      imgElement = context.element;
-      legende = imgElement?.attributes['alt'] ?? imgElement?.attributes['title'];
-    } else if (context.element != null) {
-      // 1. Chercher d'abord dans <figcaption>
-      final figcaptions = context.element!.getElementsByTagName('figcaption');
-      if (figcaptions.isNotEmpty && figcaptions.first.text.trim().isNotEmpty) {
-        legende = figcaptions.first.text.trim();
-      }
-      // 2. Chercher <img>
-      final imgs = context.element!.getElementsByTagName('img');
-      if (imgs.isNotEmpty) {
-        imgElement = imgs.first;
-        if (legende == null || legende.isEmpty) {
-          legende = imgElement.attributes['alt'] ?? imgElement.attributes['title'];
-        }
-      }
-    }
-
-    if (imgElement == null) {
-      return (null, legende, 16 / 9);
-    }
-
-    // Récupérer la meilleure URL (priorité aux vraies sources sur les 1x1 placeholders)
-    final attrs = imgElement.attributes;
-    final dataSrc = attrs['data-src']?.trim() ?? '';
-    final lazySrc = attrs['data-lazy-src']?.trim() ?? '';
-    final origFile = attrs['data-orig-file']?.trim() ?? '';
-    final largeFile = attrs['data-large-file']?.trim() ?? '';
-    final rawSrc = attrs['src']?.trim() ?? '';
-    final srcset = attrs['srcset']?.trim() ?? '';
-
-    String srcTrouve = '';
-    for (final s in [dataSrc, lazySrc, origFile, largeFile, rawSrc]) {
-      if (s.isNotEmpty && !s.startsWith('data:image/gif') && !s.startsWith('data:image/svg')) {
-        srcTrouve = s;
-        break;
-      }
-    }
-    if (srcTrouve.isEmpty && srcset.isNotEmpty) {
-      srcTrouve = srcset.split(',').first.trim().split(RegExp(r'\s+')).first;
-    }
-    if (srcTrouve.isEmpty) srcTrouve = rawSrc;
-
-    // Calcul du ratio d'aspect si width/height sont fournis dans le HTML
-    double ratio = 16 / 9;
-    final wStr = attrs['width']?.replaceAll('px', '').trim() ?? '';
-    final hStr = attrs['height']?.replaceAll('px', '').trim() ?? '';
-    final w = double.tryParse(wStr);
-    final h = double.tryParse(hStr);
-    if (w != null && h != null && w > 0 && h > 0) {
-      ratio = (w / h).clamp(0.75, 2.2);
-    }
-
-    // Ignorer la légende si c'est seulement un nom de fichier générique (ex: "1.jpg", "image")
-    if (legende != null) {
-      final l = legende.trim();
-      if (RegExp(r'^(image|img|photo|\d+)\.(jpg|png|webp|jpeg)$', caseSensitive: false).hasMatch(l)) {
-        legende = null;
-      }
-    }
-
-    return (srcTrouve.isNotEmpty ? srcTrouve : null, legende, ratio);
-  }
-
-  // Affichage en plein écran avec zoom interactif
   void _afficherImagePleinEcran(String imageUrl) {
     Navigator.push(
       context,
@@ -1339,26 +1739,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   _buildContenu(article),
                   _buildSectionCommentaires(auth),
                   _buildAutresArticles(),
-                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
               Positioned(
-                left: 14,
-                right: 14,
-                bottom: 16,
-                child: SafeArea(
-                  child: BandeauKaraokeLecture(
-                    notifier: _etatLectureNotifier,
-                    onLectureToggle: () => _lireArticle(article),
-                    onPrecedent: _morceauPrecedent,
-                    onSuivant: _morceauSuivant,
-                    onChangerVitesse: _changerVitesseTts,
-                    onArreter: _arreterLecture,
-                    onOuvrirPrompteur: () => _ouvrirPrompteurPleinEcran(article),
-                    onSauterVersMot: _sauterVersMot,
-                    onBasculerReduction: _basculerReductionLecteur,
-                  ),
-                ),
+                left: 16,
+                bottom: 20,
+                child: _buildBoutonEcouteFlottant(article),
               ),
             ],
           );
@@ -1367,13 +1754,25 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
-  // Contenu éditorial de l'article (Design fidèle au site web)
+  // Contenu éditorial de l'article avec blocs directs et suivi mot par mot en direct
   SliverToBoxAdapter _buildContenu(Article article) {
+    if (_articleCourant?.id != article.id || _blocsArticle.isEmpty) {
+      _articleCourant = article;
+      _preparerBlocsArticle(article);
+    }
+
     final hasImage = article.image != null && article.image!.isNotEmpty;
     final legende = article.legendeImage.isNotEmpty
         ? article.legendeImage
         : 'Photo : © agridigitale.net';
     final auteur = article.auteur.isNotEmpty ? article.auteur : 'La Rédaction';
+
+    final blocTitre = _blocsArticle.firstWhere(
+      (b) => b.type == TypeBlocArticle.titre,
+      orElse: () => BlocArticle(id: -1, type: TypeBlocArticle.titre, texte: article.titre),
+    );
+
+    final blocsCorps = _blocsArticle.where((b) => b.type != TypeBlocArticle.titre).toList();
 
     return SliverToBoxAdapter(
       child: Padding(
@@ -1399,16 +1798,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 2. Grand Titre
-            Text(
-              article.titre,
-              style: const TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w800,
-                height: 1.3,
-                letterSpacing: -0.3,
-              ),
-            ),
+            // 2. Grand Titre (avec surlignage mot par mot en direct pendant la lecture audio)
+            _buildBlocTexte(blocTitre),
             const SizedBox(height: 10),
 
             // 3. Auteur + Date + Vues
@@ -1474,7 +1865,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                             child: const Icon(Icons.article, size: 60, color: Colors.green),
                           ),
                         ),
-                        // Badge agrandir
                         Positioned(
                           right: 8,
                           bottom: 8,
@@ -1494,7 +1884,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               ),
               const SizedBox(height: 6),
 
-              // 6. Légende & Crédit photo sous l'image
+              // Légende & Crédit photo sous l'image principale
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1517,56 +1907,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
             const Divider(height: 20),
 
-            // 7. Corps du Texte (HTML soigné)
-            Html(
-              data: _getContenuHtml(article),
-              extensions: [
-                TagExtension(
-                  tagsToExtend: {'figure', 'img'},
-                  builder: _construireImageHtml,
-                ),
-              ],
-              onLinkTap: (url, attrs, element) {
-                if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-              },
-              style: {
-                'body': Style(
-                  margin: Margins.zero,
-                  padding: HtmlPaddings.zero,
-                  fontSize: FontSize(16.5),
-                  lineHeight: const LineHeight(1.75),
-                  color: AppColors.texteFort,
-                ),
-                'p': Style(
-                  textAlign: TextAlign.justify,
-                  margin: Margins.only(bottom: 16),
-                ),
-                'h1': Style(fontSize: FontSize(22), fontWeight: FontWeight.bold, margin: Margins.only(bottom: 10, top: 16)),
-                'h2': Style(fontSize: FontSize(20), fontWeight: FontWeight.bold, margin: Margins.only(bottom: 10, top: 14)),
-                'h3': Style(fontSize: FontSize(18), fontWeight: FontWeight.bold, margin: Margins.only(bottom: 8, top: 12)),
-                'blockquote': Style(
-                  backgroundColor: const Color(0xFFF1F8E9),
-                  padding: HtmlPaddings.symmetric(horizontal: 16, vertical: 12),
-                  margin: Margins.symmetric(vertical: 14),
-                  border: const Border(left: BorderSide(color: AppColors.vertPrimaire, width: 4)),
-                  fontStyle: FontStyle.italic,
-                ),
-                'strong': Style(fontWeight: FontWeight.w700),
-                'a': Style(color: AppColors.vertPrimaire, textDecoration: TextDecoration.underline),
-                'img': Style(
-                  margin: Margins.symmetric(vertical: 12),
-                  width: Width(100, Unit.percent),
-                ),
-                'figure': Style(margin: Margins.symmetric(vertical: 12)),
-                'figcaption': Style(
-                  fontSize: FontSize(12),
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                  textAlign: TextAlign.center,
-                  margin: Margins.only(top: 4),
-                ),
-              },
-            ),
+            // Corps du texte et images (rendu direct avec surlignage mot par mot)
+            ...blocsCorps.map((bloc) {
+              if (bloc.type == TypeBlocArticle.image) {
+                return _buildBlocImage(bloc);
+              } else {
+                return _buildBlocTexte(bloc);
+              }
+            }),
+
             const SizedBox(height: 24),
 
             // Bouton source originale
@@ -1620,12 +1969,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: reseaux.map((r) => GestureDetector(
+              children: reseaux.map((r) => InkWell(
                 onTap: () => launchUrl(Uri.parse(r.url), mode: LaunchMode.externalApplication),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: r.couleur.withValues(alpha: 0.12),
-                  child: FaIcon(r.icone, color: r.couleur, size: 14),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: FaIcon(r.icone, size: 20, color: r.couleur),
                 ),
               )).toList(),
             ),
