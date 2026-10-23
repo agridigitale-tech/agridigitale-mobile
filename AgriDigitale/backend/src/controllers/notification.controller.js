@@ -7,7 +7,15 @@ exports.enregistrerToken = async (req, res, next) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: 'Token manquant' });
-    await Utilisateur.findByIdAndUpdate(req.utilisateurId, { tokenFCM: token });
+
+    // OneSignal n'accepte que des subscription_id au format UUID.
+    // Un token au autre format (ancien FCM brut) ferait échouer tous les envois.
+    const subscriptionId = String(token).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subscriptionId)) {
+      return res.status(400).json({ message: 'Format de token invalide' });
+    }
+
+    await Utilisateur.findByIdAndUpdate(req.utilisateurId, { tokenFCM: subscriptionId });
     res.json({ success: true });
   } catch (err) { next(err); }
 };

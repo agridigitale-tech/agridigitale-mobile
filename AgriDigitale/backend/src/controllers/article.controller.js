@@ -1,19 +1,14 @@
 const Article = require('../models/Article');
 
-// Retourne l'article pour la section "À la une" de l'accueil (le plus récent ou mis en avant)
+// Retourne le dernier article du flux RSS pour la section "À la une" de l'accueil
 exports.articleUne = async (req, res, next) => {
   try {
-    const troisMois = new Date();
-    troisMois.setMonth(troisMois.getMonth() - 3);
-    let article = await Article.findOne({ datePublication: { $gte: troisMois } })
+    // Le dernier article publié dans le flux RSS :
+    // tri par date de publication décroissante, puis par date de récupération
+    // (tie-breaker pour les articles publiés au même instant).
+    const article = await Article.findOne({})
       .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
-      .sort({ datePublication: -1 });
-
-    if (!article) {
-      article = await Article.findOne({})
-        .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
-        .sort({ vues: -1 });
-    }
+      .sort({ datePublication: -1, dateRecuperation: -1 });
     if (!article) return res.status(404).json({ message: 'Aucun article' });
     res.json(article);
   } catch (err) { next(err); }
@@ -49,7 +44,14 @@ exports.detailArticle = async (req, res, next) => {
     );
     if (!article) return res.status(404).json({ message: 'Article introuvable' });
 
-    // Réponse immédiate au client mobile (latence quasi-nulle)
+    // Corrige les images du corps des articles déjà en base
+    // ({{BASE_URL}}, chemins relatifs, domaine .com → .net, /ck/ → /storage/ck/)
+    if (article.contenu) {
+      const { normaliserImagesContenu } = require('../services/rss.service');
+      article.contenu = normaliserImagesContenu(article.contenu);
+    }
+
+    // Réponse au client mobile
     res.json(article);
 
     // Si le contenu est incomplet, tenter le scrape en arrière-plan sans faire attendre l'utilisateur

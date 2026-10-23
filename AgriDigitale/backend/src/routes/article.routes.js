@@ -8,7 +8,6 @@ router.get('/une', c.articleUne);
 router.get('/', c.listerArticles);
 router.get('/recherche', c.rechercherArticles);
 router.get('/categories', c.listerCategories);
-router.get('/une', c.articleUne);
 router.get('/:id', c.detailArticle);
 
 module.exports = router;

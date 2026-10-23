@@ -2,6 +2,7 @@
 // la synthèse vocale (lecture audio), la traduction en anglais, le contenu HTML soigné,
 // les réseaux sociaux, les commentaires et les articles similaires.
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,6 +20,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../widgets/auth_gate.dart';
 import '../../core/design/app_colors.dart';
+import '../../core/api_client.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
   final String articleId;
@@ -34,6 +36,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   final _commentaireService = CommentaireService();
   final _commentaireCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+
+  static const String _domaineImages = 'https://agridigitale.net';
+  final _progression = ValueNotifier<double>(0);
 
   late Future<Article> _future;
   late Future<List<Article>> _autresFuture;
@@ -59,9 +64,18 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     _autresFuture = _articleService.lister();
     _chargerCommentaires();
     _initTts();
+    _scrollCtrl.addListener(_majProgression);
     _favoriService.estEnFavori(widget.articleId).then((v) {
       if (mounted) setState(() => _estFavori = v);
     });
+  }
+
+  void _majProgression() {
+    if (!_scrollCtrl.hasClients) return;
+    final max = _scrollCtrl.position.maxScrollExtent;
+    if (max <= 0) return;
+    final v = (_scrollCtrl.position.pixels / max).clamp(0.0, 1.0);
+    _progression.value = v;
   }
 
   Future<void> _initTts() async {
@@ -91,6 +105,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   @override
   void dispose() {
+    _scrollCtrl.removeListener(_majProgression);
+    _progression.dispose();
     _tts.stop();
     _commentaireCtrl.dispose();
     _scrollCtrl.dispose();
@@ -351,16 +367,235 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
+  // Sur le web, les images agridigitale.net n'exposent pas d'en-tête CORS :
+  // on passe donc par le proxy backend. Sur mobile, l'accès direct fonctionne.
+  String _proxyImage(String url) {
+    if (!kIsWeb) return url;
+    if (!url.startsWith('https://agridigitale.net') &&
+        !url.startsWith('http://agridigitale.net') &&
+        !url.startsWith('https://agridigitale.com') &&
+        !url.startsWith('http://agridigitale.com')) {
+      return url;
+    }
+    return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
+  }
+
+  // Convertit une URL d'image relative (/ck/xxx.jpg) ou un marqueur en URL absolue
+  String _urlAbsolue(String url) {
+    final u = url.trim();
+    if (u.isEmpty) return url;
+    if (RegExp(r'^(data:|blob:|mailto:|tel:|#)', caseSensitive: false).hasMatch(u)) {
+      return url;
+    }
+    if (RegExp(r'^https?://', caseSensitive: false).hasMatch(u)) {
+      return _proxyImage(
+        u.replaceAll(
+                RegExp(r'agridigitale\.com', caseSensitive: false), 'agridigitale.net')
+            .replaceAllMapped(
+                RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
+                (m) => '${m.group(1)}/storage/ck/'),
+      );
+    }
+    if (u.startsWith('//')) return _proxyImage('https:$u');
+    return _proxyImage(
+      '$_domaineImages${u.startsWith('/') ? u : '/$u'}'.replaceAllMapped(
+          RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
+          (m) => '${m.group(1)}/storage/ck/'),
+    );
+  }
+
+  // Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL
+  String _normaliserSrcset(String valeur) => valeur.split(',').map((partie) {
+        final bits = partie.trim().split(RegExp(r'\s+'));
+        if (bits.isEmpty || bits[0].isEmpty) return partie.trim();
+        bits[0] = _urlAbsolue(bits[0]);
+        return bits.join(' ');
+      }).join(', ');
+
+  // Filtre de réécriture des balises <img> :
+  //  - {{BASE_URL}} et agridigitale.com → agridigitale.net
+  //  - /ck/ → /storage/ck/
+  //  - src / data-src / srcset relatifs → URL absolues
+  //  - promeut data-src en src (lazy-loading) quand src est vide
+  String _normaliserImagesContenu(String html) {
+    if (html.isEmpty) return html;
+    var resultat = html
+        .replaceAll(RegExp(r'\{\{BASE_URL\}\}', caseSensitive: false), _domaineImages)
+        .replaceAll(RegExp(r'agridigitale\.com', caseSensitive: false), 'agridigitale.net');
+
+    resultat = resultat.replaceAllMapped(
+      RegExp(r'<img\b[^>]*>', caseSensitive: false),
+      (tagMatch) {
+        var tag = tagMatch.group(0)!;
+
+        final dataSrc = RegExp(r'''\sdata-src\s*=\s*(["'])([\s\S]*?)\1''',
+                caseSensitive: false)
+            .firstMatch(tag);
+        final srcMatch = RegExp(r'''\ssrc\s*=\s*(["'])([\s\S]*?)\1''',
+                caseSensitive: false)
+            .firstMatch(tag);
+        final srcVide = srcMatch == null || srcMatch.group(2)!.trim().isEmpty;
+
+        if (dataSrc != null && srcVide) {
+          final absolue = _urlAbsolue(dataSrc.group(2)!);
+          if (srcMatch != null) {
+            tag = tag.replaceFirst(
+                RegExp(r'''\ssrc\s*=\s*(["'])[\s\S]*?\1''', caseSensitive: false),
+                ' src="$absolue"');
+          } else {
+            tag = tag.replaceFirst('<img', '<img src="$absolue"');
+          }
+        }
+
+        tag = tag.replaceAllMapped(
+          RegExp(r'''(\ssrc\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
+          (m) => '${m[1]}${m[2]}${_urlAbsolue(m[3]!)}${m[2]}',
+        );
+        tag = tag.replaceAllMapped(
+          RegExp(r'''(\sdata-src\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
+          (m) => '${m[1]}${m[2]}${_urlAbsolue(m[3]!)}${m[2]}',
+        );
+        tag = tag.replaceAllMapped(
+          RegExp(r'''(\ssrcset\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
+          (m) => '${m[1]}${m[2]}${_normaliserSrcset(m[3]!)}${m[2]}',
+        );
+
+        return tag;
+      },
+    );
+    return resultat;
+  }
+
   // Nettoyage et normalisation du contenu HTML avec domaine officiel agridigitale.net
   String _getContenuHtml(Article article) {
     final texte = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     if (texte.isNotEmpty) {
-      return article.contenu
-          .replaceAll('{{BASE_URL}}', 'https://agridigitale.net')
-          .replaceAll('agridigitale.com', 'agridigitale.net');
+      return _normaliserImagesContenu(article.contenu);
     }
     if (article.resume.isNotEmpty) return '<p>${article.resume}</p>';
     return '<p>Contenu en cours de chargement...</p>';
+  }
+
+  // Construit une figure HTML (<figure><img><figcaption>) :
+  //  - classe "image-style-side" → image à gauche, légende à droite
+  //  - sinon → image puis légende empilées (rendu bloc classique)
+  Widget _construireFigure(ExtensionContext context) {
+    final img = _extraireImageFigure(context);
+    final legende = _extraireLegendeFigure(context);
+    final src =
+        (img.$1 != null && img.$1!.trim().isNotEmpty) ? _urlAbsolue(img.$1!) : null;
+    final alt = img.$2 ?? '';
+
+    if (src == null) {
+      if (legende == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          legende,
+          style: const TextStyle(
+            fontSize: 12.5,
+            color: Colors.grey,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    final imageWidget = GestureDetector(
+      onTap: () => _afficherImagePleinEcran(src),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: CachedNetworkImage(
+          imageUrl: src,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          memCacheWidth: 1080,
+          placeholder: (_, __) => Container(
+            height: 180,
+            color: Colors.grey[200],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vertPrimaire),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            height: 180,
+            color: Colors.green[50],
+            child: const Center(
+              child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 32),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final estSurLeCote = context.classes.contains('image-style-side');
+
+    if (estSurLeCote) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 150, child: imageWidget),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                legende ?? alt,
+                style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.45),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          imageWidget,
+          if (legende != null && legende.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              legende,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  (String?, String?) _extraireImageFigure(ExtensionContext context) {
+    for (final el in context.elementChildren) {
+      if (el.localName == 'img') {
+        return (el.attributes['src'], el.attributes['alt']);
+      }
+      if (el.localName == 'a') {
+        for (final sub in el.children) {
+          if (sub.localName == 'img') {
+            return (sub.attributes['src'], sub.attributes['alt']);
+          }
+        }
+      }
+    }
+    return (null, null);
+  }
+
+  String? _extraireLegendeFigure(ExtensionContext context) {
+    for (final el in context.elementChildren) {
+      if (el.localName == 'figcaption') {
+        final texte = el.text.trim();
+        if (texte.isNotEmpty) return texte;
+      }
+    }
+    return null;
   }
 
   // Affichage en plein écran avec zoom interactif
@@ -405,6 +640,18 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         title: const Text(
           'AGRIDIGITALE',
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2.5),
+          child: ValueListenableBuilder<double>(
+            valueListenable: _progression,
+            builder: (_, valeur, __) => LinearProgressIndicator(
+              value: valeur,
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
+              valueColor: const AlwaysStoppedAnimation(AppColors.vertPrimaire),
+            ),
+          ),
         ),
         actions: [
           // Bouton Traduire EN / FR
@@ -720,6 +967,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             // 7. Corps du Texte (HTML soigné)
             Html(
               data: _getContenuHtml(article),
+              extensions: [
+                TagExtension(
+                  tagsToExtend: {'figure'},
+                  builder: _construireFigure,
+                ),
+              ],
               onLinkTap: (url, attrs, element) {
                 if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
               },
@@ -968,7 +1221,33 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, i) {
-              final a = autres[i];
+              if (i == 0) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: AppColors.vertPrimaire,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'À lire aussi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.texteFort,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final a = autres[i - 1];
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 leading: ClipRRect(
@@ -993,15 +1272,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text(a.categorie,
-                    style: const TextStyle(fontSize: 11, color: AppColors.vertPrimaire)),
+                subtitle: Text(
+                  '${a.categorie.toUpperCase()} · ${_tempsRelatif(a.datePublication)}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.vertPrimaire),
+                ),
                 onTap: () => Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id)),
                 ),
               );
             },
-            childCount: autres.length,
+            childCount: autres.length + 1,
           ),
         );
       },

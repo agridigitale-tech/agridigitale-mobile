@@ -12,6 +12,7 @@ import '../core/design/app_colors.dart';
 import '../core/api_client.dart';
 import '../services/favori_service.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/auth_gate.dart';
 
 // Retourne l'URL de l'image :
 // - mobile : URL directe (pas de restriction CORS, téléchargement ultra rapide)
@@ -98,7 +99,10 @@ class ArticleCardVerticale extends StatelessWidget {
                     Row(children: [
                       Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
-                      Text(_date(article.datePublication), style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      Expanded(
+                        child: Text(_date(article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      ),
                       const SizedBox(width: 8),
                       Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
@@ -108,7 +112,10 @@ class ArticleCardVerticale extends StatelessWidget {
                     Row(children: [
                       Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
-                      Text(article.source, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      Expanded(
+                        child: Text(article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                      ),
                     ]),
                   ],
                 ),
@@ -150,6 +157,8 @@ class _ArticleCardState extends State<ArticleCard> {
   }
 
   Future<void> _toggleFavori() async {
+    final connecte = await exigerConnexion(context, motif: 'enregistrer cet article');
+    if (!connecte) return;
     setState(() => _enCours = true);
     try {
       if (_enFavori) {
@@ -252,8 +261,10 @@ class _ArticleCardState extends State<ArticleCard> {
                       Row(children: [
                         Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
-                        Text(_date(widget.article.datePublication),
-                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        Expanded(
+                          child: Text(_date(widget.article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        ),
                         const SizedBox(width: 8),
                         Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
@@ -263,7 +274,10 @@ class _ArticleCardState extends State<ArticleCard> {
                       Row(children: [
                         Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
-                        Text(widget.article.source, style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        Expanded(
+                          child: Text(widget.article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        ),
                       ]),
                     ],
                   ),
