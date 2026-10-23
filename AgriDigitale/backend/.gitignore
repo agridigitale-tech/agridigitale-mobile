@@ -11,6 +11,9 @@ node_modules/
 public/uploads/*
 !public/uploads/.gitkeep
 
+# Données de sauvegarde MongoDB
+backup_data/
+
 # Logs
 *.log
 npm-debug.log*

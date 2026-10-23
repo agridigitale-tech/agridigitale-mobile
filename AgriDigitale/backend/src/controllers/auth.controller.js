@@ -200,7 +200,8 @@ exports.envoyerLienReset = async (req, res, next) => {
       resetTokenExpiry: expiry,
     });
 
-    const lien = `https://agridigitale-backend.onrender.com/api/auth/reset-password?token=${encodeURIComponent(token)}`;
+    const backendUrl = process.env.BACKEND_URL || 'https://agridigitale-backend.onrender.com';
+    const lien = `${backendUrl}/api/auth/reset-password?token=${encodeURIComponent(token)}`;
 
     const html = buildResetHtml(lien);
 
