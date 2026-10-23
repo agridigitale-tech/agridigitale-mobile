@@ -53,6 +53,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   bool _ttsEnLecture = false;
   bool _ttsEnPause = false;
   double _ttsVitesse = 0.5;
+  bool _audioMenuOuvert = false;
 
   // ── Mode Anglais / Traduction ──
   bool _modeAnglais = false;
@@ -150,6 +151,141 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       }
     });
     _tts.setSpeechRate(_ttsVitesse);
+  }
+
+  // ── Bouton d'écoute flottant en bas à gauche avec dropdown horizontal ──
+  Widget _buildBoutonEcouteFlottant(Article article) {
+    return SafeArea(
+      child: Material(
+        color: Colors.transparent,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: _ttsEnLecture ? AppColors.vertPrimaire : Colors.grey.shade300,
+              width: _ttsEnLecture ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Bouton Casque (Toggle)
+              InkWell(
+                onTap: () {
+                  setState(() => _audioMenuOuvert = !_audioMenuOuvert);
+                },
+                borderRadius: BorderRadius.circular(26),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _ttsEnLecture
+                          ? const [AppColors.vertPrimaire, Color(0xFF66BB6A)]
+                          : const [AppColors.vertFonce, AppColors.vertPrimaire],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.headphones_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      if (_ttsEnLecture)
+                        Positioned(
+                          top: 9,
+                          right: 9,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.amberAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Dropdown horizontal animé de gauche à droite
+              ClipRect(
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.centerLeft,
+                  child: _audioMenuOuvert
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(width: 4),
+                            // Bouton Lecture / Pause
+                            IconButton(
+                              icon: Icon(
+                                _ttsEnLecture ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: AppColors.vertPrimaire,
+                                size: 28,
+                              ),
+                              tooltip: _ttsEnLecture ? 'Pause' : 'Écouter',
+                              onPressed: () => _lireArticle(article),
+                            ),
+                            // Bouton Arrêter (si actif)
+                            if (_ttsEnLecture || _ttsEnPause) ...[
+                              IconButton(
+                                icon: const Icon(Icons.stop_rounded, color: Colors.redAccent, size: 22),
+                                tooltip: 'Arrêter',
+                                onPressed: _arreterLecture,
+                              ),
+                            ],
+                            // Vitesse
+                            InkWell(
+                              onTap: _changerVitesseTts,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  '${_ttsVitesse == 0.5 ? '1.0' : (_ttsVitesse == 0.65 ? '1.25' : '1.5')}x',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.vertPrimaire,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ── Gestion Commentaires ──
@@ -726,13 +862,22 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             );
           }
           final article = snapshot.data!;
-          return CustomScrollView(
-            controller: _scrollCtrl,
-            slivers: [
-              _buildContenu(article),
-              _buildSectionCommentaires(auth),
-              _buildAutresArticles(),
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          return Stack(
+            children: [
+              CustomScrollView(
+                controller: _scrollCtrl,
+                slivers: [
+                  _buildContenu(article),
+                  _buildSectionCommentaires(auth),
+                  _buildAutresArticles(),
+                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                ],
+              ),
+              Positioned(
+                left: 16,
+                bottom: 20,
+                child: _buildBoutonEcouteFlottant(article),
+              ),
             ],
           );
         },
@@ -817,81 +962,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 4. Barre Audio / Écouter l'article (Synthèse Vocale)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.vertPrimaire.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppColors.vertPrimaire,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: Icon(
-                        _ttsEnLecture ? Icons.pause : Icons.play_arrow,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      onPressed: () => _lireArticle(article),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _ttsEnLecture
-                              ? 'Lecture en cours...'
-                              : (_ttsEnPause ? 'Lecture en pause' : 'Écouter cet article'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13.5,
-                            color: AppColors.texteFort,
-                          ),
-                        ),
-                        Text(
-                          _modeAnglais ? 'English voice' : 'Voix française · Synthèse vocale',
-                          style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_ttsEnLecture || _ttsEnPause) ...[
-                    IconButton(
-                      icon: const Icon(Icons.stop, color: Colors.redAccent),
-                      tooltip: 'Arrêter',
-                      onPressed: _arreterLecture,
-                    ),
-                  ],
-                  // Vitesse
-                  InkWell(
-                    onTap: _changerVitesseTts,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Text(
-                        '${_ttsVitesse == 0.5 ? '1.0' : (_ttsVitesse == 0.65 ? '1.25' : '1.5')}x',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 5. Image Principale ENTIÈRE (Ratio 16:9 sans rognage, comme sur le site web)
+            // Image Principale ENTIÈRE (Ratio 16:9 sans rognage, comme sur le site web)
             if (hasImage) ...[
               GestureDetector(
                 onTap: () => _afficherImagePleinEcran(article.image!),
