@@ -40,7 +40,7 @@ class Article {
       contenu: json['contenu'] ?? '',
       resume: json['resume'] ?? '',
       image: json['image'],
-      legendeImage: json['legendeImage'] ?? json['legend'] ?? '',
+      legendeImage: json['legendeImage'] ?? json['legende_image'] ?? json['legend'] ?? json['legende'] ?? json['caption'] ?? json['credit'] ?? '',
       auteur: json['auteur'] ?? json['author'] ?? 'La Rédaction',
       lienSource: json['lienSource'] ?? '',
       source: json['source'] ?? 'AgriDigitale',

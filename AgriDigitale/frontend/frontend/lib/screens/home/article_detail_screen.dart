@@ -2,6 +2,7 @@
 // la synthèse vocale (lecture audio), la traduction en anglais, le contenu HTML soigné,
 // les réseaux sociaux, les commentaires et les articles similaires.
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
@@ -13,6 +14,9 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:html/dom.dart' as dom;
 import '../../services/article_service.dart';
 import '../../services/favori_service.dart';
 import '../../services/commentaire_service.dart';
@@ -569,27 +573,124 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     } catch (_) {}
   }
 
-  // ── Partage ──
-  void _partagerArticle(Article article) {
+  // ── Partage d'article avec miniature photo ──
+  Future<void> _partagerArticle(Article article) async {
     final lien = article.lienSource.isNotEmpty
         ? article.lienSource
-        : 'https://agridigitale.net/article/${article.id}';
-    final texte = '${article.titre}\n$lien';
+        : 'https://agridigitale.net';
+    final texte = '${article.titre}\n\n$lien\n\nRetrouvez toute l\'actualité agricole sur AgriDigitale.';
+
+    // Téléchargement / mise en cache de l'image locale pour la miniature de partage
+    String? cheminImageLocale;
+    if (article.image != null && article.image!.trim().isNotEmpty) {
+      try {
+        final urlImage = _normaliserUrlImage(article.image!);
+        final rep = await http.get(Uri.parse(urlImage)).timeout(const Duration(seconds: 4));
+        if (rep.statusCode == 200 && rep.bodyBytes.isNotEmpty) {
+          final tempDir = await getTemporaryDirectory();
+          final ext = urlImage.contains('.png') ? 'png' : (urlImage.contains('.webp') ? 'webp' : 'jpg');
+          final idPropre = article.id.isNotEmpty
+              ? article.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+              : DateTime.now().millisecondsSinceEpoch.toString();
+          final fichier = File('${tempDir.path}/agridigitale_partage_$idPropre.$ext');
+          await fichier.writeAsBytes(rep.bodyBytes);
+          cheminImageLocale = fichier.path;
+        }
+      } catch (e) {
+        debugPrint('[Partage] Erreur téléchargement image : $e');
+      }
+    }
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Partager via',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+            // Barre supérieure
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Aperçu de l'article avec miniature photo
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  if (article.image != null && article.image!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: _normaliserUrlImage(article.image!),
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          width: 60,
+                          height: 60,
+                          color: Colors.green[50],
+                          child: const Icon(Icons.article, color: AppColors.vertPrimaire),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          article.titre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          article.categorie.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.vertPrimaire,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            const Text(
+              'Partager l\'article',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -597,12 +698,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   icone: FontAwesomeIcons.whatsapp,
                   label: 'WhatsApp',
                   couleur: const Color(0xFF25D366),
-                  onTap: () {
-                    Navigator.pop(context);
-                    launchUrl(
-                      Uri.parse('https://wa.me/?text=${Uri.encodeComponent(texte)}'),
-                      mode: LaunchMode.externalApplication,
-                    );
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    if (cheminImageLocale != null && File(cheminImageLocale).existsSync()) {
+                      await Share.shareXFiles(
+                        [XFile(cheminImageLocale)],
+                        text: texte,
+                        subject: article.titre,
+                      );
+                    } else {
+                      launchUrl(
+                        Uri.parse('https://wa.me/?text=${Uri.encodeComponent(texte)}'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
                   },
                 ),
                 _boutonPartage(
@@ -610,7 +719,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   label: 'Facebook',
                   couleur: const Color(0xFF1877F2),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                     launchUrl(
                       Uri.parse('https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(lien)}'),
                       mode: LaunchMode.externalApplication,
@@ -622,7 +731,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   label: 'X',
                   couleur: Colors.black,
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                     launchUrl(
                       Uri.parse('https://twitter.com/intent/tweet?text=${Uri.encodeComponent(texte)}'),
                       mode: LaunchMode.externalApplication,
@@ -634,7 +743,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   label: 'Copier lien',
                   couleur: Colors.grey.shade700,
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                     Clipboard.setData(ClipboardData(text: lien));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Lien copié !')),
@@ -642,12 +751,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   },
                 ),
                 _boutonPartage(
-                  icone: Icons.share,
-                  label: 'Autres',
+                  icone: Icons.share_rounded,
+                  label: 'Toutes apps',
                   couleur: AppColors.vertPrimaire,
-                  onTap: () {
-                    Navigator.pop(context);
-                    Share.share(texte, subject: article.titre);
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    if (cheminImageLocale != null && File(cheminImageLocale).existsSync()) {
+                      await Share.shareXFiles(
+                        [XFile(cheminImageLocale)],
+                        text: texte,
+                        subject: article.titre,
+                      );
+                    } else {
+                      await Share.share(texte, subject: article.titre);
+                    }
                   },
                 ),
               ],
@@ -739,43 +856,56 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '${ApiClient.baseUrl}/proxy-image?url=${Uri.encodeComponent(url)}';
   }
 
-  // Convertit une URL d'image relative (/ck/xxx.jpg) ou un marqueur en URL absolue
-  String _urlAbsolue(String url) {
-    final u = url.trim();
-    if (u.isEmpty) return url;
-    if (RegExp(r'^(data:|blob:|mailto:|tel:|#)', caseSensitive: false).hasMatch(u)) {
-      return url;
+  // Normalise une URL d'image pour garantir un affichage parfait :
+  // - remplace agridigitale.com (inaccessible) par agridigitale.net
+  // - force HTTPS pour éviter le blocage Android sur cleartext HTTP
+  // - convertit les chemins relatifs /ck/ en /storage/ck/
+  // - préfixe les chemins relatifs par https://agridigitale.net
+  // - applique le proxy web si nécessaire
+  String _normaliserUrlImage(String url) {
+    var u = url.trim().replaceAll(RegExp(r'[\r\n\t]'), '');
+    if (u.isEmpty) return '';
+    // Ignorer les pixels de tracking ou placeholders 1x1 base64
+    if (u.startsWith('data:image/gif') || u.startsWith('data:image/svg')) {
+      return '';
     }
-    if (RegExp(r'^https?://', caseSensitive: false).hasMatch(u)) {
-      return _proxyImage(
-        u.replaceAll(
-                RegExp(r'agridigitale\.com', caseSensitive: false), 'agridigitale.net')
-            .replaceAllMapped(
-                RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
-                (m) => '${m.group(1)}/storage/ck/'),
-      );
-    }
-    if (u.startsWith('//')) return _proxyImage('https:$u');
-    return _proxyImage(
-      '$_domaineImages${u.startsWith('/') ? u : '/$u'}'.replaceAllMapped(
-          RegExp(r'^(https?://[^/]+)/ck/', caseSensitive: false),
-          (m) => '${m.group(1)}/storage/ck/'),
+
+    u = u.replaceAll('{{BASE_URL}}', 'https://agridigitale.net');
+    u = u.replaceAll(
+      RegExp(r'https?://(?:www\.)?agridigitale\.com', caseSensitive: false),
+      'https://agridigitale.net',
     );
+    u = u.replaceAll(
+      RegExp(r'^http://agridigitale\.net', caseSensitive: false),
+      'https://agridigitale.net',
+    );
+
+    if (u.startsWith('//')) {
+      u = 'https:$u';
+    } else if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      if (!u.startsWith('/')) u = '/$u';
+      u = 'https://agridigitale.net$u';
+    }
+
+    // Corriger le chemin /ck/ en /storage/ck/ (sans doubler si déjà /storage/ck/)
+    u = u.replaceAllMapped(
+      RegExp(r'(https?://[^/]+)?(?<!/storage)/ck/', caseSensitive: false),
+      (m) => '${m.group(1) ?? "https://agridigitale.net"}/storage/ck/',
+    );
+
+    return _proxyImage(u);
   }
 
   // Normalise une valeur srcset ("url1 1x, url2 2x") en absolutisant chaque URL
   String _normaliserSrcset(String valeur) => valeur.split(',').map((partie) {
         final bits = partie.trim().split(RegExp(r'\s+'));
         if (bits.isEmpty || bits[0].isEmpty) return partie.trim();
-        bits[0] = _urlAbsolue(bits[0]);
+        bits[0] = _normaliserUrlImage(bits[0]);
         return bits.join(' ');
       }).join(', ');
 
-  // Filtre de réécriture des balises <img> :
-  //  - {{BASE_URL}} et agridigitale.com → agridigitale.net
-  //  - /ck/ → /storage/ck/
-  //  - src / data-src / srcset relatifs → URL absolues
-  //  - promeut data-src en src (lazy-loading) quand src est vide
+  // Filtre de réécriture du HTML pour normaliser les balises <img> :
+  // promeut data-src si src est vide/placeholder, et absolutise toutes les URLs
   String _normaliserImagesContenu(String html) {
     if (html.isEmpty) return html;
     var resultat = html
@@ -787,20 +917,19 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       (tagMatch) {
         var tag = tagMatch.group(0)!;
 
-        final dataSrc = RegExp(r'''\sdata-src\s*=\s*(["'])([\s\S]*?)\1''',
-                caseSensitive: false)
-            .firstMatch(tag);
-        final srcMatch = RegExp(r'''\ssrc\s*=\s*(["'])([\s\S]*?)\1''',
-                caseSensitive: false)
-            .firstMatch(tag);
-        final srcVide = srcMatch == null || srcMatch.group(2)!.trim().isEmpty;
+        final dataSrc = RegExp(r'''\sdata-src\s*=\s*(["'])([\s\S]*?)\1''', caseSensitive: false).firstMatch(tag);
+        final srcMatch = RegExp(r'''\ssrc\s*=\s*(["'])([\s\S]*?)\1''', caseSensitive: false).firstMatch(tag);
+        final srcVide = srcMatch == null ||
+            srcMatch.group(2)!.trim().isEmpty ||
+            srcMatch.group(2)!.startsWith('data:image/gif');
 
         if (dataSrc != null && srcVide) {
-          final absolue = _urlAbsolue(dataSrc.group(2)!);
+          final absolue = _normaliserUrlImage(dataSrc.group(2)!);
           if (srcMatch != null) {
             tag = tag.replaceFirst(
-                RegExp(r'''\ssrc\s*=\s*(["'])[\s\S]*?\1''', caseSensitive: false),
-                ' src="$absolue"');
+              RegExp(r'''\ssrc\s*=\s*(["'])[\s\S]*?\1''', caseSensitive: false),
+              ' src="$absolue"',
+            );
           } else {
             tag = tag.replaceFirst('<img', '<img src="$absolue"');
           }
@@ -808,11 +937,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
         tag = tag.replaceAllMapped(
           RegExp(r'''(\ssrc\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
-          (m) => '${m[1]}${m[2]}${_urlAbsolue(m[3]!)}${m[2]}',
+          (m) => '${m[1]}${m[2]}${_normaliserUrlImage(m[3]!)}${m[2]}',
         );
         tag = tag.replaceAllMapped(
           RegExp(r'''(\sdata-src\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
-          (m) => '${m[1]}${m[2]}${_urlAbsolue(m[3]!)}${m[2]}',
+          (m) => '${m[1]}${m[2]}${_normaliserUrlImage(m[3]!)}${m[2]}',
         );
         tag = tag.replaceAllMapped(
           RegExp(r'''(\ssrcset\s*=\s*)(["'])([\s\S]*?)\2''', caseSensitive: false),
@@ -835,126 +964,215 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     return '<p>Contenu en cours de chargement...</p>';
   }
 
-  // Construit une figure HTML (<figure><img><figcaption>) :
-  //  - classe "image-style-side" → image à gauche, légende à droite
-  //  - sinon → image puis légende empilées (rendu bloc classique)
-  Widget _construireFigure(ExtensionContext context) {
-    final img = _extraireImageFigure(context);
-    final legende = _extraireLegendeFigure(context);
-    final src =
-        (img.$1 != null && img.$1!.trim().isNotEmpty) ? _urlAbsolue(img.$1!) : null;
-    final alt = img.$2 ?? '';
-
-    if (src == null) {
-      if (legende == null) return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          legende,
-          style: const TextStyle(
-            fontSize: 12.5,
-            color: Colors.grey,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      );
+  // Rendu soigné pour TOUTES les images dans les articles (<figure> ou <img>) :
+  // - Corrige l'aspect bizarre en utilisant un ratio d'aspect maîtrisé (16:9 par défaut ou ratio natif)
+  // - Affiche SYSTÉMATIQUEMENT la légende et le crédit sous l'image (exigence du DG)
+  // - Ajoute le badge d'agrandissement et le clic plein écran
+  Widget _construireImageHtml(ExtensionContext context) {
+    // Si c'est une balise <img> déjà englobée dans un <figure>,
+    // ne pas la doubler car le builder <figure> la traite déjà
+    if (context.elementName == 'img' && context.element?.parent?.localName == 'figure') {
+      return const SizedBox.shrink();
     }
 
-    final imageWidget = GestureDetector(
-      onTap: () => _afficherImagePleinEcran(src),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: CachedNetworkImage(
-          imageUrl: src,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          memCacheWidth: 1080,
-          placeholder: (_, __) => Container(
-            height: 180,
-            color: Colors.grey[200],
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.vertPrimaire),
+    final donnees = _extraireDonneesImage(context);
+    final srcBrut = donnees.$1;
+    final legendeExtrait = donnees.$2;
+    final ratio = donnees.$3;
+
+    if (srcBrut == null || srcBrut.trim().isEmpty) {
+      if (legendeExtrait != null && legendeExtrait.isNotEmpty) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            legendeExtrait,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
             ),
           ),
-          errorWidget: (_, __, ___) => Container(
-            height: 180,
-            color: Colors.green[50],
-            child: const Center(
-              child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 32),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    final estSurLeCote = context.classes.contains('image-style-side');
-
-    if (estSurLeCote) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 150, child: imageWidget),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                legende ?? alt,
-                style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.45),
-              ),
-            ),
-          ],
-        ),
-      );
+        );
+      }
+      return const SizedBox.shrink();
     }
+
+    final urlFinale = _normaliserUrlImage(srcBrut);
+    if (urlFinale.isEmpty) return const SizedBox.shrink();
+
+    // Légende sur TOUTES les images (règle stricte demandée par le DG)
+    final legendeFinale = (legendeExtrait != null && legendeExtrait.trim().isNotEmpty)
+        ? legendeExtrait.trim()
+        : 'Photo : © agridigitale.net';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          imageWidget,
-          if (legende != null && legende.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              legende,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+          GestureDetector(
+            onTap: () => _afficherImagePleinEcran(urlFinale),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200, width: 1.0),
+                ),
+                child: AspectRatio(
+                  aspectRatio: ratio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: urlFinale,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 1080,
+                        maxWidthDiskCache: 1200,
+                        placeholder: (_, __) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.vertPrimaire,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: Colors.green[50],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Image non disponible',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Badge agrandir plein écran en bas à droite
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.fullscreen_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
+          ),
+          // Légende & Crédit photo sous TOUTES les images
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.camera_alt_outlined, size: 12.5, color: Colors.grey[600]),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    legendeFinale,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[700],
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  (String?, String?) _extraireImageFigure(ExtensionContext context) {
-    for (final el in context.elementChildren) {
-      if (el.localName == 'img') {
-        return (el.attributes['src'], el.attributes['alt']);
+  // Extrait précisément l'URL, la légende et les dimensions d'une image dans le HTML
+  (String?, String?, double) _extraireDonneesImage(ExtensionContext context) {
+    dom.Element? imgElement;
+    String? legende;
+
+    if (context.elementName == 'img' && context.element != null) {
+      imgElement = context.element;
+      legende = imgElement?.attributes['alt'] ?? imgElement?.attributes['title'];
+    } else if (context.element != null) {
+      // 1. Chercher d'abord dans <figcaption>
+      final figcaptions = context.element!.getElementsByTagName('figcaption');
+      if (figcaptions.isNotEmpty && figcaptions.first.text.trim().isNotEmpty) {
+        legende = figcaptions.first.text.trim();
       }
-      if (el.localName == 'a') {
-        for (final sub in el.children) {
-          if (sub.localName == 'img') {
-            return (sub.attributes['src'], sub.attributes['alt']);
-          }
+      // 2. Chercher <img>
+      final imgs = context.element!.getElementsByTagName('img');
+      if (imgs.isNotEmpty) {
+        imgElement = imgs.first;
+        if (legende == null || legende.isEmpty) {
+          legende = imgElement.attributes['alt'] ?? imgElement.attributes['title'];
         }
       }
     }
-    return (null, null);
-  }
 
-  String? _extraireLegendeFigure(ExtensionContext context) {
-    for (final el in context.elementChildren) {
-      if (el.localName == 'figcaption') {
-        final texte = el.text.trim();
-        if (texte.isNotEmpty) return texte;
+    if (imgElement == null) {
+      return (null, legende, 16 / 9);
+    }
+
+    // Récupérer la meilleure URL (priorité aux vraies sources sur les 1x1 placeholders)
+    final attrs = imgElement.attributes;
+    final dataSrc = attrs['data-src']?.trim() ?? '';
+    final lazySrc = attrs['data-lazy-src']?.trim() ?? '';
+    final origFile = attrs['data-orig-file']?.trim() ?? '';
+    final largeFile = attrs['data-large-file']?.trim() ?? '';
+    final rawSrc = attrs['src']?.trim() ?? '';
+    final srcset = attrs['srcset']?.trim() ?? '';
+
+    String srcTrouve = '';
+    for (final s in [dataSrc, lazySrc, origFile, largeFile, rawSrc]) {
+      if (s.isNotEmpty && !s.startsWith('data:image/gif') && !s.startsWith('data:image/svg')) {
+        srcTrouve = s;
+        break;
       }
     }
-    return null;
+    if (srcTrouve.isEmpty && srcset.isNotEmpty) {
+      srcTrouve = srcset.split(',').first.trim().split(RegExp(r'\s+')).first;
+    }
+    if (srcTrouve.isEmpty) srcTrouve = rawSrc;
+
+    // Calcul du ratio d'aspect si width/height sont fournis dans le HTML
+    double ratio = 16 / 9;
+    final wStr = attrs['width']?.replaceAll('px', '').trim() ?? '';
+    final hStr = attrs['height']?.replaceAll('px', '').trim() ?? '';
+    final w = double.tryParse(wStr);
+    final h = double.tryParse(hStr);
+    if (w != null && h != null && w > 0 && h > 0) {
+      ratio = (w / h).clamp(0.75, 2.2);
+    }
+
+    // Ignorer la légende si c'est seulement un nom de fichier générique (ex: "1.jpg", "image")
+    if (legende != null) {
+      final l = legende.trim();
+      if (RegExp(r'^(image|img|photo|\d+)\.(jpg|png|webp|jpeg)$', caseSensitive: false).hasMatch(l)) {
+        legende = null;
+      }
+    }
+
+    return (srcTrouve.isNotEmpty ? srcTrouve : null, legende, ratio);
   }
 
   // Affichage en plein écran avec zoom interactif
@@ -1229,7 +1447,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             // Image Principale ENTIÈRE (Ratio 16:9 sans rognage, comme sur le site web)
             if (hasImage) ...[
               GestureDetector(
-                onTap: () => _afficherImagePleinEcran(article.image!),
+                onTap: () => _afficherImagePleinEcran(_normaliserUrlImage(article.image!)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: AspectRatio(
@@ -1238,7 +1456,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       fit: StackFit.expand,
                       children: [
                         CachedNetworkImage(
-                          imageUrl: article.image!,
+                          imageUrl: _normaliserUrlImage(article.image!),
                           fit: BoxFit.cover,
                           memCacheWidth: 1080,
                           maxWidthDiskCache: 1200,
@@ -1304,8 +1522,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               data: _getContenuHtml(article),
               extensions: [
                 TagExtension(
-                  tagsToExtend: {'figure'},
-                  builder: _construireFigure,
+                  tagsToExtend: {'figure', 'img'},
+                  builder: _construireImageHtml,
                 ),
               ],
               onLinkTap: (url, attrs, element) {

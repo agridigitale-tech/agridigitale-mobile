@@ -165,11 +165,18 @@ class ArticleService {
           continue;
         }
 
-        // Image de l'article (première image dans le corps)
-        final imgMatch = RegExp(r'<img[^>]+src="([^">]+)"', caseSensitive: false).firstMatch(content);
-        String? image = imgMatch?.group(1);
+        // Image de l'article (enclosure, media:content ou première balise <img>)
+        final encMatch = RegExp(r'<enclosure[^>]+url="([^">]+)"', caseSensitive: false).firstMatch(itemStr);
+        final mediaMatch = RegExp(r'<media:content[^>]+url="([^">]+)"', caseSensitive: false).firstMatch(itemStr);
+        final imgMatch = RegExp(r'<img[^>]+(?:src|data-src)="([^">]+)"', caseSensitive: false).firstMatch(content);
+        String? image = encMatch?.group(1) ?? mediaMatch?.group(1) ?? imgMatch?.group(1);
         if (image != null) {
-          image = image.replaceFirst('agridigitale.com', 'agridigitale.net');
+          image = image
+              .replaceFirst('agridigitale.com', 'agridigitale.net')
+              .replaceAllMapped(
+                RegExp(r'(https?://[^/]+)?(?<!/storage)/ck/', caseSensitive: false),
+                (m) => '${m.group(1) ?? "https://agridigitale.net"}/storage/ck/',
+              );
         }
 
         // Légende de l'image
