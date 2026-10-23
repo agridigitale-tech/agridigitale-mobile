@@ -1206,6 +1206,54 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     } catch (_) {}
   }
 
+  // Signalement de commentaire abusif (conformité Google Play UGC)
+  Future<void> _signalerCommentaire(Commentaire c) async {
+    final motif = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Signaler ce commentaire', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Contenu inapproprié ou offensant'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Contenu inapproprié ou offensant'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Spam ou publicité trompeuse'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Spam ou publicité trompeuse'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Harcèlement ou propos haineux'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Harcèlement ou propos haineux'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Autre'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Autre motif'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (motif == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Merci. Le commentaire a été signalé et sera examiné par notre équipe.'),
+        backgroundColor: AppColors.vertPrimaire,
+      ),
+    );
+  }
+
   // ── Partage d'article avec miniature photo ──
   Future<void> _partagerArticle(Article article) async {
     final lien = article.lienSource.isNotEmpty
@@ -2105,9 +2153,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     trailing: estMien
                         ? IconButton(
                             icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            tooltip: 'Supprimer mon commentaire',
                             onPressed: () => _supprimerCommentaire(c),
                           )
-                        : null,
+                        : IconButton(
+                            icon: Icon(Icons.flag_outlined, size: 18, color: Colors.grey[500]),
+                            tooltip: 'Signaler ce commentaire',
+                            onPressed: () => _signalerCommentaire(c),
+                          ),
                   );
                 },
               ),

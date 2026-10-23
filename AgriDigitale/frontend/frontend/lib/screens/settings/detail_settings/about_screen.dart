@@ -128,8 +128,10 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Couleur de fond légèrement rosée/grise claire de votre image
-    const scaffoldBgColor = Color(0xFFFAF8FB); 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBgColor = isDark ? AppColors.surfaceSombre : const Color(0xFFFAF8FB);
+    final texteCouleur = isDark ? AppColors.texteSombreFort : const Color(0xFF2C3E50);
+    final sousTexteCouleur = isDark ? AppColors.texteSombreMoyen : Colors.grey.shade600;
 
     return Scaffold(
       backgroundColor: scaffoldBgColor,
@@ -137,13 +139,13 @@ class AboutScreen extends StatelessWidget {
         backgroundColor: scaffoldBgColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Nos services',
           style: TextStyle(
-            color: Colors.black87,
+            color: isDark ? Colors.white : Colors.black87,
             fontSize: 22,
             fontWeight: FontWeight.w500,
           ),
@@ -214,13 +216,13 @@ class AboutScreen extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Pastille d'icône grise
+                              // Pastille d'icône
                               CircleAvatar(
-                                backgroundColor: const Color(0xFFE8E8EC),
+                                backgroundColor: isDark ? AppColors.surfaceSombreLegere : const Color(0xFFE8E8EC),
                                 radius: 24,
                                 child: Icon(
                                   _getIcon(service['icon']!),
-                                  color: const Color(0xFF2C3E50),
+                                  color: isDark ? AppColors.vertClair : const Color(0xFF2C3E50),
                                   size: 22,
                                 ),
                               ),
@@ -232,10 +234,10 @@ class AboutScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       service['title']!,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2C3E50),
+                                        color: texteCouleur,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -243,7 +245,7 @@ class AboutScreen extends StatelessWidget {
                                       service['description']!,
                                       style: TextStyle(
                                         fontSize: 13.5,
-                                        color: Colors.grey.shade600,
+                                        color: sousTexteCouleur,
                                         height: 1.4,
                                       ),
                                     ),
@@ -264,7 +266,7 @@ class AboutScreen extends StatelessWidget {
 
             // --- BOUTON DE CONTACT PERSISTANT EN BAS ---
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -284,6 +286,25 @@ class AboutScreen extends StatelessWidget {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+              ),
+            ),
+            // Lien politique de confidentialité (Google Play)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: TextButton.icon(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://agridigitale.net/politique-de-confidentialite'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                icon: const Icon(Icons.privacy_tip_outlined, size: 16, color: AppColors.vertPrimaire),
+                label: const Text(
+                  'Politique de confidentialité',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.vertPrimaire,
+                    decoration: TextDecoration.underline,
                   ),
                 ),
               ),

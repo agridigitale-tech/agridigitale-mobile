@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -277,6 +278,19 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AboutScreen()),
+            ),
+          ),
+          const Divider(height: 1),
+
+          // Politique de confidentialité (conformité Google Play Store)
+          _ligne(
+            context,
+            Icons.privacy_tip_outlined,
+            'Politique de confidentialité',
+            sousTitre: 'Protection des données',
+            onTap: () => launchUrl(
+              Uri.parse('https://agridigitale.net/politique-de-confidentialite'),
+              mode: LaunchMode.externalApplication,
             ),
           ),
           const Divider(height: 1),

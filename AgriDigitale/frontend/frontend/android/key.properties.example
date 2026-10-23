@@ -1,0 +1,8 @@
+# Modèle de configuration pour la signature Release Google Play
+# Renommez ce fichier en "key.properties" dans ce même dossier android/
+# Remplacez les valeurs ci-dessous par vos vrais identifiants de keystore
+
+storePassword=votre_mot_de_passe_keystore
+keyPassword=votre_mot_de_passe_cle
+keyAlias=upload
+storeFile=../upload-keystore.jks
