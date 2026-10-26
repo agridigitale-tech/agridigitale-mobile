@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "com.agridigitale.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         // Force image_picker à utiliser le Photo Picker natif Android (exigé par Google Play)
