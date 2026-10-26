@@ -1,7 +1,7 @@
 // Constantes de l'application AgriDigitale
 class AppConstants {
   // Configuration de l'API
- static const String baseUrl = 'https://agridigitale-backend.onrender.com/api';
+ static const String baseUrl = 'https://agridigitale-mobile.onrender.com/api';
   static const Duration timeoutDuration = Duration(seconds: 10);
  
   // Clés de stockage
