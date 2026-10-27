@@ -18,9 +18,16 @@ import 'providers/notification_provider.dart';
 import 'core/design/app_theme.dart';
 import 'core/app_localizations.dart';
 import 'services/notification_service.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Force l'activation du Photo Picker AndroidX natif (compatibilité Android 11 à 16 sans permission stockage)
+  final imagePickerPlatform = ImagePickerPlatform.instance;
+  if (imagePickerPlatform is ImagePickerAndroid) {
+    imagePickerPlatform.useAndroidPhotoPicker = true;
+  }
   await initializeDateFormatting('fr_FR', null);
   await NotificationService().initialiser();
   NotificationService().ecouterRefreshToken();

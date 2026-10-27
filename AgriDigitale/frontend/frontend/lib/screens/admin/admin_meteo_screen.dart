@@ -18,8 +18,42 @@ class _AdminMeteoScreenState extends State<AdminMeteoScreen> {
   bool _envoi = false;
 
   Future<void> _choisirImage(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source, imageQuality: 80);
-    if (picked != null) setState(() => _image = File(picked.path));
+    try {
+      final picker = ImagePicker();
+      XFile? picked;
+      if (source == ImageSource.gallery) {
+        try {
+          picked = await picker.pickImage(
+            source: ImageSource.gallery,
+            imageQuality: 80,
+            requestFullMetadata: false,
+          );
+        } catch (errPicker) {
+          debugPrint('[AdminMeteo] Fallback pickMedia suite à : $errPicker');
+          picked = await picker.pickMedia(requestFullMetadata: false);
+        }
+      } else {
+        picked = await picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+          requestFullMetadata: false,
+        );
+      }
+      final p = picked;
+      if (p != null) {
+        setState(() => _image = File(p.path));
+      }
+    } catch (e) {
+      debugPrint('[AdminMeteo] Erreur selection image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Impossible d\'ouvrir la sélection : $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _dialogSource() {
@@ -40,14 +74,22 @@ class _AdminMeteoScreenState extends State<AdminMeteoScreen> {
                   backgroundColor: AppColors.vertPrimaire,
                   child: Icon(Icons.camera_alt, color: Colors.white)),
               title: const Text('Prendre une photo'),
-              onTap: () { Navigator.pop(context); _choisirImage(ImageSource.camera); },
+              onTap: () async {
+                Navigator.pop(context);
+                await Future.delayed(const Duration(milliseconds: 100));
+                _choisirImage(ImageSource.camera);
+              },
             ),
             ListTile(
               leading: const CircleAvatar(
                   backgroundColor: Colors.blue,
                   child: Icon(Icons.photo_library, color: Colors.white)),
               title: const Text('Choisir depuis la galerie'),
-              onTap: () { Navigator.pop(context); _choisirImage(ImageSource.gallery); },
+              onTap: () async {
+                Navigator.pop(context);
+                await Future.delayed(const Duration(milliseconds: 100));
+                _choisirImage(ImageSource.gallery);
+              },
             ),
             const SizedBox(height: 8),
           ],
