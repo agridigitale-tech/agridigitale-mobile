@@ -28,7 +28,7 @@ const aImageValide = (m) => {
 // Utilisateur : consulter le dernier bulletin météo officiel avec données structurées
 exports.consulterMeteo = async (req, res, next) => {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'https://agridigitale-mobile.onrender.com';
+    const backendUrl = 'https://agridigitale-mobile.onrender.com';
     const meteos = await Meteo.find({ source: 'manuel' }).sort({ dateMiseAJour: -1 }).limit(20);
     const valide = meteos.find(aImageValide);
 
@@ -38,6 +38,7 @@ exports.consulterMeteo = async (req, res, next) => {
 
     const obj = valide.toObject();
     if (obj.iconeUrl && obj.iconeUrl.startsWith('http')) {
+      obj.iconeUrl = obj.iconeUrl.replace('agridigitale-backend.onrender.com', 'agridigitale-mobile.onrender.com');
       obj.icone = obj.iconeUrl;
     } else if (obj.icone && obj.icone.startsWith('/api/')) {
       obj.iconeUrl = `${backendUrl}${obj.icone}`;
@@ -66,7 +67,7 @@ exports.consulterMeteo = async (req, res, next) => {
 // Utilisateur : lister toutes les photos météo valides (archives)
 exports.archiverMeteo = async (req, res, next) => {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'https://agridigitale-mobile.onrender.com';
+    const backendUrl = 'https://agridigitale-mobile.onrender.com';
     const archives = await Meteo.find({ source: 'manuel' }).sort({ dateMiseAJour: -1 });
     const valides = archives.filter(aImageValide).map((m) => {
       const obj = m.toObject();
@@ -124,7 +125,7 @@ exports.rechercherVille = async (req, res, next) => {
 // Admin : publier une photo météo avec persistance permanente dans MongoDB
 exports.publierMeteoManuelle = async (req, res, next) => {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'https://agridigitale-mobile.onrender.com';
+    const backendUrl = 'https://agridigitale-mobile.onrender.com';
     let donneesPhoto = null;
     let mimeType = 'image/jpeg';
     let imageUrl = '';

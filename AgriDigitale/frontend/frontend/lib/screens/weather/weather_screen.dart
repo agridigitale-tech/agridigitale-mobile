@@ -90,6 +90,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
         url = '$base$iconeUpload';
       }
 
+      // Normalisation systématique vers le domaine backend officiel
+      if (url.contains('agridigitale-backend.onrender.com')) {
+        url = url.replaceAll('agridigitale-backend.onrender.com', 'agridigitale-mobile.onrender.com');
+      }
+      if (url.contains('/api/meteo/') && url.contains('/photo')) {
+        final id = data['_id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          url = '${ApiClient.baseUrl}/meteo/$id/photo';
+        }
+      }
+
       final b = BulletinMeteo.fromApiResponse(data, url);
 
       // Sauvegarde semestrielle automatique sur le téléphone (offline 6 mois)
@@ -169,7 +180,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   // Ouvre le document image original en plein écran avec zoom interactif
   void _ouvrirDocumentOriginal() {
-    if (_imageUrl == null || _imageUrl!.isEmpty) {
+    final rawUrl = _imageUrl ?? _bulletin?.imageUrl ?? '';
+    var url = rawUrl.trim();
+    if (url.contains('agridigitale-backend.onrender.com')) {
+      url = url.replaceAll('agridigitale-backend.onrender.com', 'agridigitale-mobile.onrender.com');
+    }
+
+    if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Le document original est en cours d\'actualisation.'),
@@ -196,19 +213,23 @@ class _WeatherScreenState extends State<WeatherScreen> {
               minScale: 0.8,
               maxScale: 4.0,
               child: CachedNetworkImage(
-                imageUrl: _imageUrl!,
+                imageUrl: url,
                 fit: BoxFit.contain,
                 placeholder: (_, __) => const Center(
                   child: CircularProgressIndicator(color: AppColors.vertPrimaire),
                 ),
-                errorWidget: (_, __, ___) => const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.broken_image, color: Colors.white54, size: 60),
-                      SizedBox(height: 12),
-                      Text('Image non disponible', style: TextStyle(color: Colors.white70)),
-                    ],
+                errorWidget: (_, __, ___) => Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.broken_image, color: Colors.white54, size: 60),
+                        SizedBox(height: 12),
+                        Text('Image non disponible', style: TextStyle(color: Colors.white70)),
+                      ],
+                    ),
                   ),
                 ),
               ),
