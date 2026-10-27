@@ -101,8 +101,12 @@ class _AdminMeteoScreenState extends State<AdminMeteoScreen> {
   Future<void> _publier() async {
     if (_image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une image'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Veuillez d\'abord sélectionner une photo ci-dessous'),
+          backgroundColor: Colors.orange,
+        ),
       );
+      _dialogSource();
       return;
     }
     setState(() => _envoi = true);
@@ -198,13 +202,53 @@ class _AdminMeteoScreenState extends State<AdminMeteoScreen> {
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.cloud_upload_outlined, size: 64, color: Colors.grey[400]),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.vertPrimaire.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.cloud_upload_outlined, size: 48, color: AppColors.vertPrimaire),
+                            ),
                             const SizedBox(height: 14),
-                            Text('Appuyez pour ajouter une photo météo',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 15)),
+                            const Text(
+                              'Photo du bulletin météo',
+                              style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                             const SizedBox(height: 6),
-                            Text('Galerie ou appareil photo',
-                                style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                            Text(
+                              'Choisissez une capture ou infographie météo',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _choisirImage(ImageSource.gallery),
+                                  icon: const Icon(Icons.photo_library, size: 18),
+                                  label: const Text('Galerie'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () => _choisirImage(ImageSource.camera),
+                                  icon: const Icon(Icons.camera_alt, size: 18),
+                                  label: const Text('Appareil'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.vertPrimaire,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    side: const BorderSide(color: AppColors.vertPrimaire),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                 ),
