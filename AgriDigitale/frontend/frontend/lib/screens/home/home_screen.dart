@@ -11,6 +11,10 @@ import '../../widgets/article_card.dart';
 import '../../widgets/banner_carousel.dart';
 import '../../widgets/boosted_banner_overlay.dart';
 import '../../widgets/conseil_du_jour_card.dart';
+import '../../widgets/conseil_du_jour_overlay.dart';
+import '../../widgets/defi_app_bar_badge.dart';
+import '../../widgets/conseil_du_jour_section.dart';
+import '../../widgets/prix_produits_section.dart';
 import '../../widgets/quiz_home_card.dart';
 import '../../widgets/cours_marches_widget.dart';
 import '../../widgets/preferences_agricoles_dialog.dart';
@@ -56,6 +60,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _chargerPlus();
     _chargerNotifs();
     _verifierBanniereBoostee();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verifierConseilMatin();
+    });
     // Pagination infinie : charge plus d'articles quand on approche du bas
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -93,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   Future<void> _chargerPlus() async {
     if (_chargement || _toutCharge) return;
+    if (_categorieActive == 'CONSEIL DU JOUR' || _categorieActive == 'PRIX PRODUIT') return;
     setState(() => _chargement = true);
     try {
       final nouveaux =
@@ -123,7 +131,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _page = 1;
       _toutCharge = false;
     });
-    _chargerPlus();
+    // Si c'est une vue spéciale locale (Conseil du jour ou Prix produit), pas de chargement réseau
+    if (cat != 'CONSEIL DU JOUR' && cat != 'PRIX PRODUIT') {
+      _chargerPlus();
+    }
   }
 
   Future<void> _actualiser() async {
@@ -135,7 +146,18 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _articleUne = null;
     });
     BannerCarousel.actualiser();
-    await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
+    if (_categorieActive == 'CONSEIL DU JOUR' || _categorieActive == 'PRIX PRODUIT') {
+      await _chargerNotifs();
+    } else {
+      await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
+    }
+  }
+
+  // Vérifie si le conseil du jour doit être affiché en superposition au matin
+  Future<void> _verifierConseilMatin() async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    if (!mounted) return;
+    await ConseilDuJourOverlay.afficherSiNouveauMatin(context);
   }
 
   // Vérifie si une bannière boostée est active pour l'afficher à l'ouverture
@@ -214,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             tooltip: 'Mes favoris',
             onPressed: _allerFavoris,
           ),
+          // Défi Agricole animé ("qui fait signe" au niveau de la cloche de notification)
+          const DefiAppBarBadge(),
           // Icône notification avec badge
           Stack(
             alignment: Alignment.center,
@@ -288,7 +312,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               child: FutureBuilder<List<String>>(
                 future: _categoriesFuture,
                 builder: (context, snap) {
-                  final categories = ['Home', 'Togo', 'Afrique', 'Monde', ...(snap.data ?? []).where((c) => !['Togo','Afrique','Monde'].contains(c))];
+                  const mainCategories = [
+                    'HOME',
+                    'TOGO',
+                    'AFRIQUE',
+                    'MONDE',
+                    'CONSEIL DU JOUR',
+                    'PRIX PRODUIT',
+                  ];
+                  final extraCats = (snap.data ?? [])
+                      .map((c) => c.toUpperCase())
+                      .where((c) => !mainCategories.contains(c));
+                  final categories = [...mainCategories, ...extraCats];
+
                   return SizedBox(
                     height: 42,
                     child: ListView.builder(
@@ -297,18 +333,18 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       itemCount: categories.length,
                       itemBuilder: (context, i) {
                         final cat = categories[i];
-                        final actif = (cat == 'Home' &&
+                        final actif = (cat == 'HOME' &&
                                 _categorieActive == null) ||
                             cat == _categorieActive;
                         return Padding(
                           padding: const EdgeInsets.only(right: 20),
                           child: GestureDetector(
                             onTap: () =>
-                                _filtrer(cat == 'Home' ? null : cat),
+                                _filtrer(cat == 'HOME' ? null : cat),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(cat.toUpperCase(),
+                                Text(cat,
                                     style: TextStyle(
                                       fontWeight: actif
                                           ? FontWeight.w700
@@ -336,7 +372,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               ),
             ),
               const SliverToBoxAdapter(child: Divider(height: 1)),
-              if (_articles.isEmpty && _chargement)
+              if (_categorieActive == 'CONSEIL DU JOUR')
+                SliverToBoxAdapter(
+                  child: ConseilDuJourSection(
+                    onReafficherOverlay: () => ConseilDuJourOverlay.afficher(context),
+                  ),
+                )
+              else if (_categorieActive == 'PRIX PRODUIT')
+                const SliverToBoxAdapter(
+                  child: PrixProduitsSection(),
+                )
+              else if (_articles.isEmpty && _chargement)
                 const SliverFillRemaining(
                     child: Center(
                         child: CircularProgressIndicator(
