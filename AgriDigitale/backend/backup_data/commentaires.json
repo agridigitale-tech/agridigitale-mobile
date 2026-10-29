@@ -1,0 +1,82 @@
+[
+  {
+    "_id": "6a5a33127a8517ae4bd6b85a",
+    "article": "6a58f1f85809ad815d66bdac",
+    "auteur": "6a57685449f5e1e4edaf27c0",
+    "nomAuteur": "moi toi",
+    "contenu": "c'est bien",
+    "createdAt": "2026-07-17T13:50:10.315Z",
+    "updatedAt": "2026-07-17T13:50:10.315Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a5a33987a8517ae4bd6b85c",
+    "article": "6a4cda0c4045aedda94428ef",
+    "auteur": "6a57685449f5e1e4edaf27c0",
+    "nomAuteur": "moi toi",
+    "contenu": "👍",
+    "createdAt": "2026-07-17T13:52:24.266Z",
+    "updatedAt": "2026-07-17T13:52:24.266Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a60d168cdbb06d463ae21d5",
+    "article": "6a5497adf2556f5a663a026a",
+    "auteur": "6a57685449f5e1e4edaf27c0",
+    "nomAuteur": "moi toi",
+    "contenu": "💯",
+    "createdAt": "2026-07-22T14:19:20.042Z",
+    "updatedAt": "2026-07-22T14:19:20.042Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a63dd114ee2c62b23887b9d",
+    "article": "6a60a68a50505ad8e605a222",
+    "auteur": "6a5a7b1434627e63e8274b8b",
+    "nomAuteur": "Admin",
+    "contenu": "c'est vrai 💯",
+    "createdAt": "2026-07-24T21:45:53.789Z",
+    "updatedAt": "2026-07-24T21:45:53.789Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a735ecb409ab7e394f8654d",
+    "article": "6a732965409ab7e394f86539",
+    "auteur": "6a5a7b1434627e63e8274b8b",
+    "nomAuteur": "Admin",
+    "contenu": "💯",
+    "createdAt": "2026-08-05T16:03:23.536Z",
+    "updatedAt": "2026-08-05T16:03:23.536Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c47b61b608e478b21d614",
+    "article": "6a7b195b5f4522b6b358a31d",
+    "auteur": "6a6241f9d30cbb9602f3e5e1",
+    "nomAuteur": "romaricDev",
+    "contenu": "nien",
+    "createdAt": "2026-08-12T10:15:18.895Z",
+    "updatedAt": "2026-08-12T10:15:18.895Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a903f4b065e2873c4abaf6a",
+    "article": "6a9026cf065e2873c4abaf4d",
+    "auteur": "6a57685449f5e1e4edaf27c0",
+    "nomAuteur": "moi toi",
+    "contenu": "bien",
+    "createdAt": "2026-08-27T13:44:43.726Z",
+    "updatedAt": "2026-08-27T13:44:43.726Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdec7cb480b2283dc2450c",
+    "article": "6aca4beb08c584449ca31462",
+    "auteur": "6acdec48b480b2283dc2450a",
+    "nomAuteur": "dk",
+    "contenu": "🥰",
+    "createdAt": "2026-10-13T08:31:56.490Z",
+    "updatedAt": "2026-10-13T08:31:56.490Z",
+    "__v": 0
+  }
+]

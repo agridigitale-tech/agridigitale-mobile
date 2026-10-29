@@ -1,0 +1,170 @@
+[
+  {
+    "_id": "6acbea8408c584449ca31510",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1791748740679-676511871.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-11T19:59:00.842Z",
+    "createdAt": "2026-10-11T19:59:00.842Z",
+    "updatedAt": "2026-10-11T19:59:00.842Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acc8570d79d5c681310a17d",
+    "zone": "Lome,TG",
+    "__v": 0,
+    "createdAt": "2026-10-12T07:00:00.002Z",
+    "dateMiseAJour": "2026-10-23T11:00:00.048Z",
+    "description": "peu nuageux",
+    "humidite": 66,
+    "icone": "02d",
+    "source": "api",
+    "temperature": 32.09,
+    "updatedAt": "2026-10-23T11:00:00.048Z",
+    "vitesseVent": 4.12
+  },
+  {
+    "_id": "6ace3c3a52196a85059713fa",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1791900730512-311859086.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-13T14:12:10.637Z",
+    "createdAt": "2026-10-13T14:12:10.638Z",
+    "updatedAt": "2026-10-13T14:12:10.638Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acf3d3dc3e409a97c9ff6f9",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1791966525262-116927169.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-14T08:28:45.475Z",
+    "createdAt": "2026-10-14T08:28:45.478Z",
+    "updatedAt": "2026-10-14T08:28:45.478Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad08558a9a7951af35ddc10",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792050520001-698749083.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-15T07:48:40.168Z",
+    "createdAt": "2026-10-15T07:48:40.170Z",
+    "updatedAt": "2026-10-15T07:48:40.170Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad093b211234b370e5bd10d",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792054194248-929199650.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-15T08:49:54.817Z",
+    "createdAt": "2026-10-15T08:49:54.819Z",
+    "updatedAt": "2026-10-15T08:49:54.819Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad0c07b6de51872fd7d5a1b",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792065659590-739257993.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-15T12:00:59.773Z",
+    "createdAt": "2026-10-15T12:00:59.776Z",
+    "updatedAt": "2026-10-15T12:00:59.776Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad25cdeead43878bd177875",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792171230507-298505114.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-16T17:20:30.724Z",
+    "createdAt": "2026-10-16T17:20:30.725Z",
+    "updatedAt": "2026-10-16T17:20:30.725Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad348953c5cb850ba6e6d3a",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792231573618-843258842.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-17T10:06:13.626Z",
+    "createdAt": "2026-10-17T10:06:13.683Z",
+    "updatedAt": "2026-10-17T10:06:13.683Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad348aa3c5cb850ba6e6d3b",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792231594036-863331484.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-17T10:06:34.251Z",
+    "createdAt": "2026-10-17T10:06:34.251Z",
+    "updatedAt": "2026-10-17T10:06:34.251Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad47aa51637ad226c178d0b",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792309924960-487589215.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-18T07:52:05.013Z",
+    "createdAt": "2026-10-18T07:52:05.016Z",
+    "updatedAt": "2026-10-18T07:52:05.016Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad68c7e9a6c5e691a097a24",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792445566035-158109014.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-19T21:32:46.326Z",
+    "createdAt": "2026-10-19T21:32:46.329Z",
+    "updatedAt": "2026-10-19T21:32:46.329Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad7212525d2d7551c1f3ef0",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792483621507-76675127.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-20T08:07:01.680Z",
+    "createdAt": "2026-10-20T08:07:01.684Z",
+    "updatedAt": "2026-10-20T08:07:01.684Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad88707e23df21e275a7059",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792575239831-235641744.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-21T09:33:59.863Z",
+    "createdAt": "2026-10-21T09:33:59.864Z",
+    "updatedAt": "2026-10-21T09:33:59.864Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ad9d1443a45697d4cfbfb5c",
+    "zone": "Météo",
+    "description": "Photo météo",
+    "icone": "/uploads/1792659780437-158572157.jpg",
+    "source": "manuel",
+    "dateMiseAJour": "2026-10-22T09:03:00.454Z",
+    "createdAt": "2026-10-22T09:03:00.456Z",
+    "updatedAt": "2026-10-22T09:03:00.456Z",
+    "__v": 0
+  }
+]

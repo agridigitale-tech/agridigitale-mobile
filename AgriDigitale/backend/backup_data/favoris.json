@@ -1,0 +1,172 @@
+[
+  {
+    "_id": "6a54c11f6eaba6e1fd630caf",
+    "libelle": "Actualité Agricole importante",
+    "utilisateur": "6a4d2bff063494be25710620",
+    "article": "6a5497aaf2556f5a663a0265",
+    "createdAt": "2026-07-13T10:42:39.789Z",
+    "updatedAt": "2026-07-13T10:42:39.789Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a54c1376eaba6e1fd630cb0",
+    "libelle": "Actualité Agricole importante",
+    "utilisateur": "6a4d2bff063494be25710620",
+    "article": "6a5497aaf2556f5a663a0265",
+    "createdAt": "2026-07-13T10:43:03.525Z",
+    "updatedAt": "2026-07-13T10:43:03.525Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a58fa745809ad815d66bdb3",
+    "utilisateur": "6a57685449f5e1e4edaf27c0",
+    "article": "6a57920e3f2d363afc82397c",
+    "createdAt": "2026-07-16T15:36:20.180Z",
+    "updatedAt": "2026-07-16T15:36:20.180Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a58fa885809ad815d66bdb4",
+    "utilisateur": "6a57685449f5e1e4edaf27c0",
+    "article": "6a58f1f85809ad815d66bdac",
+    "createdAt": "2026-07-16T15:36:40.377Z",
+    "updatedAt": "2026-07-16T15:36:40.377Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a59f661bca8665563931198",
+    "utilisateur": "6a57685449f5e1e4edaf27c0",
+    "article": "6a5497acf2556f5a663a0269",
+    "createdAt": "2026-07-17T09:31:13.093Z",
+    "updatedAt": "2026-07-17T09:31:13.093Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a5a557d7a8517ae4bd6b85d",
+    "utilisateur": "6a57685449f5e1e4edaf27c0",
+    "article": "6a5a2df67a8517ae4bd6b858",
+    "createdAt": "2026-07-17T16:17:03.240Z",
+    "updatedAt": "2026-07-17T16:17:03.240Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a5a8de834627e63e8274b8d",
+    "utilisateur": "6a57685449f5e1e4edaf27c0",
+    "article": "6a5a2ded7a8517ae4bd6b856",
+    "createdAt": "2026-07-17T20:17:44.230Z",
+    "updatedAt": "2026-07-17T20:17:44.230Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a5f540e034cf5160bcd8efc",
+    "utilisateur": "6a5a7b1434627e63e8274b8b",
+    "article": "6a5e3fed4bd5e108c1574091",
+    "createdAt": "2026-07-21T11:12:14.977Z",
+    "updatedAt": "2026-07-21T11:12:14.977Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6a3f6df3c3ff45f824d87b",
+    "utilisateur": "6a6a3f62f3c3ff45f824d87a",
+    "article": "6a68df14d62dd20a507c9ea0",
+    "createdAt": "2026-07-29T17:59:09.259Z",
+    "updatedAt": "2026-07-29T17:59:09.259Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6f1a51c5fd748f35019eb8",
+    "utilisateur": "6a5a7b1434627e63e8274b8b",
+    "article": "6a6e261dc5fd748f35019eb7",
+    "createdAt": "2026-08-02T10:22:09.802Z",
+    "updatedAt": "2026-08-02T10:22:09.802Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a73997e091734a81e31404f",
+    "utilisateur": "6a5a7b1434627e63e8274b8b",
+    "article": "6a71fe7ca9f891384e0c40d3",
+    "createdAt": "2026-08-05T20:13:50.318Z",
+    "updatedAt": "2026-08-05T20:13:50.318Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a762bde5f4522b6b358a267",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6a75e874f245f9b543774e54",
+    "createdAt": "2026-08-07T19:02:54.368Z",
+    "updatedAt": "2026-08-07T19:02:54.368Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c47bc1b608e478b21d615",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6a7b195b5f4522b6b358a31d",
+    "createdAt": "2026-08-12T10:15:24.612Z",
+    "updatedAt": "2026-08-12T10:15:24.612Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a85638ec7d13e6d630f82ab",
+    "utilisateur": "6a5a7b1434627e63e8274b8b",
+    "article": "6a69e445f3c3ff45f824d875",
+    "createdAt": "2026-08-19T08:04:30.760Z",
+    "updatedAt": "2026-08-19T08:04:30.760Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a90cf197b58a7576555ef10",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6a8c20c3065e2873c4abaded",
+    "createdAt": "2026-08-27T23:58:17.193Z",
+    "updatedAt": "2026-08-27T23:58:17.193Z",
+    "__v": 0
+  },
+  {
+    "_id": "6abad4242c39cc9b53053841",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6ab4ed9b4254fdc6401b5f7e",
+    "createdAt": "2026-09-28T20:55:00.379Z",
+    "updatedAt": "2026-09-28T20:55:00.379Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ac652a408c584449ca3138f",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6ac63b4b08c584449ca31326",
+    "createdAt": "2026-10-07T14:09:40.466Z",
+    "updatedAt": "2026-10-07T14:09:40.466Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdec58b480b2283dc2450b",
+    "utilisateur": "6acdec48b480b2283dc2450a",
+    "article": "6aca4beb08c584449ca31462",
+    "createdAt": "2026-10-13T08:31:20.253Z",
+    "updatedAt": "2026-10-13T08:31:20.253Z",
+    "__v": 0
+  },
+  {
+    "_id": "6acdec8fb480b2283dc2450d",
+    "utilisateur": "6acdec48b480b2283dc2450a",
+    "article": "6aca4beb08c584449ca31462",
+    "createdAt": "2026-10-13T08:32:15.067Z",
+    "updatedAt": "2026-10-13T08:32:15.067Z",
+    "__v": 0
+  },
+  {
+    "_id": "6adb1a4b137d4d8a9c883fdc",
+    "utilisateur": "6a6241f9d30cbb9602f3e5e1",
+    "article": "6ada7dbf904400954dd645bc",
+    "createdAt": "2026-10-23T08:26:51.594Z",
+    "updatedAt": "2026-10-23T08:26:51.594Z",
+    "__v": 0
+  },
+  {
+    "_id": "6adb3526137d4d8a9c883fdd",
+    "utilisateur": "6ac3e98b08c584449ca312bc",
+    "article": "6ada7dbf904400954dd645bc",
+    "createdAt": "2026-10-23T10:21:26.372Z",
+    "updatedAt": "2026-10-23T10:21:26.372Z",
+    "__v": 0
+  }
+]
