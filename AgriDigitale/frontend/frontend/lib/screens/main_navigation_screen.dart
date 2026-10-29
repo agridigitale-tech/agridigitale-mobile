@@ -7,7 +7,7 @@ import 'home/home_screen.dart';
 import 'weather/weather_screen.dart';
 import 'agdtv/agdtv_screen.dart';
 import 'favoris/favoris_screen.dart';
-import 'request/request_screen.dart';
+import 'quiz/quiz_niveaux_screen.dart';
 import 'settings/settings_screen.dart';
 import 'admin/admin_screen.dart';
 import '../widgets/banner_carousel.dart';
@@ -39,7 +39,7 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     Icons.cloud,
     Icons.tv,
     Icons.bookmark_border,
-    Icons.chat_bubble_outline,
+    Icons.sports_esports_outlined,
     Icons.settings,
   ];
 
@@ -48,7 +48,7 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     WeatherScreen(),
     AgdtvScreen(),
     FavorisScreen(),
-    RequestScreen(),
+    QuizNiveauxScreen(),
     SettingsScreen(),
   ];
 
@@ -61,7 +61,7 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
       l.t('weather'),
       l.t('agdtv'),
       l.t('favorites'),
-      l.t('request'),
+      l.t('games'),
       l.t('settings'),
     ];
 

@@ -103,22 +103,22 @@ class _CategoriesCarouselBarState extends State<CategoriesCarouselBar> {
     super.dispose();
   }
 
-  String _recupererIcone(String cat) {
+  IconData _recupererIcone(String cat) {
     switch (cat.toUpperCase()) {
       case 'HOME':
-        return '🏠';
+        return Icons.home_rounded;
       case 'TOGO':
-        return '🇹🇬';
+        return Icons.flag_rounded;
       case 'AFRIQUE':
-        return '🌍';
+        return Icons.public;
       case 'MONDE':
-        return '🌐';
+        return Icons.language_rounded;
       case 'CONSEIL DU JOUR':
-        return '☀️';
+        return Icons.wb_sunny_rounded;
       case 'PRIX PRODUIT':
-        return '🌾';
+        return Icons.storefront_rounded;
       default:
-        return '📰';
+        return Icons.article_outlined;
     }
   }
 
@@ -194,7 +194,13 @@ class _CategoriesCarouselBarState extends State<CategoriesCarouselBar> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(icone, style: const TextStyle(fontSize: 13)),
+                    Icon(
+                      icone,
+                      size: 15,
+                      color: actif
+                          ? Colors.white
+                          : (isDark ? AppColors.vertClair : AppColors.vertPrimaire),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       cat.toUpperCase(),

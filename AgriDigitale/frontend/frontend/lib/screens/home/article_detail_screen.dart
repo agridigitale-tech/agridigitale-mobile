@@ -28,6 +28,7 @@ import '../../providers/language_provider.dart';
 import '../../widgets/auth_gate.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
+import '../request/request_screen.dart';
 
 // ── Types et modèles de blocs pour le rendu direct et le suivi mot par mot ──
 enum TypeBlocArticle {
@@ -1982,6 +1983,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -2072,6 +2074,60 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               _future.then((a) => _partagerArticle(a));
             },
           ),
+          // Bouton Demande (En haut à droite)
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+            child: InkWell(
+              onTap: () {
+                _future.then((a) {
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RequestScreen(sujetPredefini: a.titre),
+                    ),
+                  );
+                }).catchError((_) {
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RequestScreen()),
+                  );
+                });
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.edit_note_rounded,
+                      size: 17,
+                      color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Demande',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: FutureBuilder<Article>(
