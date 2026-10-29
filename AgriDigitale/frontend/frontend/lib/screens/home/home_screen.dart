@@ -9,6 +9,7 @@ import '../../services/article_service.dart';
 import '../../models/article.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/banner_carousel.dart';
+import '../../widgets/boosted_banner_overlay.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
 import '../../core/api_client.dart';
@@ -39,6 +40,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   int _notifCount = 0;
   Article? _articleUne;
 
+  // Bannière boostée pour l'ouverture
+  static bool _boosteeAfficheeSession = false;
+  Map<String, dynamic>? _banniereBoostee;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _chargerArticleUne();
     _chargerPlus();
     _chargerNotifs();
+    _verifierBanniereBoostee();
     // Pagination infinie : charge plus d'articles quand on approche du bas
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -126,6 +132,42 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     });
     BannerCarousel.actualiser();
     await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
+  }
+
+  // Vérifie si une bannière boostée est active pour l'afficher à l'ouverture
+  Future<void> _verifierBanniereBoostee() async {
+    if (_boosteeAfficheeSession) return;
+    try {
+      final rep = await _apiClient.dio.get('/bannieres');
+      final rawList = rep.data is List ? rep.data as List : [];
+      final baseServer = ApiClient.baseUrl.replaceAll('/api', '');
+
+      final boostee = rawList.firstWhere(
+        (b) =>
+            b != null &&
+            (b['boostee'] == true || b['boostee'] == 'true') &&
+            b['actif'] != false &&
+            b['image'] != null &&
+            (b['image'] as String).isNotEmpty,
+        orElse: () => null,
+      );
+
+      if (boostee != null && mounted) {
+        final img = boostee['image'] as String;
+        final imageUrl = img.startsWith('http') ? img : '$baseServer$img';
+        setState(() {
+          _boosteeAfficheeSession = true;
+          _banniereBoostee = {
+            '_id': boostee['_id'],
+            'image': imageUrl,
+            'lien': boostee['lien'],
+            'titre': boostee['titre'],
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('[HomeScreen] Erreur chargement bannière boostée: $e');
+    }
   }
 
   // Navigue vers l'onglet favoris (index 3) via le parent MainNavigationScreen
@@ -209,8 +251,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           const SizedBox(width: 4),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _actualiser,
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _actualiser,
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
@@ -447,8 +491,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ],
         ),
       ),
-    );
-  }
+      if (_banniereBoostee != null)
+        BoostedBannerOverlay(
+          banniere: _banniereBoostee!,
+          onDismissed: () {
+            if (mounted) {
+              setState(() => _banniereBoostee = null);
+            }
+          },
+        ),
+    ],
+  ),
+);
+}
 
   Widget _etatMessage(IconData icone, String titre, String sousTitre) =>
       Padding(

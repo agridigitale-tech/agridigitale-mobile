@@ -7,6 +7,7 @@ import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
 import 'admin_widgets.dart';
 import '../../widgets/banner_carousel.dart';
+import '../../widgets/boosted_banner_overlay.dart';
 
 // Retourne le statut d'une bannière selon ses dates et son état actif
 _StatutBanniere _statut(Map<String, dynamic> b) {
@@ -82,6 +83,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     final List<File> images = [];
     DateTime dateDebut = DateTime.now();
     DateTime dateFin = DateTime.now().add(const Duration(days: 30));
+    bool boostee = false;
     bool envoi = false;
     String? erreurDate;
     final fmt = DateFormat('dd/MM/yyyy');
@@ -227,6 +229,20 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                   },
                 ),
 
+                // ── Option Booster ──
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: boostee,
+                  onChanged: (v) => setS(() => boostee = v),
+                  title: const Text('Booster cette bannière',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'S\'affiche au centre en carré arrondi avec animation à l\'ouverture',
+                      style: TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+                  secondary: Icon(Icons.rocket_launch,
+                      color: boostee ? Colors.amber.shade700 : AppColors.grisIcone),
+                ),
+
                 // Message d'erreur date
                 if (erreurDate != null)
                   Padding(
@@ -267,6 +283,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                     cheminFichier: img.path,
                                     dateDebut: dateDebut,
                                     dateFin: dateFin,
+                                    boostee: boostee,
                                   );
                                   succes++;
                                   ordre++;
@@ -311,6 +328,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     final ordreCtrl = TextEditingController(text: '${b['ordre'] ?? 0}');
     DateTime dateDebut = b['dateDebut'] != null ? DateTime.parse(b['dateDebut']) : DateTime.now();
     DateTime dateFin = b['dateFin'] != null ? DateTime.parse(b['dateFin']) : DateTime.now().add(const Duration(days: 30));
+    bool boostee = b['boostee'] == true;
     bool envoi = false;
     String? erreurDate;
     final fmt = DateFormat('dd/MM/yyyy');
@@ -381,6 +399,20 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                   },
                 ),
 
+                // ── Option Booster ──
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: boostee,
+                  onChanged: (v) => setS(() => boostee = v),
+                  title: const Text('Booster cette bannière',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'S\'affiche au centre en carré arrondi avec animation à l\'ouverture',
+                      style: TextStyle(fontSize: 11, color: AppColors.grisTexte)),
+                  secondary: Icon(Icons.rocket_launch,
+                      color: boostee ? Colors.amber.shade700 : AppColors.grisIcone),
+                ),
+
                 if (erreurDate != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -412,6 +444,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                             dateFin: dateFin,
                             ordre: int.tryParse(ordreCtrl.text) ?? 0,
                             lien: lienCtrl.text.trim(),
+                            boostee: boostee,
                           );
                           if (ctx.mounted) Navigator.pop(ctx);
                           BannerCarousel.actualiser();
@@ -477,6 +510,39 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     }
   }
 
+  Future<void> _toggleBooster(Map<String, dynamic> b) async {
+    final actuel = b['boostee'] == true;
+    final nouveau = !actuel;
+    try {
+      await widget.service.toggleBoosterBanniere(b['_id'], boostee: nouveau);
+      BannerCarousel.actualiser();
+      await _charger();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(nouveau
+                ? 'Bannière boostée 🚀 ! Elle s\'affichera au centre de l\'accueil pour toute personne qui ouvre l\'application.'
+                : 'Boost désactivé pour cette bannière.'),
+            backgroundColor: nouveau ? Colors.amber.shade800 : Colors.grey.shade700,
+          ),
+        );
+        if (nouveau) {
+          BoostedBannerOverlay.afficherApercu(context, {
+            'image': _urlImage(b['image'] ?? ''),
+            'lien': b['lien'],
+            'titre': b['titre'],
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('dd/MM/yy');
@@ -509,6 +575,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                 final debut = b['dateDebut'] != null ? fmt.format(DateTime.parse(b['dateDebut'])) : '—';
                 final fin = b['dateFin'] != null ? fmt.format(DateTime.parse(b['dateFin'])) : '—';
                 final st = _statut(b);
+                final estBoostee = b['boostee'] == true;
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -549,6 +616,26 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                 child: Text(st.label,
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: st.couleur)),
                               ),
+                              if (estBoostee) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade100,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.amber.shade700),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.rocket_launch, size: 10, color: Colors.amber.shade900),
+                                      const SizedBox(width: 3),
+                                      Text('BOOSTÉ',
+                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber.shade900)),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -558,6 +645,70 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                             Text(b['lien'],
                                 style: const TextStyle(fontSize: 11, color: AppColors.grisTexte),
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              // Bouton Booster (on/off)
+                              InkWell(
+                                onTap: () => _toggleBooster(b),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: estBoostee ? Colors.amber.shade600 : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: estBoostee ? Colors.amber.shade800 : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        estBoostee ? Icons.rocket_launch : Icons.rocket_launch_outlined,
+                                        size: 13,
+                                        color: estBoostee ? Colors.white : Colors.grey.shade700,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        estBoostee ? 'Désactiver boost' : 'Booster',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: estBoostee ? Colors.white : Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Bouton Aperçu animation
+                              InkWell(
+                                onTap: () => BoostedBannerOverlay.afficherApercu(context, {
+                                  'image': _urlImage(b['image'] ?? ''),
+                                  'lien': b['lien'],
+                                  'titre': b['titre'],
+                                }),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.vertClair.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_circle_outline, size: 13, color: AppColors.vertPrimaire),
+                                      SizedBox(width: 3),
+                                      Text('Aperçu', style: TextStyle(fontSize: 11, color: AppColors.vertPrimaire, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

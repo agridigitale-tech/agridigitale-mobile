@@ -68,6 +68,7 @@ class AdminService {
     String? cheminFichier,
     DateTime? dateDebut,
     DateTime? dateFin,
+    bool boostee = false,
   }) async {
     final debut = (dateDebut ?? DateTime.now()).toIso8601String();
     final fin = (dateFin ?? DateTime.now().add(const Duration(days: 30))).toIso8601String();
@@ -76,6 +77,7 @@ class AdminService {
         'lien': lien,
         'ordre': ordre.toString(),
         'actif': 'true',
+        'boostee': boostee ? 'true' : 'false',
         'dateDebut': debut,
         'dateFin': fin,
         'image': await dio_pkg.MultipartFile.fromFile(
@@ -90,6 +92,7 @@ class AdminService {
         'lien': lien,
         'ordre': ordre,
         'actif': true,
+        'boostee': boostee,
         'dateDebut': debut,
         'dateFin': fin,
       });
@@ -106,13 +109,26 @@ class AdminService {
     required DateTime dateFin,
     required int ordre,
     required String lien,
+    bool? boostee,
   }) async {
-    await _dio.put('/bannieres/$id', data: {
+    final Map<String, dynamic> data = {
       'dateDebut': dateDebut.toIso8601String(),
       'dateFin': dateFin.toIso8601String(),
       'ordre': ordre,
       'lien': lien,
-    });
+    };
+    if (boostee != null) {
+      data['boostee'] = boostee;
+    }
+    await _dio.put('/bannieres/$id', data: data);
+  }
+
+  Future<void> toggleBoosterBanniere(String id, {bool? boostee}) async {
+    final Map<String, dynamic> data = {};
+    if (boostee != null) {
+      data['boostee'] = boostee;
+    }
+    await _dio.patch('/bannieres/$id/booster', data: data);
   }
 
   Future<Map<String, dynamic>> envoyerNotification({

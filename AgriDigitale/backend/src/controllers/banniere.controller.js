@@ -46,10 +46,15 @@ exports.creerBanniere = async (req, res, next) => {
     if (dateFin <= dateDebut) {
       return res.status(400).json({ message: 'La date de fin doit être après la date de début' });
     }
+    const isBoostee = req.body.boostee === 'true' || req.body.boostee === true;
+    if (isBoostee) {
+      await Banniere.updateMany({}, { $set: { boostee: false } });
+    }
     const banniere = await Banniere.create({
       ...req.body,
       image: imageUrl,
       actif: req.body.actif === 'true' || req.body.actif === true,
+      boostee: isBoostee,
       ordre: req.body.ordre ? Number(req.body.ordre) : 0,
       dateDebut,
       dateFin,
@@ -68,7 +73,7 @@ exports.modifierBanniere = async (req, res, next) => {
       return res.status(400).json({ message: 'ID de bannière invalide' });
     }
 
-    const { dateDebut, dateFin, ordre, lien, actif } = req.body;
+    const { dateDebut, dateFin, ordre, lien, actif, boostee } = req.body;
     const debut = dateDebut ? new Date(dateDebut) : undefined;
     const fin = dateFin ? new Date(dateFin) : undefined;
 
@@ -82,10 +87,45 @@ exports.modifierBanniere = async (req, res, next) => {
     if (ordre !== undefined) update.ordre = Number(ordre);
     if (lien !== undefined) update.lien = lien;
     if (actif !== undefined) update.actif = actif === 'true' || actif === true;
+    if (boostee !== undefined) {
+      const isBoostee = boostee === 'true' || boostee === true;
+      update.boostee = isBoostee;
+      if (isBoostee) {
+        await Banniere.updateMany({ _id: { $ne: req.params.id } }, { $set: { boostee: false } });
+      }
+    }
 
     console.log('[Banniere] Modification ID:', req.params.id, 'Update:', update);
     const banniere = await Banniere.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!banniere) return res.status(404).json({ message: 'Bannière introuvable' });
+    res.json(banniere);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Admin : activer / désactiver l'option booster d'une bannière
+exports.toggleBooster = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'ID de bannière invalide' });
+    }
+    const banniere = await Banniere.findById(req.params.id);
+    if (!banniere) return res.status(404).json({ message: 'Bannière introuvable' });
+
+    const nouvelEtat = req.body.boostee !== undefined
+      ? (req.body.boostee === 'true' || req.body.boostee === true)
+      : !banniere.boostee;
+
+    if (nouvelEtat) {
+      // Une seule bannière boostée active : désactive les autres
+      await Banniere.updateMany({ _id: { $ne: req.params.id } }, { $set: { boostee: false } });
+    }
+    banniere.boostee = nouvelEtat;
+    await banniere.save();
+
+    console.log(`[Banniere] Toggle booster ID: ${req.params.id} -> ${nouvelEtat}`);
     res.json(banniere);
   } catch (err) {
     next(err);

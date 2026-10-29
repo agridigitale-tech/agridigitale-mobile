@@ -25,6 +25,10 @@ const banniereSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
 },
+  boostee: {
+    type: Boolean,
+    default: false
+},
   type: { 
     type: String, 
     enum: ['pub', 'promo', 'banniere'], 
