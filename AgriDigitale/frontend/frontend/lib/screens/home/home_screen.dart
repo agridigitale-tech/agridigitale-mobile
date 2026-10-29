@@ -10,13 +10,11 @@ import '../../models/article.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/banner_carousel.dart';
 import '../../widgets/boosted_banner_overlay.dart';
-import '../../widgets/conseil_du_jour_card.dart';
+import '../../widgets/categories_carousel_bar.dart';
 import '../../widgets/conseil_du_jour_overlay.dart';
 import '../../widgets/defi_app_bar_badge.dart';
 import '../../widgets/conseil_du_jour_section.dart';
 import '../../widgets/prix_produits_section.dart';
-import '../../widgets/quiz_home_card.dart';
-import '../../widgets/cours_marches_widget.dart';
 import '../../widgets/preferences_agricoles_dialog.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
@@ -325,48 +323,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       .where((c) => !mainCategories.contains(c));
                   final categories = [...mainCategories, ...extraCats];
 
-                  return SizedBox(
-                    height: 42,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: categories.length,
-                      itemBuilder: (context, i) {
-                        final cat = categories[i];
-                        final actif = (cat == 'HOME' &&
-                                _categorieActive == null) ||
-                            cat == _categorieActive;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 20),
-                          child: GestureDetector(
-                            onTap: () =>
-                                _filtrer(cat == 'HOME' ? null : cat),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(cat,
-                                    style: TextStyle(
-                                      fontWeight: actif
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: actif
-                                          ? (isDark ? AppColors.vertClair : AppColors.vertFonce)
-                                          : (isDark ? AppColors.texteSombreMoyen : AppColors.grisTexte),
-                                      fontSize: 13.5,
-                                    )),
-                                const SizedBox(height: 4),
-                                Container(
-                                    height: 2,
-                                    width: 28,
-                                    color: actif
-                                        ? AppColors.vertPrimaire
-                                        : Colors.transparent),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  return CategoriesCarouselBar(
+                    categories: categories,
+                    categorieActive: _categorieActive,
+                    onSelectCategorie: (cat) => _filtrer(cat),
                   );
                 },
               ),
@@ -392,10 +352,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     child: _etatMessage(Icons.article_outlined,
                         l.t('no_articles'), l.t('no_articles_sub')))
               else ...[
-                // Conseil du jour (Le rituel matinal 30s audio / texte)
-                if (_categorieActive == null)
-                  const SliverToBoxAdapter(child: ConseilDuJourCard()),
-
                 // Article à la une
                 if (_articleUne != null && _categorieActive == null)
                   SliverToBoxAdapter(
@@ -453,10 +409,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     ),
                   ),
 
-                // Défi Agricole (Quiz 1 min snack + Niveaux + Dopamine)
-                if (_categorieActive == null)
-                  const SliverToBoxAdapter(child: QuizHomeCard()),
-
                 // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
                 if (_articles.length > 1 && _categorieActive == null)
                   SliverToBoxAdapter(
@@ -505,10 +457,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       ],
                     ),
                   ),
-
-                // La Bourse Agricole (Cours des marchés vivriers au Togo)
-                if (_categorieActive == null)
-                  const SliverToBoxAdapter(child: CoursMarchesWidget()),
 
                 // En-tête "Dernières actualités"
                 SliverToBoxAdapter(
