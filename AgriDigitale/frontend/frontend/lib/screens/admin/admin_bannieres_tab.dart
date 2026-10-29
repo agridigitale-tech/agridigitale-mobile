@@ -712,11 +712,13 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text('Ordre : ${b['ordre'] ?? 0}',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              const SizedBox(width: 8),
                               // Badge statut visuel
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -728,8 +730,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                 child: Text(st.label,
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: st.couleur)),
                               ),
-                              if (estBoostee) ...[
-                                const SizedBox(width: 6),
+                              if (estBoostee)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -747,7 +748,6 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                     ],
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -758,7 +758,10 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                 style: const TextStyle(fontSize: 11, color: AppColors.grisTexte),
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 6),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               // Bouton Booster (on/off)
                               InkWell(
@@ -783,7 +786,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        estBoostee ? 'Désactiver boost' : 'Booster',
+                                        estBoostee ? 'Boosté' : 'Booster',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
@@ -794,7 +797,6 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               // Bouton Aperçu animation
                               InkWell(
                                 onTap: () => BoostedBannerOverlay.afficherApercu(context, {
@@ -824,15 +826,27 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                         ],
                       ),
                     ),
-                    // Bouton modifier
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: AppColors.vertPrimaire),
-                      onPressed: () => _dialogModifier(b),
-                    ),
-                    // Bouton supprimer
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _supprimer(b['_id']),
+                    const SizedBox(width: 4),
+                    // Boutons d'actions compacts
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.edit_outlined, color: AppColors.vertPrimaire, size: 20),
+                          tooltip: 'Modifier',
+                          onPressed: () => _dialogModifier(b),
+                        ),
+                        const SizedBox(height: 6),
+                        IconButton(
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          tooltip: 'Supprimer',
+                          onPressed: () => _supprimer(b['_id']),
+                        ),
+                      ],
                     ),
                   ]),
                 );
