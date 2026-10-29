@@ -144,8 +144,9 @@ class _BoostedBannerOverlayState extends State<BoostedBannerOverlay>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    // Dimension carré arrondi : environ 82% de la largeur d'écran, max 330px
-    final cardSize = (size.width * 0.82).clamp(260.0, 330.0);
+    // Format de la bannière : affichée telle qu'elle est (sans rognage ni déformation)
+    final maxCardWidth = (size.width * 0.92).clamp(280.0, 450.0);
+    final maxCardHeight = (size.height * 0.65).clamp(200.0, 520.0);
     final imageUrl = widget.banniere['image']?.toString() ?? '';
 
     return Positioned.fill(
@@ -154,7 +155,7 @@ class _BoostedBannerOverlayState extends State<BoostedBannerOverlay>
         child: AnimatedBuilder(
           animation: Listenable.merge([_entreeCtrl, _departCtrl]),
           builder: (context, child) {
-            final opaciteFond = (_fadeAnimation.value * _departFadeAnimation.value * 0.45)
+            final opaciteFond = (_fadeAnimation.value * _departFadeAnimation.value * 0.50)
                 .clamp(0.0, 1.0);
 
             return Stack(
@@ -186,109 +187,127 @@ class _BoostedBannerOverlayState extends State<BoostedBannerOverlay>
               ],
             );
           },
-          child: Container(
-            width: cardSize,
-            height: cardSize,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 28,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxCardWidth,
+              maxHeight: maxCardHeight,
             ),
-            child: Stack(
-              children: [
-                // Carte carrée arrondie cliquable
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.40),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Carte bannière affichée dans son format original sans coupure
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
                     child: GestureDetector(
                       onTap: _ouvrirLien,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (imageUrl.isNotEmpty)
-                            CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.vertPrimaire,
-                                    strokeWidth: 2,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: imageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                fit: BoxFit.contain, // Affiche toute la bannière telle qu'elle est
+                                placeholder: (context, url) => Container(
+                                  height: 160,
+                                  color: Colors.grey[100],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.vertPrimaire,
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                  size: 48,
-                                  color: AppColors.grisIcone,
+                                errorWidget: (context, url, error) => Container(
+                                  height: 160,
+                                  color: Colors.grey[200],
+                                  padding: const EdgeInsets.all(16),
+                                  child: const Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.campaign,
+                                          size: 44,
+                                          color: AppColors.vertPrimaire,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Bannière AgriDigitale',
+                                          style: TextStyle(
+                                            color: AppColors.grisTexte,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                height: 160,
+                                color: AppColors.vertPrimaire,
+                                child: const Center(
+                                  child: Icon(Icons.campaign, size: 54, color: Colors.white),
                                 ),
                               ),
-                            )
-                          else
-                            Container(
-                              color: AppColors.vertPrimaire,
-                              child: const Center(
-                                child: Icon(Icons.campaign, size: 54, color: Colors.white),
-                              ),
-                            ),
-
-                          // Légère bordure blanche interne pour un rendu net et élégant
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.4),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
-                ),
 
-                // Bouton X au coin supérieur droit
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: GestureDetector(
-                    onTap: _fermer,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          width: 1.2,
+                  // Bouton X au coin supérieur droit (légèrement décalé pour ne rien masquer)
+                  Positioned(
+                    top: -12,
+                    right: -12,
+                    child: GestureDetector(
+                      onTap: _fermer,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.85),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 18,
-                        color: Colors.white,
+                        child: const Icon(
+                          Icons.close,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -70,6 +70,47 @@ app.use('/api/bannieres', require('./routes/banniere.routes'));
 app.use('/api/articles/:articleId/commentaires', require('./routes/commentaire.routes'));
 app.use('/uploads', express.static('public/uploads'));
 
+// Fallback de persistance : si un fichier n'est pas sur disque (redémarrage Render),
+// le récupérer depuis MongoDB où il a été sauvegardé en base64
+app.get('/uploads/:fichier', async (req, res, next) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const nomFichier = req.params.fichier;
+    const cheminFichier = path.join('public', 'uploads', nomFichier);
+
+    if (fs.existsSync(cheminFichier)) {
+      return res.sendFile(path.resolve(cheminFichier));
+    }
+
+    const Banniere = require('./models/Banniere');
+    const b = await Banniere.findOne({
+      $or: [
+        { image: `/uploads/${nomFichier}` },
+        { image: nomFichier },
+      ],
+      donneesImage: { $ne: null },
+    });
+
+    if (b && b.donneesImage) {
+      const buffer = Buffer.from(b.donneesImage, 'base64');
+      try {
+        if (!fs.existsSync(path.join('public', 'uploads'))) {
+          fs.mkdirSync(path.join('public', 'uploads'), { recursive: true });
+        }
+        fs.writeFileSync(cheminFichier, buffer);
+      } catch (_) {}
+      res.set('Content-Type', b.typeMime || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(buffer);
+    }
+
+    res.status(404).send('Image introuvable');
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use(errorHandler); // toujours en dernier
 
 module.exports = app;

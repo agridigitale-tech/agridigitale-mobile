@@ -177,8 +177,52 @@ class DBHelper {
     final now = DateTime.now().millisecondsSinceEpoch;
     final batch = db.batch();
     for (final a in articles) {
-      batch.insert('articles_cache', {...a, 'cachedAt': now},
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      final contenuNouveau = (a['contenu'] as String?)?.trim() ?? '';
+      if (contenuNouveau.isEmpty) {
+        // Préserver le contenu complet existant en cache si la liste ne contient que le résumé
+        batch.rawInsert('''
+          INSERT INTO articles_cache (
+            id, guid, titre, resume, contenu, image, legendeImage, auteur,
+            lienSource, source, categorie, datePublication, vues, cachedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            guid=excluded.guid,
+            titre=excluded.titre,
+            resume=excluded.resume,
+            image=excluded.image,
+            legendeImage=excluded.legendeImage,
+            auteur=excluded.auteur,
+            lienSource=excluded.lienSource,
+            source=excluded.source,
+            categorie=excluded.categorie,
+            datePublication=excluded.datePublication,
+            vues=excluded.vues,
+            cachedAt=excluded.cachedAt,
+            contenu = CASE 
+              WHEN articles_cache.contenu IS NOT NULL AND LENGTH(TRIM(articles_cache.contenu)) > 0 
+              THEN articles_cache.contenu 
+              ELSE excluded.contenu 
+            END
+        ''', [
+          a['id'],
+          a['guid'],
+          a['titre'],
+          a['resume'],
+          a['contenu'] ?? '',
+          a['image'],
+          a['legendeImage'],
+          a['auteur'],
+          a['lienSource'],
+          a['source'],
+          a['categorie'],
+          a['datePublication'],
+          a['vues'] ?? 0,
+          now,
+        ]);
+      } else {
+        batch.insert('articles_cache', {...a, 'cachedAt': now},
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
     }
     await batch.commit(noResult: true);
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/admin_service.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
@@ -74,7 +75,82 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     if (img.isEmpty) return '';
     if (img.startsWith('http')) return img;
     final base = ApiClient.baseUrl.replaceAll('/api', '');
+    if (!img.startsWith('/')) return '$base/$img';
     return '$base$img';
+  }
+
+  // Affiche la bannière en plein format (telle qu'elle est, sans rognage)
+  void _afficherBannierePleinFormat(Map<String, dynamic> b) {
+    final url = _urlImage(b['image'] ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: url.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.contain, // Format original sans coupure
+                        placeholder: (_, __) => const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(
+                            child: CircularProgressIndicator(color: AppColors.vertPrimaire),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Image non disponible sur le serveur', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('Aucune image disponible'),
+                      ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _dialogAjouter() {
@@ -584,15 +660,51 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
                   ),
                   child: Row(children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        _urlImage(b['image'] ?? ''),
-                        width: 80, height: 50, fit: BoxFit.cover,
-                        errorBuilder: (ctx, e, s) => Container(
-                          width: 80, height: 50, color: AppColors.grisPastille,
-                          child: const Icon(Icons.broken_image, color: AppColors.grisIcone),
-                        ),
+                    GestureDetector(
+                      onTap: () => _afficherBannierePleinFormat(b),
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: _urlImage(b['image'] ?? ''),
+                              width: 80,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              placeholder: (ctx, url) => Container(
+                                width: 80,
+                                height: 50,
+                                color: AppColors.grisPastille,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.vertPrimaire,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (ctx, e, s) => Container(
+                                width: 80,
+                                height: 50,
+                                color: AppColors.grisPastille,
+                                child: const Icon(Icons.broken_image, color: AppColors.grisIcone),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.all(3),
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(Icons.fullscreen, color: Colors.white, size: 12),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 12),

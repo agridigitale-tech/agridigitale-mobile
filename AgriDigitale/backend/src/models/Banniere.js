@@ -44,6 +44,14 @@ const banniereSchema = new mongoose.Schema({
     required: true,
     default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
   },
+  donneesImage: {
+    type: String, // Base64 de l'image pour persistance cloud (survit aux redémarrages Render)
+    default: null,
+  },
+  typeMime: {
+    type: String,
+    default: null,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Banniere', banniereSchema);

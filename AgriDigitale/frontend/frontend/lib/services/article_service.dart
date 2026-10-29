@@ -97,7 +97,25 @@ class ArticleService {
     try {
       final rep = await _dio.get('/articles/$id');
       final raw = Article.fromJson(rep.data as Map<String, dynamic>);
-      final article = raw.copyWith(image: _normaliserImage(raw.image));
+      var article = raw.copyWith(image: _normaliserImage(raw.image));
+
+      // Si le contenu est anormalement court (< 100 car.) ou vide, secours direct sur le flux RSS
+      final texteContenu = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+      if (texteContenu.length < 100) {
+        try {
+          final rssArticles = await recupererDepuisRss();
+          final trouve = rssArticles.where((a) =>
+              a.id == id ||
+              a.guid == id ||
+              (a.lienSource.isNotEmpty && article.lienSource.isNotEmpty && a.lienSource == article.lienSource) ||
+              (a.titre.isNotEmpty && article.titre.isNotEmpty && a.titre.toLowerCase() == article.titre.toLowerCase())
+          ).firstOrNull;
+          if (trouve != null && trouve.contenu.trim().isNotEmpty) {
+            article = article.copyWith(contenu: trouve.contenu);
+          }
+        } catch (_) {}
+      }
+
       if (!kIsWeb) {
         try {
           await _db.sauvegarderArticleDetail(article.toMap());
@@ -110,9 +128,12 @@ class ArticleService {
       debugPrint('[ArticleService] detail hors ligne: ${e.message}');
       if (!kIsWeb) {
         final cached = await _db.getArticleDetail(id);
-        if (cached != null) return Article.fromMap(cached);
+        if (cached != null) {
+          final a = Article.fromMap(cached);
+          if (a.contenu.trim().isNotEmpty) return a;
+        }
       }
-      // Secours RSS si non trouvé en cache
+      // Secours RSS si non trouvé ou contenu vide en cache
       final rssArticles = await recupererDepuisRss();
       final trouve = rssArticles.where((a) => a.id == id || a.guid == id || a.lienSource.contains(id)).firstOrNull;
       if (trouve != null) return trouve;

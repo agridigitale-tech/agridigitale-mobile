@@ -32,8 +32,18 @@ exports.listerToutesBannieres = async (req, res, next) => {
 exports.creerBanniere = async (req, res, next) => {
   try {
     let imageUrl;
+    let donneesImage = null;
+    let typeMime = null;
     if (req.file) {
       imageUrl = `/uploads/${req.file.filename}`;
+      try {
+        const fs = require('fs');
+        const buffer = fs.readFileSync(req.file.path);
+        donneesImage = buffer.toString('base64');
+        typeMime = req.file.mimetype;
+      } catch (errFs) {
+        console.warn('[Banniere] Impossible de lire le fichier pour persistence:', errFs.message);
+      }
     } else if (req.body.image) {
       imageUrl = req.body.image;
     } else {
@@ -53,6 +63,8 @@ exports.creerBanniere = async (req, res, next) => {
     const banniere = await Banniere.create({
       ...req.body,
       image: imageUrl,
+      donneesImage,
+      typeMime,
       actif: req.body.actif === 'true' || req.body.actif === true,
       boostee: isBoostee,
       ordre: req.body.ordre ? Number(req.body.ordre) : 0,
