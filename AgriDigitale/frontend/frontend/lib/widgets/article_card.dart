@@ -111,10 +111,6 @@ class ArticleCardVerticale extends StatelessWidget {
                         child: Text(_date(article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 10, color: Colors.grey[400])),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
-                      const SizedBox(width: 3),
-                      Text('${article.vues}', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
                     ]),
                     const SizedBox(height: 3),
                     Row(children: [
@@ -285,10 +281,6 @@ class _ArticleCardState extends State<ArticleCard> {
                           child: Text(_date(widget.article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 10, color: Colors.grey[400])),
                         ),
-                        const SizedBox(width: 8),
-                        Icon(Icons.remove_red_eye_outlined, size: 10, color: Colors.grey[400]),
-                        const SizedBox(width: 3),
-                        Text('${widget.article.vues}', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
                       ]),
                       const SizedBox(height: 3),
                       Row(children: [

@@ -382,8 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.only(left: 14),
                             itemBuilder: (context, i) {
-                              final plusVus = [..._articles]..sort((a, b) => b.vues.compareTo(a.vues));
-                              final top = plusVus.take(6).toList();
+                              final top = _articles.take(6).toList();
                               if (i >= top.length) return null;
                               final a = top[i];
                               return ArticleCardVerticale(
@@ -635,16 +634,6 @@ class _ArticleUne extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           _formatDate(article.datePublication),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(Icons.remove_red_eye_outlined, size: 12, color: Colors.white.withValues(alpha: 0.8)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${article.vues} vues',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 11,

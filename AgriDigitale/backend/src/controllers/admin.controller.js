@@ -22,7 +22,7 @@ exports.statistiques = async (req, res, next) => {
         { $sort: { total: -1 } },
       ]),
     ]);
-    const articlesPlusLus = await Article.find().sort({ vues: -1 }).limit(5);
+    const articlesPlusLus = await Article.find().sort({ datePublication: -1 }).limit(5);
     res.json({ totalArticles, totalUtilisateurs, demandesEnAttente, articlesParCategorie, articlesPlusLus, parPays, parContinent });
   } catch (err) { next(err); }
 };

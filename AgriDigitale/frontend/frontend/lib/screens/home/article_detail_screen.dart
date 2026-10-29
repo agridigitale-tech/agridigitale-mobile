@@ -2199,18 +2199,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
                   ),
                 ),
-                if (article.vues > 0) ...[
-                  const SizedBox(width: 14),
-                  Icon(Icons.remove_red_eye_outlined, size: 14, color: isDark ? AppColors.texteSombreMoyen : Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${article.vues}',
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
-                    ),
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 12),

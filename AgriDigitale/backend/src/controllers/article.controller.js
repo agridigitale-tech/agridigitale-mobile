@@ -7,7 +7,7 @@ exports.articleUne = async (req, res, next) => {
     // tri par date de publication décroissante, puis par date de récupération
     // (tie-breaker pour les articles publiés au même instant).
     const article = await Article.findOne({})
-      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
+      .select('guid titre resume image lienSource source categorie datePublication legendeImage auteur')
       .sort({ datePublication: -1, dateRecuperation: -1 });
     if (!article) return res.status(404).json({ message: 'Aucun article' });
     res.json(article);
@@ -27,7 +27,7 @@ exports.listerArticles = async (req, res, next) => {
     }
 
     const articles = await Article.find(filtre)
-      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
+      .select('guid titre resume image lienSource source categorie datePublication legendeImage auteur')
       .sort({ datePublication: -1 })
       .skip((page - 1) * limite)
       .limit(Number(limite));
@@ -37,11 +37,7 @@ exports.listerArticles = async (req, res, next) => {
 
 exports.detailArticle = async (req, res, next) => {
   try {
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { vues: 1 } },
-      { new: true }
-    );
+    const article = await Article.findById(req.params.id);
     if (!article) return res.status(404).json({ message: 'Article introuvable' });
 
     // Corrige les images du corps des articles déjà en base
@@ -94,7 +90,7 @@ exports.rechercherArticles = async (req, res, next) => {
       filtre.datePublication = { ...filtre.datePublication, $gte: troisMois };
     }
     const articles = await Article.find(filtre)
-      .select('guid titre resume image lienSource source categorie datePublication vues legendeImage auteur')
+      .select('guid titre resume image lienSource source categorie datePublication legendeImage auteur')
       .sort({ datePublication: -1 });
     res.json(articles);
   } catch (err) { next(err); }

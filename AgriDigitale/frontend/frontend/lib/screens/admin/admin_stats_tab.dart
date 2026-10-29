@@ -72,7 +72,7 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
               // ── Top 5 articles ──
               if (plusLus.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                const Text('Top 5 articles les plus lus',
+                const Text('Derniers articles publiés',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 ...List.generate(plusLus.length, (i) {
@@ -105,17 +105,6 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 13))),
-                      const SizedBox(width: 8),
-                      Row(children: [
-                        const Icon(Icons.remove_red_eye,
-                            size: 14, color: AppColors.grisIcone),
-                        const SizedBox(width: 4),
-                        Text('${a['vues'] ?? 0}',
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.grisTexte)),
-                      ]),
                     ]),
                   );
                 }),

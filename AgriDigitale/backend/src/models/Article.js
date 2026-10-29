@@ -38,10 +38,6 @@ const articleSchema = new mongoose.Schema({
     required: true, 
     index: true 
  },
-  vues: { 
-    type: Number, 
-    default: 0 
- }, // pour les stats admin
   legendeImage: {
     type: String,
     default: null
@@ -54,6 +50,5 @@ const articleSchema = new mongoose.Schema({
 
 // Index composés pour des requêtes ultra rapides
 articleSchema.index({ categorie: 1, datePublication: -1 });
-articleSchema.index({ vues: -1, datePublication: -1 });
 
 module.exports = mongoose.model('Article', articleSchema);
