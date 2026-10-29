@@ -6,6 +6,7 @@ import '../../services/admin_service.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
 import 'admin_widgets.dart';
+import '../../widgets/banner_carousel.dart';
 
 // Retourne le statut d'une bannière selon ses dates et son état actif
 _StatutBanniere _statut(Map<String, dynamic> b) {
@@ -272,6 +273,9 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                                 } catch (_) {}
                               }
                               if (ctx.mounted) Navigator.pop(ctx);
+                              if (succes > 0) {
+                                BannerCarousel.actualiser();
+                              }
                               if (mounted) {
                                 await _charger();
                                 if (!mounted) return;
@@ -410,6 +414,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
                             lien: lienCtrl.text.trim(),
                           );
                           if (ctx.mounted) Navigator.pop(ctx);
+                          BannerCarousel.actualiser();
                           await _charger();
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -456,6 +461,7 @@ class _AdminBannieresTabState extends State<AdminBannieresTab> {
     if (ok != true) return;
     try {
       await widget.service.supprimerBanniere(id);
+      BannerCarousel.actualiser();
       await _charger();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

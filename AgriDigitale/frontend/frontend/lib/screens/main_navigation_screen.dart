@@ -10,6 +10,7 @@ import 'favoris/favoris_screen.dart';
 import 'request/request_screen.dart';
 import 'settings/settings_screen.dart';
 import 'admin/admin_screen.dart';
+import '../widgets/banner_carousel.dart';
 import '../providers/auth_provider.dart';
 import '../core/design/app_colors.dart';
 import '../core/app_localizations.dart';
@@ -93,10 +94,13 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
             children: [
               if (auth.estAdmin)
                 InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AdminScreen()),
-                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminScreen()),
+                    );
+                    BannerCarousel.actualiser();
+                  },
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -128,6 +132,9 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
                             _index = i;
                             _ongletsVisites.add(i);
                           });
+                          if (i == 0) {
+                            BannerCarousel.actualiser();
+                          }
                         },
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

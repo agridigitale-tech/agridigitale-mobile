@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -283,8 +284,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     try {
       final fragment = html_parser.parseFragment(contenuHtml);
       for (final node in fragment.nodes) {
-        _extraireBlocsDepuisNoeud(node, nextId, (bloc) {
-          nextId++;
+        _extraireBlocsDepuisNoeud(node, () => nextId++, (bloc) {
           _blocsArticle.add(bloc);
           if (bloc.type != TypeBlocArticle.image && bloc.texte.trim().isNotEmpty) {
             _blocsAudio.add(bloc);
@@ -295,7 +295,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       debugPrint('[Parser] Erreur parsing HTML : $e');
     }
 
-    // Si le corps HTML n'a fourni aucun bloc textuel, découpage de secours
+    // Si le corps HTML n'a fourni aucun bloc textuel, découpage de secours en portions congrues
     final blocsTexte = _blocsArticle.where((b) => b.type != TypeBlocArticle.titre && b.type != TypeBlocArticle.resume && b.type != TypeBlocArticle.image);
     if (blocsTexte.isEmpty && article.contenu.trim().isNotEmpty) {
       final brut = _nettoyerTextePourAudio(article.contenu);
@@ -303,33 +303,110 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       for (final p in paragraphes) {
         final pTrim = p.trim();
         if (pTrim.isNotEmpty) {
-          final b = BlocArticle(
-            id: nextId++,
-            type: TypeBlocArticle.paragraphe,
-            texte: pTrim,
-            mots: MotLecture.extraireMots(pTrim),
-          );
-          _blocsArticle.add(b);
-          _blocsAudio.add(b);
+          final chunks = _chunkerTexteEnPortionsCongrues(pTrim);
+          for (final chunk in chunks) {
+            final b = BlocArticle(
+              id: nextId++,
+              type: TypeBlocArticle.paragraphe,
+              texte: chunk,
+              mots: MotLecture.extraireMots(chunk),
+            );
+            _blocsArticle.add(b);
+            _blocsAudio.add(b);
+          }
         }
       }
     }
   }
 
+  // ── La règle des Portions Congrues (Le Chunking) 🍰 ──
+  // Découpe les longs blocs en sous-unités digestes de 2 à 3 lignes max (130-190 caractères).
+  static List<String> _chunkerTexteEnPortionsCongrues(String texte) {
+    final t = texte.trim();
+    if (t.isEmpty) return [];
+
+    // Si le texte fait déjà 180 caractères ou moins, c'est une portion congrue optimale
+    if (t.length <= 180) {
+      return [t];
+    }
+
+    // Protection des abréviations courantes
+    final texteProtege = t
+        .replaceAll('M. ', 'M._§_')
+        .replaceAll('Dr. ', 'Dr._§_')
+        .replaceAll('Pr. ', 'Pr._§_')
+        .replaceAll('etc. ', 'etc._§_')
+        .replaceAll('c.-à-d. ', 'c.-à-d._§_')
+        .replaceAll('no. ', 'no._§_')
+        .replaceAll('p. ', 'p._§_');
+
+    // Découpage sur les fins de phrases fortes (. ! ? :) suivies d'espace ou de fin
+    final regex = RegExp(r'([^.!?:]+[.!?:]+)(?:\s+|$)');
+    final matches = regex.allMatches(texteProtege);
+
+    final phrases = <String>[];
+    int dernierIndex = 0;
+
+    for (final m in matches) {
+      final p = m.group(1)?.replaceAll('_§_', ' ').trim();
+      if (p != null && p.isNotEmpty) {
+        phrases.add(p);
+      }
+      dernierIndex = m.end;
+    }
+
+    if (dernierIndex < texteProtege.length) {
+      final reste = texteProtege.substring(dernierIndex).replaceAll('_§_', ' ').trim();
+      if (reste.isNotEmpty) {
+        phrases.add(reste);
+      }
+    }
+
+    if (phrases.isEmpty) {
+      return [t];
+    }
+
+    // Regroupement en portions congrues (120 à 190 caractères, soit 2 à 3 lignes sur mobile)
+    final chunks = <String>[];
+    String buffer = '';
+
+    for (final phrase in phrases) {
+      if (buffer.isEmpty) {
+        buffer = phrase;
+      } else {
+        if (buffer.length + phrase.length + 1 > 190) {
+          chunks.add(buffer);
+          buffer = phrase;
+        } else {
+          buffer = '$buffer $phrase';
+        }
+      }
+    }
+
+    if (buffer.isNotEmpty) {
+      chunks.add(buffer);
+    }
+
+    return chunks.isNotEmpty ? chunks : [t];
+  }
+
   void _extraireBlocsDepuisNoeud(
     dom.Node node,
-    int currentId,
+    int Function() getNextId,
     void Function(BlocArticle) onAjout,
   ) {
     if (node is dom.Text) {
       final t = _nettoyerTextePourAudio(node.text);
       if (t.isNotEmpty) {
-        onAjout(BlocArticle(
-          id: currentId,
-          type: TypeBlocArticle.paragraphe,
-          texte: t,
-          mots: MotLecture.extraireMots(t),
-        ));
+        final chunks = _chunkerTexteEnPortionsCongrues(t);
+        for (final chunk in chunks) {
+          onAjout(BlocArticle(
+            id: getNextId(),
+            type: TypeBlocArticle.paragraphe,
+            texte: chunk,
+            mots: MotLecture.extraireMots(chunk),
+          ));
+        }
       }
       return;
     }
@@ -343,7 +420,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       final (url, legende, ratio) = _extraireDonneesImageDepuisElement(elem);
       if (url != null && url.isNotEmpty) {
         onAjout(BlocArticle(
-          id: currentId,
+          id: getNextId(),
           type: TypeBlocArticle.image,
           imageUrl: url,
           imageLegende: legende ?? 'Photo : © agridigitale.net',
@@ -360,7 +437,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         final (url, legende, ratio) = _extraireDonneesImageDepuisElement(img);
         if (url != null && url.isNotEmpty) {
           onAjout(BlocArticle(
-            id: currentId,
+            id: getNextId(),
             type: TypeBlocArticle.image,
             imageUrl: url,
             imageLegende: legende ?? 'Photo : © agridigitale.net',
@@ -370,12 +447,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       }
       final textSansImg = _nettoyerTextePourAudio(elem.text);
       if (textSansImg.isNotEmpty) {
-        onAjout(BlocArticle(
-          id: currentId,
-          type: TypeBlocArticle.paragraphe,
-          texte: textSansImg,
-          mots: MotLecture.extraireMots(textSansImg),
-        ));
+        final chunks = _chunkerTexteEnPortionsCongrues(textSansImg);
+        for (final chunk in chunks) {
+          onAjout(BlocArticle(
+            id: getNextId(),
+            type: TypeBlocArticle.paragraphe,
+            texte: chunk,
+            mots: MotLecture.extraireMots(chunk),
+          ));
+        }
       }
       return;
     }
@@ -385,7 +465,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       final t = _nettoyerTextePourAudio(elem.text);
       if (t.isNotEmpty) {
         onAjout(BlocArticle(
-          id: currentId,
+          id: getNextId(),
           type: TypeBlocArticle.titreSection,
           texte: t,
           mots: MotLecture.extraireMots(t),
@@ -399,7 +479,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       final t = _nettoyerTextePourAudio(elem.text);
       if (t.isNotEmpty) {
         onAjout(BlocArticle(
-          id: currentId,
+          id: getNextId(),
           type: TypeBlocArticle.citation,
           texte: t,
           mots: MotLecture.extraireMots(t),
@@ -415,7 +495,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         final t = _nettoyerTextePourAudio(li.text);
         if (t.isNotEmpty) {
           onAjout(BlocArticle(
-            id: currentId,
+            id: getNextId(),
             type: TypeBlocArticle.liste,
             texte: '• $t',
             mots: MotLecture.extraireMots(t),
@@ -428,7 +508,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     // 6. Div ou conteneur générique
     if (tag == 'div' || tag == 'section' || tag == 'article') {
       for (final child in elem.nodes) {
-        _extraireBlocsDepuisNoeud(child, currentId, onAjout);
+        _extraireBlocsDepuisNoeud(child, getNextId, onAjout);
       }
       return;
     }
@@ -436,12 +516,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     // 7. Paragraphe standard
     final t = _nettoyerTextePourAudio(elem.text);
     if (t.isNotEmpty) {
-      onAjout(BlocArticle(
-        id: currentId,
-        type: TypeBlocArticle.paragraphe,
-        texte: t,
-        mots: MotLecture.extraireMots(t),
-      ));
+      final chunks = _chunkerTexteEnPortionsCongrues(t);
+      for (final chunk in chunks) {
+        onAjout(BlocArticle(
+          id: getNextId(),
+          type: TypeBlocArticle.paragraphe,
+          texte: chunk,
+          mots: MotLecture.extraireMots(chunk),
+        ));
+      }
     }
   }
 
@@ -743,9 +826,66 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     _tts.setSpeechRate(nouvelleVitesse);
   }
 
-  // ── Rendu des blocs de texte avec surlignage mot par mot en direct ──
-  Widget _buildBlocTexte(BlocArticle bloc) {
-    final styleBase = _stylePourBloc(bloc.type);
+  // ── La Saillance Perceptive 🖍️ ──
+  // Met en valeur visuellement les données saillantes (chiffres, pourcentages, monnaies, solutions)
+  static final RegExp _regexSaillance = RegExp(
+    r"""(?:(?<=^|[\s,;:!?.()«»"'\-]))("""
+    r"""\d+([.,]\d+)?\s*%|"""
+    r"""\d[\d\s.,]*\s*(?:FCFA|F CFA|francs?|XOF|\$|€)|"""
+    r"""\d+([.,]\d+)?\s*(?:heures?|jours?|semaines?|mois|ans?|années?|hectares?|ha|tonnes?|kg|litres?|millions?|milliards?)|"""
+    r"""solution(?:s)?\s+naturelle(?:s)?|recommandation(?:s)?|résultat(?:s)?|attention|conseil(?:s)?"""
+    r""")(?:(?=$|[\s,;:!?.()«»"'\-]))""",
+    caseSensitive: false,
+  );
+
+  List<InlineSpan> _construireSpansSaillancePerceptive(
+    String texte,
+    TextStyle styleBase,
+    bool isDark,
+  ) {
+    final matches = _regexSaillance.allMatches(texte);
+    if (matches.isEmpty) {
+      return [TextSpan(text: texte, style: styleBase)];
+    }
+
+    final spans = <InlineSpan>[];
+    int dernierIndex = 0;
+
+    final couleurSaillante = isDark ? AppColors.vertClair : AppColors.vertFonce;
+    final styleSaillant = styleBase.copyWith(
+      fontWeight: FontWeight.w700,
+      color: couleurSaillante,
+    );
+
+    for (final match in matches) {
+      if (match.start > dernierIndex) {
+        spans.add(TextSpan(
+          text: texte.substring(dernierIndex, match.start),
+          style: styleBase,
+        ));
+      }
+
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: styleSaillant,
+      ));
+
+      dernierIndex = match.end;
+    }
+
+    if (dernierIndex < texte.length) {
+      spans.add(TextSpan(
+        text: texte.substring(dernierIndex),
+        style: styleBase,
+      ));
+    }
+
+    return spans;
+  }
+
+  // ── Rendu des blocs de texte avec typographie branche 1, chunking et saillance ──
+  Widget _buildBlocTexte(BlocArticle bloc, bool isDark) {
+    final styleBase = _stylePourBloc(bloc.type, isDark);
 
     return ValueListenableBuilder<PositionLecture>(
       valueListenable: _positionLectureNotifier,
@@ -753,14 +893,49 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         final estBlocActuel = (pos.blocId == bloc.id);
         final indexMotActuel = estBlocActuel ? pos.motIndex : -1;
 
-        // Bloc inactif : affichage fluide et propre sans surcharge
-        if (!estBlocActuel) {
-          return Container(
+        // Bloc en cours de lecture audio : effet karaoké mot par mot directement dans l'article
+        if (estBlocActuel) {
+          final spans = <InlineSpan>[];
+          for (int i = 0; i < bloc.mots.length; i++) {
+            final estMotActuel = (i == indexMotActuel);
+            final estPasse = (i < indexMotActuel);
+
+            spans.add(
+              TextSpan(
+                text: bloc.mots[i].mot + (i < bloc.mots.length - 1 ? ' ' : ''),
+                style: estMotActuel
+                    ? styleBase.copyWith(
+                        backgroundColor: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.32),
+                        color: isDark ? Colors.white : AppColors.vertFonce,
+                        fontWeight: FontWeight.w900,
+                      )
+                    : estPasse
+                        ? styleBase.copyWith(color: isDark ? AppColors.texteSombreFort : AppColors.texteFort)
+                        : styleBase.copyWith(
+                            color: (isDark ? AppColors.texteSombreFort : AppColors.texteFort).withValues(alpha: 0.75),
+                          ),
+              ),
+            );
+          }
+
+          return AnimatedContainer(
             key: bloc.key,
-            padding: _paddingPourBloc(bloc.type),
-            decoration: _decorationPourBloc(bloc.type, false),
-            child: Text(
-              bloc.texte,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            decoration: BoxDecoration(
+              color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border(
+                left: BorderSide(
+                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                  width: 4.0,
+                ),
+              ),
+            ),
+            child: Text.rich(
+              TextSpan(children: spans),
               style: styleBase,
               textAlign: bloc.type == TypeBlocArticle.paragraphe
                   ? TextAlign.justify
@@ -769,136 +944,279 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           );
         }
 
-        // Bloc en cours de lecture : effet karaoké mot par mot directement dans l'article
-        final spans = <InlineSpan>[];
-        for (int i = 0; i < bloc.mots.length; i++) {
-          final estMotActuel = (i == indexMotActuel);
-          final estPasse = (i < indexMotActuel);
+        // Bloc inactif (lecture visuelle normale avec saillance perceptive et chunking)
+        switch (bloc.type) {
+          case TypeBlocArticle.titre:
+            return Padding(
+              key: bloc.key,
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(bloc.texte, style: styleBase),
+            );
 
-          spans.add(
-            TextSpan(
-              text: bloc.mots[i].mot + (i < bloc.mots.length - 1 ? ' ' : ''),
-              style: estMotActuel
-                  ? styleBase.copyWith(
-                      backgroundColor: AppColors.vertPrimaire.withValues(alpha: 0.28),
-                      color: AppColors.vertFonce,
-                      fontWeight: FontWeight.w900,
-                    )
-                  : estPasse
-                      ? styleBase.copyWith(color: AppColors.texteFort)
-                      : styleBase.copyWith(color: AppColors.texteFort.withValues(alpha: 0.85)),
-            ),
-          );
+          case TypeBlocArticle.resume:
+            return _buildBlocResume(bloc, styleBase, isDark);
+
+          case TypeBlocArticle.titreSection:
+            return _buildBlocTitreSection(bloc, styleBase, isDark);
+
+          case TypeBlocArticle.citation:
+            return _buildBlocCitation(bloc, styleBase, isDark);
+
+          case TypeBlocArticle.liste:
+            return _buildBlocListe(bloc, styleBase, isDark);
+
+          case TypeBlocArticle.paragraphe:
+          case TypeBlocArticle.image:
+            return Padding(
+              key: bloc.key,
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Text.rich(
+                TextSpan(
+                  children: _construireSpansSaillancePerceptive(
+                    bloc.texte,
+                    styleBase,
+                    isDark,
+                  ),
+                ),
+                style: styleBase,
+                textAlign: TextAlign.justify,
+              ),
+            );
         }
-
-        return AnimatedContainer(
-          key: bloc.key,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          padding: _paddingPourBloc(bloc.type),
-          decoration: _decorationPourBloc(bloc.type, true),
-          child: Text.rich(
-            TextSpan(children: spans),
-            style: styleBase,
-            textAlign: bloc.type == TypeBlocArticle.paragraphe
-                ? TextAlign.justify
-                : TextAlign.start,
-          ),
-        );
       },
     );
   }
 
-  TextStyle _stylePourBloc(TypeBlocArticle type) {
+  // ── 1. Encadré Résumé / Accroche Narrative (Boucle de Curiosité / Zeigarnik) 🔄 ──
+  Widget _buildBlocResume(BlocArticle bloc, TextStyle style, bool isDark) {
+    final bg = isDark ? const Color(0xFF1B241E) : const Color(0xFFF7FAF6);
+    final bordure = isDark
+        ? AppColors.vertClair.withValues(alpha: 0.35)
+        : AppColors.vertPrimaire.withValues(alpha: 0.3);
+
+    return Container(
+      key: bloc.key,
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: bordure, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 15,
+                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "L'ESSENTIEL · L'ACCROCHE",
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            bloc.texte,
+            style: style,
+            textAlign: TextAlign.justify,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 2. Titre de Section H2/H3 (Confort visuel & Carte Routière) ──
+  Widget _buildBlocTitreSection(BlocArticle bloc, TextStyle style, bool isDark) {
+    return Padding(
+      key: bloc.key,
+      padding: const EdgeInsets.only(top: 26, bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 3, right: 12),
+            width: 4.5,
+            height: 22,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              bloc.texte,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 3. Citation (Blockquote avec Aération Interne et Externe) ──
+  Widget _buildBlocCitation(BlocArticle bloc, TextStyle style, bool isDark) {
+    final bg = isDark ? const Color(0xFF1B281F) : const Color(0xFFF3F8F4);
+    final bordure = isDark ? AppColors.vertClair : AppColors.vertPrimaire;
+
+    return Container(
+      key: bloc.key,
+      margin: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
+        border: Border(
+          left: BorderSide(color: bordure, width: 4.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.format_quote_rounded,
+                color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'CITATION',
+                style: GoogleFonts.inter(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            bloc.texte,
+            style: style,
+            textAlign: TextAlign.justify,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 4. Liste à puces (Encadré digeste et pastilles soignées) ──
+  Widget _buildBlocListe(BlocArticle bloc, TextStyle style, bool isDark) {
+    final textePropre = bloc.texte.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
+
+    return Padding(
+      key: bloc.key,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 8, right: 12),
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              textePropre,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Typographie officielle de la branche 1 (PT Serif éditorial & Inter) ──
+  TextStyle _stylePourBloc(TypeBlocArticle type, bool isDark) {
+    final couleurTexte = isDark ? AppColors.texteSombreFort : AppColors.texteFort;
+
     switch (type) {
       case TypeBlocArticle.titre:
-        return const TextStyle(
-          fontSize: 23,
-          fontWeight: FontWeight.w800,
-          height: 1.3,
-          letterSpacing: -0.3,
-          color: AppColors.texteFort,
+        return GoogleFonts.ptSerif(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          height: 1.28,
+          letterSpacing: -0.2,
+          color: couleurTexte,
         );
       case TypeBlocArticle.resume:
-        return TextStyle(
-          fontSize: 16,
+        return GoogleFonts.ptSerif(
+          fontSize: 16.5,
           fontWeight: FontWeight.w500,
           fontStyle: FontStyle.italic,
-          height: 1.6,
-          color: Colors.grey[800],
+          height: 1.65,
+          color: couleurTexte,
         );
       case TypeBlocArticle.titreSection:
-        return const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          height: 1.4,
-          color: AppColors.texteFort,
+        return GoogleFonts.inter(
+          fontSize: 21,
+          fontWeight: FontWeight.w800,
+          height: 1.35,
+          letterSpacing: -0.2,
+          color: couleurTexte,
         );
       case TypeBlocArticle.citation:
-        return const TextStyle(
-          fontSize: 16,
+        return GoogleFonts.ptSerif(
+          fontSize: 17,
           fontStyle: FontStyle.italic,
-          height: 1.6,
-          color: AppColors.texteFort,
+          height: 1.75,
+          color: couleurTexte,
         );
       case TypeBlocArticle.liste:
-        return const TextStyle(
-          fontSize: 16.5,
-          height: 1.65,
-          color: AppColors.texteFort,
-        );
-      case TypeBlocArticle.paragraphe:
-      case TypeBlocArticle.image:
-        return const TextStyle(
+        return GoogleFonts.ptSerif(
           fontSize: 16.5,
           height: 1.75,
-          color: AppColors.texteFort,
+          color: couleurTexte,
+        );
+      case TypeBlocArticle.paragraphe:
+      case TypeBlocArticle.image:
+        return GoogleFonts.ptSerif(
+          fontSize: 17,
+          height: 1.85,
+          color: couleurTexte,
         );
     }
-  }
-
-  EdgeInsetsGeometry _paddingPourBloc(TypeBlocArticle type) {
-    switch (type) {
-      case TypeBlocArticle.titre:
-        return const EdgeInsets.only(bottom: 10);
-      case TypeBlocArticle.resume:
-        return const EdgeInsets.symmetric(vertical: 8);
-      case TypeBlocArticle.titreSection:
-        return const EdgeInsets.only(top: 18, bottom: 8);
-      case TypeBlocArticle.citation:
-        return const EdgeInsets.symmetric(horizontal: 14, vertical: 12);
-      case TypeBlocArticle.liste:
-        return const EdgeInsets.symmetric(vertical: 4, horizontal: 8);
-      case TypeBlocArticle.paragraphe:
-        return const EdgeInsets.symmetric(vertical: 6, horizontal: 4);
-      case TypeBlocArticle.image:
-        return EdgeInsets.zero;
-    }
-  }
-
-  BoxDecoration? _decorationPourBloc(TypeBlocArticle type, bool estActif) {
-    if (type == TypeBlocArticle.citation) {
-      return BoxDecoration(
-        color: const Color(0xFFF1F8E9),
-        borderRadius: BorderRadius.circular(6),
-        border: Border(
-          left: BorderSide(
-            color: estActif ? AppColors.vertPrimaire : const Color(0xFF81C784),
-            width: estActif ? 5.0 : 4.0,
-          ),
-        ),
-      );
-    }
-    if (estActif) {
-      return BoxDecoration(
-        color: AppColors.vertPrimaire.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: const Border(
-          left: BorderSide(color: AppColors.vertPrimaire, width: 3.5),
-        ),
-      );
-    }
-    return null;
   }
 
   // ── Rendu soigné pour TOUTES les images dans les articles ──
@@ -1809,6 +2127,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   // Contenu éditorial de l'article avec blocs directs et suivi mot par mot en direct
   SliverToBoxAdapter _buildContenu(Article article) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_articleCourant?.id != article.id || _blocsArticle.isEmpty) {
       _articleCourant = article;
       _preparerBlocsArticle(article);
@@ -1837,56 +2157,74 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 article.categorie.toUpperCase(),
-                style: const TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.vertPrimaire,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
                 ),
               ),
             ),
             const SizedBox(height: 12),
 
-            // 2. Grand Titre (avec surlignage mot par mot en direct pendant la lecture audio)
-            _buildBlocTexte(blocTitre),
+            // 2. Grand Titre (avec typographie PT Serif éditoriale comme branche 1)
+            _buildBlocTexte(blocTitre, isDark),
             const SizedBox(height: 10),
 
             // 3. Auteur + Date + Vues
             Row(
               children: [
-                Icon(Icons.person_outline, size: 15, color: Colors.grey[600]),
+                Icon(Icons.person_outline, size: 15, color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
                   auteur,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: isDark ? AppColors.texteSombreFort : Colors.grey[800],
                   ),
                 ),
                 const SizedBox(width: 14),
-                Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                Icon(Icons.access_time, size: 14, color: isDark ? AppColors.texteSombreMoyen : Colors.grey[500]),
                 const SizedBox(width: 4),
                 Text(
                   _formaterDate(article.datePublication),
-                  style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
+                  ),
                 ),
                 if (article.vues > 0) ...[
                   const SizedBox(width: 14),
-                  Icon(Icons.remove_red_eye_outlined, size: 14, color: Colors.grey[500]),
+                  Icon(Icons.remove_red_eye_outlined, size: 14, color: isDark ? AppColors.texteSombreMoyen : Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
                     '${article.vues}',
-                    style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
+                    ),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Filet d'accent vert (signature visuelle branche 1)
+            Container(
+              width: 48,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
 
             // Image Principale ENTIÈRE (Ratio 16:9 sans rognage, comme sur le site web)
             if (hasImage) ...[
@@ -1941,15 +2279,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.camera_alt_outlined, size: 13, color: Colors.grey[600]),
+                  Icon(Icons.camera_alt_outlined, size: 13, color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600]),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       legende,
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
-                        color: Colors.grey[700],
+                        color: isDark ? AppColors.texteSombreMoyen : Colors.grey[700],
                       ),
                     ),
                   ),
@@ -1965,7 +2303,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               if (bloc.type == TypeBlocArticle.image) {
                 return _buildBlocImage(bloc);
               } else {
-                return _buildBlocTexte(bloc);
+                return _buildBlocTexte(bloc, isDark);
               }
             }),
 
@@ -1979,9 +2317,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   icon: const Icon(Icons.open_in_new, size: 18),
                   label: const Text('Lire sur www.agridigitale.net'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.vertPrimaire,
-                    side: const BorderSide(color: AppColors.vertPrimaire),
+                    foregroundColor: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                    side: BorderSide(color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () => launchUrl(
@@ -2039,9 +2378,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   // Section commentaires
   SliverToBoxAdapter _buildSectionCommentaires(AuthProvider auth) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverToBoxAdapter(
       child: Container(
-        color: Colors.grey[50],
+        color: isDark ? AppColors.surfaceSombre : Colors.grey[50],
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2051,7 +2391,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 const Icon(Icons.comment_outlined, color: AppColors.vertPrimaire),
                 const SizedBox(width: 8),
                 Text('Commentaires (${_commentaires.length})',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                    )),
               ],
             ),
             const SizedBox(height: 14),
@@ -2139,16 +2483,27 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     title: Row(
                       children: [
                         Text(c.nomAuteur,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                            )),
                         const SizedBox(width: 8),
                         Text(_tempsRelatif(c.createdAt),
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: isDark ? AppColors.texteSombreMoyen : Colors.grey[500],
+                            )),
                       ],
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(c.contenu,
-                          style: const TextStyle(fontSize: 14, height: 1.4)),
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                          )),
                     ),
                     trailing: estMien
                         ? IconButton(
@@ -2172,6 +2527,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   // Articles similaires
   Widget _buildAutresArticles() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return FutureBuilder<List<Article>>(
       future: _autresFuture,
       builder: (context, snap) {
@@ -2190,17 +2546,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         width: 4,
                         height: 18,
                         decoration: BoxDecoration(
-                          color: AppColors.vertPrimaire,
+                          color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
                           borderRadius: BorderRadius.circular(100),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'À lire aussi',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.texteFort,
+                          color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
                         ),
                       ),
                     ],
@@ -2228,13 +2584,24 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           child: const Icon(Icons.article, color: Colors.green),
                         ),
                 ),
-                title: Text(a.titre,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                title: Text(
+                  a.titre,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.ptSerif(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                    color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                  ),
+                ),
                 subtitle: Text(
                   '${a.categorie.toUpperCase()} · ${_tempsRelatif(a.datePublication)}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.vertPrimaire),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                  ),
                 ),
                 onTap: () => Navigator.pushReplacement(
                   context,

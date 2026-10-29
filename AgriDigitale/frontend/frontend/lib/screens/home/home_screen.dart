@@ -124,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _categoriesFuture = _service.listerCategories();
       _articleUne = null;
     });
+    BannerCarousel.actualiser();
     await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
   }
 
@@ -213,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            const SliverToBoxAdapter(child: BannerCarousel()),
+            SliverToBoxAdapter(child: BannerCarousel()),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

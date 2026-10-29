@@ -1,5 +1,6 @@
 // Carousel de bannières publicitaires chargées depuis le backend.
 // Défilement automatique toutes les 5 secondes. Clic → ouvre le lien externe si présent.
+// Si aucune bannière active n'est présente, le widget disparaît complètement (SizedBox.shrink).
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,32 +10,52 @@ import '../core/design/app_colors.dart';
 
 class BannerCarousel extends StatefulWidget {
   const BannerCarousel({super.key});
+
+  /// Notifier global pour demander le rafraîchissement immédiat des bannières
+  static final ValueNotifier<int> rafraichirNotifier = ValueNotifier<int>(0);
+
+  /// Déclenche le rechargement de la liste des bannières sur l'accueil
+  static void actualiser() {
+    rafraichirNotifier.value++;
+  }
+
   @override
   State<BannerCarousel> createState() => _BannerCarouselState();
 }
 
 class _BannerCarouselState extends State<BannerCarousel> {
-  final PageController _controleur = PageController(viewportFraction: 0.92, initialPage: 1000);
+  final PageController _controleur =
+      PageController(viewportFraction: 0.92, initialPage: 1000);
   int _pageActuelle = 1000;
   List<Map<String, String?>> _bannieres = [];
-  bool _chargement = true;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    BannerCarousel.rafraichirNotifier.addListener(_surDemandeRafraichissement);
     _chargerBannieres();
   }
 
-  // Charge les bannières depuis l'API et démarre le timer de défilement automatique
+  void _surDemandeRafraichissement() {
+    if (mounted) {
+      _chargerBannieres();
+    }
+  }
+
+  // Charge les bannières depuis l'API et démarre le timer de défilement si plusieurs bannières
   Future<void> _chargerBannieres() async {
     try {
       final apiClient = ApiClient();
       final response = await apiClient.dio.get('/bannieres');
       final baseServer = ApiClient.baseUrl.replaceAll('/api', '');
 
-      final bannieres = (response.data as List)
-          .where((b) => b['image'] != null && (b['image'] as String).isNotEmpty)
+      final rawList = response.data is List ? response.data as List : [];
+      final bannieres = rawList
+          .where((b) =>
+              b != null &&
+              b['image'] != null &&
+              (b['image'] as String).isNotEmpty)
           .map((b) {
             final img = b['image'] as String;
             final imageUrl = img.startsWith('http') ? img : '$baseServer$img';
@@ -43,25 +64,27 @@ class _BannerCarouselState extends State<BannerCarousel> {
           })
           .toList();
 
+      if (!mounted) return;
+
       setState(() {
         _bannieres = bannieres;
-        _chargement = false;
       });
 
-       if (_bannieres.length > 1) {
-         _timer?.cancel();
-         _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-           if (mounted) _pageSuivante();
-         });
-       }
+      if (_bannieres.length > 1) {
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+          if (mounted) _pageSuivante();
+        });
+      } else {
+        _timer?.cancel();
+      }
     } catch (e) {
       debugPrint('[BannerCarousel] Erreur chargement bannières: $e');
-      setState(() => _chargement = false);
     }
   }
 
   void _pageSuivante() {
-    if (_bannieres.isEmpty) return;
+    if (_bannieres.length <= 1) return;
     _controleur.animateToPage(
       _pageActuelle + 1,
       duration: const Duration(milliseconds: 500),
@@ -71,28 +94,81 @@ class _BannerCarouselState extends State<BannerCarousel> {
 
   @override
   void dispose() {
+    BannerCarousel.rafraichirNotifier.removeListener(_surDemandeRafraichissement);
     _timer?.cancel();
     _controleur.dispose();
     super.dispose();
   }
 
+  Widget _buildCarteBanniere(Map<String, String?> b,
+      {EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 4)}) {
+    final imageUrl = b['image'] ?? '';
+    final lien = b['lien'];
+    final hasLien = lien != null && lien.isNotEmpty;
+
+    return Padding(
+      padding: padding,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: GestureDetector(
+          onTap: hasLien
+              ? () async {
+                  final uri = Uri.tryParse(lien);
+                  if (uri != null && await canLaunchUrl(uri)) {
+                    await launchUrl(uri,
+                        mode: LaunchMode.externalApplication);
+                  }
+                }
+              : null,
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            placeholder: (context, url) => Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.vertPrimaire,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: Colors.grey[200],
+              child: const Icon(
+                Icons.image_not_supported,
+                color: AppColors.grisIcone,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_chargement) {
-      return const SizedBox(
+    // Si aucune bannière active n'est présente (ou pendant le chargement initial),
+    // afficher la page comme si la bannière n'existait pas du tout (0 pixel, 0 espace).
+    if (_bannieres.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // S'il n'y a qu'une seule bannière, l'afficher directement sans carrousel ni points
+    if (_bannieres.length == 1) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8, bottom: 4),
         height: 150,
-        child: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.vertPrimaire,
-            strokeWidth: 2,
-          ),
+        child: _buildCarteBanniere(
+          _bannieres.first,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
       );
     }
 
-    if (_bannieres.isEmpty) return const SizedBox.shrink();
-
-    return SizedBox(
+    // Plusieurs bannières : carrousel animé avec défilement et indicateurs
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
       height: 150,
       child: Stack(
         children: [
@@ -102,47 +178,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
             itemCount: null,
             itemBuilder: (context, i) {
               final b = _bannieres[i % _bannieres.length];
-              final imageUrl = b['image']!;
-              final lien = b['lien'];
-              final hasLien = lien != null && lien.isNotEmpty;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: GestureDetector(
-                    onTap: hasLien
-                        ? () async {
-                            final uri = Uri.tryParse(lien);
-                            if (uri != null && await canLaunchUrl(uri)) {
-                              await launchUrl(uri,
-                                  mode: LaunchMode.externalApplication);
-                            }
-                          }
-                        : null,
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.vertPrimaire,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          color: AppColors.grisIcone,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
+              return _buildCarteBanniere(b);
             },
           ),
           Positioned(
