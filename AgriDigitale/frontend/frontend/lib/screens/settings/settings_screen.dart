@@ -15,6 +15,8 @@ import '../../core/app_localizations.dart';
 import 'detail_settings/about_screen.dart';
 import 'detail_settings/contact_screen.dart';
 import 'detail_settings/notifications_screen.dart';
+import '../../widgets/preferences_agricoles_dialog.dart';
+import '../../screens/quiz/quiz_niveaux_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -233,6 +235,29 @@ class SettingsScreen extends StatelessWidget {
               context,
               MaterialPageRoute(
                   builder: (_) => const NotificationsScreen()),
+            ),
+          ),
+          const Divider(height: 1),
+
+          // Mes préférences agricoles (Région & Filières pour ciblage push)
+          _ligne(
+            context,
+            Icons.tune,
+            'Préférences Agricoles & Alertes',
+            sousTitre: 'Région et filières ciblées',
+            onTap: () => PreferencesAgricolesDialog.afficher(context),
+          ),
+          const Divider(height: 1),
+
+          // Défi Agricole (Quiz & Niveaux)
+          _ligne(
+            context,
+            Icons.sports_esports_outlined,
+            'Défi Agricole (Quiz & Niveaux)',
+            sousTitre: 'Progression, étoiles et trophées',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QuizNiveauxScreen()),
             ),
           ),
           const Divider(height: 1),

@@ -10,6 +10,10 @@ import '../../models/article.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/banner_carousel.dart';
 import '../../widgets/boosted_banner_overlay.dart';
+import '../../widgets/conseil_du_jour_card.dart';
+import '../../widgets/quiz_home_card.dart';
+import '../../widgets/cours_marches_widget.dart';
+import '../../widgets/preferences_agricoles_dialog.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
 import '../../core/api_client.dart';
@@ -198,6 +202,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               letterSpacing: 1.2,
             )),
         actions: [
+          // Icône Préférences agricoles & alertes ciblées
+          IconButton(
+            icon: Icon(Icons.tune, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
+            tooltip: 'Mes préférences alertes',
+            onPressed: () => PreferencesAgricolesDialog.afficher(context),
+          ),
           // Icône favoris → navigue vers l'onglet favoris
           IconButton(
             icon: Icon(Icons.bookmark_border, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
@@ -336,6 +346,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     child: _etatMessage(Icons.article_outlined,
                         l.t('no_articles'), l.t('no_articles_sub')))
               else ...[
+                // Conseil du jour (Le rituel matinal 30s audio / texte)
+                if (_categorieActive == null)
+                  const SliverToBoxAdapter(child: ConseilDuJourCard()),
+
                 // Article à la une
                 if (_articleUne != null && _categorieActive == null)
                   SliverToBoxAdapter(
@@ -392,6 +406,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       ],
                     ),
                   ),
+
+                // Défi Agricole (Quiz 1 min snack + Niveaux + Dopamine)
+                if (_categorieActive == null)
+                  const SliverToBoxAdapter(child: QuizHomeCard()),
+
                 // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
                 if (_articles.length > 1 && _categorieActive == null)
                   SliverToBoxAdapter(
@@ -399,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                           child: Row(
                             children: [
                               Container(
@@ -437,31 +456,41 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             },
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [AppColors.vertPrimaire, Color(0xFF66BB6A)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Dernières actualités',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-                            ],
+                      ],
+                    ),
+                  ),
+
+                // La Bourse Agricole (Cours des marchés vivriers au Togo)
+                if (_categorieActive == null)
+                  const SliverToBoxAdapter(child: CoursMarchesWidget()),
+
+                // En-tête "Dernières actualités"
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [AppColors.vertPrimaire, Color(0xFF66BB6A)],
+                            ),
+                            borderRadius: BorderRadius.circular(2),
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _categorieActive != null ? 'Articles : $_categorieActive' : 'Dernières actualités',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
                         ),
                       ],
                     ),
                   ),
+                ),
                 // Liste verticale = tous les articles par date
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
