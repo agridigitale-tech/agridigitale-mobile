@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/db_helper.dart';
@@ -248,9 +249,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Météo Agricole Togo',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.ptSerif(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
         actions: [

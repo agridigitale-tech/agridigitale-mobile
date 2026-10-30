@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/article.dart';
 import '../core/design/app_colors.dart';
 import '../core/api_client.dart';
@@ -101,15 +102,28 @@ class ArticleCardVerticale extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(article.titre, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, height: 1.3)),
+                    Text(
+                      article.titre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.ptSerif(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                        color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Row(children: [
                       Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
                       Expanded(
-                        child: Text(_date(article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        child: Text(
+                          _date(article.datePublication),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[400]),
+                        ),
                       ),
                     ]),
                     const SizedBox(height: 3),
@@ -117,8 +131,12 @@ class ArticleCardVerticale extends StatelessWidget {
                       Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                       const SizedBox(width: 3),
                       Expanded(
-                        child: Text(article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        child: Text(
+                          article.source,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[400]),
+                        ),
                       ),
                     ]),
                   ],
@@ -252,8 +270,17 @@ class _ArticleCardState extends State<ArticleCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Text(widget.article.titre, maxLines: 3, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.35)),
+                            child: Text(
+                              widget.article.titre,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.ptSerif(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                                color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                              ),
+                            ),
                           ),
                           GestureDetector(
                             onTap: _toggleFavori,
@@ -267,19 +294,27 @@ class _ArticleCardState extends State<ArticleCard> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(widget.article.resume, maxLines: 2, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
-                            height: 1.4,
-                          )),
+                      Text(
+                        widget.article.resume,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? AppColors.texteSombreMoyen : Colors.grey[600],
+                          height: 1.4,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Row(children: [
                         Icon(Icons.access_time, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
                         Expanded(
-                          child: Text(_date(widget.article.datePublication), maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                          child: Text(
+                            _date(widget.article.datePublication),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[400]),
+                          ),
                         ),
                       ]),
                       const SizedBox(height: 3),
@@ -287,8 +322,12 @@ class _ArticleCardState extends State<ArticleCard> {
                         Icon(Icons.source_outlined, size: 10, color: Colors.grey[400]),
                         const SizedBox(width: 3),
                         Expanded(
-                          child: Text(widget.article.source, maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                          child: Text(
+                            widget.article.source,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[400]),
+                          ),
                         ),
                       ]),
                     ],
@@ -312,8 +351,10 @@ Widget _placeholder() => Container(
 Widget _badgeCategorie(String cat, Color couleur) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(color: couleur, borderRadius: BorderRadius.circular(20)),
-    child: Text(cat.toUpperCase(),
-        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)));
+    child: Text(
+      cat.toUpperCase(),
+      style: GoogleFonts.inter(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+    ));
 
 String _date(DateTime date) {
   try { return DateFormat('dd MMM · HH:mm', 'fr_FR').format(date); }
