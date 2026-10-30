@@ -150,6 +150,16 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   // ── Mode Anglais / Traduction ──
   bool _modeAnglais = false;
+  bool _modeAnglaisInit = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_modeAnglaisInit) {
+      _modeAnglaisInit = true;
+      _modeAnglais = context.read<LanguageProvider>().locale.languageCode == 'en';
+    }
+  }
 
   @override
   void initState() {
@@ -1979,15 +1989,302 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
+  // ── Extraction propre du texte complet de l'article pour copie et traduction ──
+  String _extraireTexteArticle(Article a) {
+    final buffer = StringBuffer();
+    final titre = _nettoyerTextePourAudio(a.titre);
+    if (titre.isNotEmpty) {
+      buffer.writeln(titre);
+      buffer.writeln();
+    }
+    final resume = _nettoyerTextePourAudio(a.resume);
+    if (resume.isNotEmpty) {
+      buffer.writeln(resume);
+      buffer.writeln();
+    }
+    final blocsTexte = _blocsArticle
+        .where((b) =>
+            b.type != TypeBlocArticle.titre &&
+            b.type != TypeBlocArticle.resume &&
+            b.type != TypeBlocArticle.image &&
+            b.texte.trim().isNotEmpty)
+        .map((b) => b.texte.trim())
+        .toList();
+
+    if (blocsTexte.isNotEmpty) {
+      buffer.writeln(blocsTexte.join('\n\n'));
+    } else if (a.contenu.trim().isNotEmpty) {
+      buffer.writeln(_nettoyerTextePourAudio(a.contenu));
+    }
+    return buffer.toString().trim();
+  }
+
+  // ── Copie et ouverture de la traduction Google préremplie ──
+  Future<void> _lancerTraductionGoogle(Article a) async {
+    final texte = _extraireTexteArticle(a);
+    if (texte.isEmpty) return;
+
+    // 1. Copie intégrale de l'article dans le presse-papiers
+    await Clipboard.setData(ClipboardData(text: texte));
+
+    // 2. Préparation du texte pour l'URL Google Traduction
+    // Limite de sécurité pour éviter le rejet d'URL trop longue par les navigateurs mobiles
+    final textePourUrl = texte.length > 2500 ? '${texte.substring(0, 2400)}...' : texte;
+    final url =
+        'https://translate.google.com/?sl=fr&tl=en&text=${Uri.encodeComponent(textePourUrl)}&op=translate';
+
+    try {
+      final uri = Uri.parse(url);
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('[Traduction] Erreur ouverture URL : $e');
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Article copié dans le presse-papiers et traduction ouverte.',
+                  style: GoogleFonts.inter(fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // ── Modal stylé et professionnel de proposition de traduction ──
+  Future<void> _afficherDialogueTraduction(Article a) async {
+    if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.surfaceSombre : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Poignée glissante
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                // En-tête avec icône et langues
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.g_translate_rounded,
+                        color: AppColors.vertPrimaire,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Traduction de l\'article',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Text(
+                                '🇫🇷 Français',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_rounded, size: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                '🇬🇧 English',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                // Explication claire
+                Text(
+                  'Cet article est rédigé en français. Vous pouvez consulter sa traduction complète en anglais via Google Traduction.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: isDark ? AppColors.texteSombreMoyen : AppColors.grisTexte,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Boîte d'informations
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceSombreLegere : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? AppColors.bordureSombre : const Color(0xFFE2E8F0),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.content_copy_rounded, size: 17, color: AppColors.vertPrimaire),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'L\'article complet est copié dans votre presse-papiers.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.open_in_browser_rounded, size: 17, color: AppColors.vertPrimaire),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Google Traduction s\'ouvre avec le texte directement traduit.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                // Boutons d'action
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: BorderSide(
+                            color: isDark ? AppColors.bordureSombre : Colors.grey[300]!,
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Annuler',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.texteSombreMoyen : Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.vertPrimaire,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.translate_rounded, size: 18),
+                        label: Text(
+                          'Ouvrir la traduction',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                        onPressed: () async {
+                          final langProvider = context.read<LanguageProvider>();
+                          Navigator.pop(ctx);
+                          if (mounted) {
+                            setState(() => _modeAnglais = true);
+                          }
+                          _arreterLecture();
+                          langProvider.changerLangue(const Locale('en', 'US'));
+                          await _lancerTraductionGoogle(a);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'AGRIDIGITALE',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1.2),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2.5),
@@ -2010,41 +2307,27 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             icon: Text(_modeAnglais ? '🇬🇧' : '🇫🇷', style: const TextStyle(fontSize: 18)),
             label: Text(
               _modeAnglais ? 'EN' : 'FR',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
-                color: _modeAnglais ? AppColors.vertPrimaire : Colors.grey[700],
+                color: _modeAnglais
+                    ? AppColors.vertPrimaire
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[300]
+                        : Colors.grey[700]),
               ),
             ),
             onPressed: () async {
-              final nouvelEtat = !_modeAnglais;
-              setState(() => _modeAnglais = nouvelEtat);
               _arreterLecture();
-              context.read<LanguageProvider>().basculerLangue();
-
-              if (nouvelEtat) {
-                final messenger = ScaffoldMessenger.of(context);
+              if (_modeAnglais) {
+                // Retour direct au français
+                setState(() => _modeAnglais = false);
+                context.read<LanguageProvider>().changerLangue(const Locale('fr', 'FR'));
+              } else {
+                // Affichage du modal de traduction vers l'anglais
                 try {
                   final a = await _future;
-                  if (mounted && a.lienSource.isNotEmpty) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          'Articles rédigés en français. Ouvrir la version anglaise via Google Traduction ?',
-                          style: TextStyle(fontSize: 12.5),
-                        ),
-                        action: SnackBarAction(
-                          label: 'Ouvrir',
-                          textColor: Colors.amberAccent,
-                          onPressed: () {
-                            final url =
-                                'https://translate.google.com/translate?sl=fr&tl=en&u=${Uri.encodeComponent(a.lienSource)}';
-                            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                          },
-                        ),
-                        duration: const Duration(seconds: 6),
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  await _afficherDialogueTraduction(a);
                 } catch (_) {}
               }
             },

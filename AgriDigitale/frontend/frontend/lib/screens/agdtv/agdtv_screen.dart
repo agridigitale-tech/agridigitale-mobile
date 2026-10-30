@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/agdtv_service.dart';
 import '../../models/video_agdtv.dart';
 import '../../core/design/app_colors.dart';
+import '../../core/app_localizations.dart';
 
 class AgdtvScreen extends StatefulWidget {
   const AgdtvScreen({super.key});
@@ -112,14 +114,14 @@ class _AgdtvScreenState extends State<AgdtvScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Column(children: [
-                const Text('AGRIDIGITALE TV',
-                    style: TextStyle(
+                Text('AGRIDIGITALE TV',
+                    style: GoogleFonts.ptSerif(
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text('La chaîne agricole digitale du futur',
-                    style: TextStyle(
+                Text(AppLocalizations.of(context).t('agdtv_subtitle'),
+                    style: GoogleFonts.inter(
                         color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13)),
               ]),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/article_service.dart';
 import '../../models/article.dart';
 import '../../widgets/article_card.dart';
@@ -299,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(cat.toUpperCase(),
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontWeight: actif
                                           ? FontWeight.w700
                                           : FontWeight.w500,
@@ -359,8 +360,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text('À la une',
-                                  style: TextStyle(
+                              Text('À la une',
+                                  style: GoogleFonts.inter(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: -0.3)),
@@ -371,9 +372,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   color: Colors.redAccent.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   '🔥 TENDANCE',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.redAccent,
@@ -415,8 +416,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text('À ne pas manquer',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                              Text('À ne pas manquer',
+                                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                             ],
                           ),
                         ),
@@ -454,8 +455,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text('Dernières actualités',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                              Text('Dernières actualités',
+                                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                             ],
                           ),
                         ),
@@ -662,7 +663,7 @@ class _ArticleUne extends StatelessWidget {
                       ),
                       child: Text(
                         article.categorie.toUpperCase(),
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -674,10 +675,10 @@ class _ArticleUne extends StatelessWidget {
                       article.titre,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: GoogleFonts.ptSerif(
                         color: Colors.white,
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         height: 1.35,
                         letterSpacing: -0.3,
                       ),
@@ -689,7 +690,7 @@ class _ArticleUne extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           _formatDate(article.datePublication),
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 11,
                           ),

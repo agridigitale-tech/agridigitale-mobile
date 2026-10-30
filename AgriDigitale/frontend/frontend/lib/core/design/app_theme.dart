@@ -3,6 +3,7 @@
 
 // Au lieu de définir les couleurs, les bordures et les polices de caractères sur chaque écran, tu le fais une seule fois ici. Ainsi, si tu veux changer la couleur de tous les champs de texte de l'application, tu as juste à modifier une ligne dans ce fichier 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
 
@@ -12,6 +13,7 @@ class AppTheme {
   static ThemeData get sombre => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    fontFamily: AppTypography.policePrincipale,
     scaffoldBackgroundColor: AppColors.fondSombre,
     canvasColor: AppColors.fondSombre,
     cardColor: AppColors.surfaceSombre,
@@ -25,12 +27,16 @@ class AppTheme {
     ),
     textTheme: AppTypography.texte(estSombre: true),
     iconTheme: const IconThemeData(color: Colors.white70),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: AppColors.surfaceSombre,
       foregroundColor: AppColors.texteSombreFort,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: TextStyle(color: AppColors.texteSombreFort, fontSize: 17, fontWeight: FontWeight.bold),
+      titleTextStyle: GoogleFonts.inter(
+        color: AppColors.texteSombreFort,
+        fontSize: 17,
+        fontWeight: FontWeight.bold,
+      ),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surfaceSombre,
@@ -55,7 +61,11 @@ class AppTheme {
       backgroundColor: AppColors.surfaceSombre,
       elevation: 16,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      titleTextStyle: const TextStyle(color: AppColors.texteSombreFort, fontSize: 18, fontWeight: FontWeight.bold),
+      titleTextStyle: GoogleFonts.inter(
+        color: AppColors.texteSombreFort,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: AppColors.surfaceSombre,
@@ -63,7 +73,7 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: AppColors.bordureSombre),
       ),
-      textStyle: const TextStyle(color: AppColors.texteSombreFort),
+      textStyle: GoogleFonts.inter(color: AppColors.texteSombreFort),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -80,7 +90,7 @@ class AppTheme {
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: AppColors.vertClair, width: 1.5),
       ),
-      hintStyle: const TextStyle(color: AppColors.texteSombreMoyen, fontSize: 13),
+      hintStyle: GoogleFonts.inter(color: AppColors.texteSombreMoyen, fontSize: 13),
       suffixIconColor: Colors.white70,
     ),
   );
@@ -88,6 +98,7 @@ class AppTheme {
   static ThemeData get clair => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    fontFamily: AppTypography.policePrincipale,
     scaffoldBackgroundColor: AppColors.fondClair,
     canvasColor: AppColors.fondClair,
     cardColor: Colors.white,
@@ -101,12 +112,16 @@ class AppTheme {
     ),
     textTheme: AppTypography.texte(estSombre: false),
     iconTheme: const IconThemeData(color: Colors.black54),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: AppColors.texteFort,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: TextStyle(color: AppColors.texteFort, fontSize: 17, fontWeight: FontWeight.bold),
+      titleTextStyle: GoogleFonts.inter(
+        color: AppColors.texteFort,
+        fontSize: 17,
+        fontWeight: FontWeight.bold,
+      ),
     ),
     cardTheme: CardThemeData(
       color: Colors.white,
@@ -127,6 +142,16 @@ class AppTheme {
       color: Color(0xFFEFEFEF),
       thickness: 0.8,
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colors.white,
+      elevation: 16,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      titleTextStyle: GoogleFonts.inter(
+        color: AppColors.texteFort,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFFF5F5F5),
@@ -138,7 +163,7 @@ class AppTheme {
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: AppColors.vertPrimaire, width: 1.5),
       ),
-      hintStyle: const TextStyle(color: AppColors.grisTexte, fontSize: 13),
+      hintStyle: GoogleFonts.inter(color: AppColors.grisTexte, fontSize: 13),
       suffixIconColor: Colors.black54,
     ),
   );
