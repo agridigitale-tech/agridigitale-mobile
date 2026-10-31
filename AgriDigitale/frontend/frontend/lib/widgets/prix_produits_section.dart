@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/design/app_colors.dart';
 import '../data/marches_data.dart';
+import '../services/prix_produits_service.dart';
+import 'mini_graphe_tendance.dart';
 
 class PrixProduitsSection extends StatefulWidget {
   const PrixProduitsSection({super.key});
@@ -14,8 +16,32 @@ class PrixProduitsSection extends StatefulWidget {
 }
 
 class _PrixProduitsSectionState extends State<PrixProduitsSection> {
+  final _service = PrixProduitsService();
+  List<MarcheAgricole> _marches = MarchesData.marches;
   String _marcheSelectionneId = 'tous';
   String _recherche = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerPrix();
+    _service.changeNotifier.addListener(_chargerPrix);
+  }
+
+  @override
+  void dispose() {
+    _service.changeNotifier.removeListener(_chargerPrix);
+    super.dispose();
+  }
+
+  Future<void> _chargerPrix() async {
+    final list = await _service.getMarches();
+    if (mounted) {
+      setState(() {
+        _marches = list;
+      });
+    }
+  }
 
   void _partagerBulletin(MarcheAgricole m, PrixProduit p) {
     final variation = p.tendance == TendancePrix.hausse
@@ -41,7 +67,7 @@ class _PrixProduitsSectionState extends State<PrixProduitsSection> {
     // Collecte des couples (Marché, Produit) filtrés
     final List<Map<String, dynamic>> itemsFiltres = [];
 
-    for (final marche in MarchesData.marches) {
+    for (final marche in _marches) {
       if (_marcheSelectionneId != 'tous' && marche.id != _marcheSelectionneId) {
         continue;
       }
@@ -125,7 +151,7 @@ class _PrixProduitsSectionState extends State<PrixProduitsSection> {
               children: [
                 _buildMarcheChip('tous', '📍 Tous les marchés', isDark),
                 const SizedBox(width: 8),
-                ...MarchesData.marches.map((m) {
+                ..._marches.map((m) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: _buildMarcheChip(m.id, '${m.ville} (${m.nom})', isDark),
@@ -309,21 +335,36 @@ class _PrixProduitsSectionState extends State<PrixProduitsSection> {
                               color: isDark ? AppColors.vertClair : AppColors.vertFonce,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(iconeTendance, size: 14, color: couleurTendance),
-                              const SizedBox(width: 2),
-                              Text(
-                                libelleTendance,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: couleurTendance,
-                                ),
+                          const SizedBox(height: 3),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 130),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  MiniGrapheTendance(
+                                    tendance: p.tendance,
+                                    couleur: couleurTendance,
+                                    points: p.historiquePrix,
+                                    width: 32,
+                                    height: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(iconeTendance, size: 13, color: couleurTendance),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    libelleTendance,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: couleurTendance,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                           const SizedBox(height: 4),
                           // Bouton partage WhatsApp

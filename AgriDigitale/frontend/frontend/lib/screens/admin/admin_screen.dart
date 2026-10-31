@@ -10,6 +10,7 @@ import 'admin_stats_tab.dart';
 import 'admin_utilisateurs_tab.dart';
 import 'admin_demandes_tab.dart';
 import 'admin_bannieres_tab.dart';
+import 'admin_prix_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -25,7 +26,7 @@ class _AdminScreenState extends State<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -52,6 +53,14 @@ class _AdminScreenState extends State<AdminScreen>
             ),
           ),
           IconButton(
+            icon: const Icon(Icons.price_change_outlined, color: Colors.white),
+            tooltip: 'Gérer prix des marchés',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminPrixScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications_active, color: Colors.white),
             tooltip: 'Envoyer notification',
             onPressed: () => _dialogNotification(context),
@@ -67,6 +76,7 @@ class _AdminScreenState extends State<AdminScreen>
             Tab(icon: Icon(Icons.people), text: 'Utilisateurs'),
             Tab(icon: Icon(Icons.inbox), text: 'Demandes'),
             Tab(icon: Icon(Icons.image), text: 'Bannières'),
+            Tab(icon: Icon(Icons.price_change_outlined), text: 'Prix'),
           ],
         ),
       ),
@@ -77,6 +87,7 @@ class _AdminScreenState extends State<AdminScreen>
           AdminUtilisateursTab(service: _service, currentUserId: context.read<AuthProvider>().idUtilisateur ?? ''),
           AdminDemandesTab(service: _service),
           AdminBannieresTab(service: _service),
+          const AdminPrixScreen(isTab: true),
         ],
       ),
     );
