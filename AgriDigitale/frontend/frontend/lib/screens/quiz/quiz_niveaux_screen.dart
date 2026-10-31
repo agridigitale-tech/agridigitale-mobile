@@ -267,70 +267,79 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                           ),
                         ),
                       ),
-                      // Pastille Grade
+                      // Pastilles Grade et Monde (Anti-collision et anti-débordement)
                       Positioned(
                         top: 10,
                         left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(grade.icone, size: 13, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                grade.titre.toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10.5,
-                                  color: Colors.white,
-                                  letterSpacing: 0.4,
+                        right: 10,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(grade.icone, size: 13, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        grade.titre.toUpperCase(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 10.5,
+                                          color: Colors.white,
+                                          letterSpacing: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (mondeParent != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: grade.couleur.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.25),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(mondeParent.iconeData, size: 13, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Monde ${mondeParent.id}',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10.5,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
+                          ],
                         ),
                       ),
-                      // Pastille Monde
-                      if (mondeParent != null)
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: grade.couleur.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(mondeParent.iconeData, size: 13, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Monde ${mondeParent.id}',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10.5,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       // Nom de zone en bas de l'illustration
                       Positioned(
                         left: 12,
@@ -419,18 +428,17 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
 
               // Piliers de récompense (Zéro émoticône)
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6FAF6),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.grisLigne),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildModalBadge(Icons.timer_outlined, '3 questions', '1 min'),
-                    _buildModalBadge(Icons.grain_rounded, '+15 à +25', 'Grains'),
-                    _buildModalBadge(Icons.local_fire_department_rounded, 'Série +1', 'Boost'),
+                    Expanded(child: _buildModalBadge(Icons.timer_outlined, '3 questions', '1 min')),
+                    Expanded(child: _buildModalBadge(Icons.grain_rounded, '+15 à +25', 'Grains')),
+                    Expanded(child: _buildModalBadge(Icons.local_fire_department_rounded, 'Série +1', 'Boost')),
                   ],
                 ),
               ),
@@ -477,8 +485,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       children: [
         Icon(icone, color: AppColors.vertPrimaire, size: 22),
         const SizedBox(height: 4),
-        Text(titre, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.texteFort)),
-        Text(sousTitre, style: GoogleFonts.inter(fontSize: 11, color: AppColors.grisTexte)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(titre, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.texteFort)),
+        ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(sousTitre, style: GoogleFonts.inter(fontSize: 11, color: AppColors.grisTexte)),
+        ),
       ],
     );
   }
@@ -576,8 +590,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               children: [
                 const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 22),
                 const SizedBox(width: 8),
-                Text('Trophées & Badges', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    'Trophées & Badges',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18),
+                  ),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -686,8 +706,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               children: [
                 const Icon(Icons.military_tech_rounded, size: 24, color: AppColors.vertPrimaire),
                 const SizedBox(width: 8),
-                Text('Les 10 Grades Agricoles', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    'Les 10 Grades Agricoles',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18),
+                  ),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -774,11 +800,15 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   if (prochain != null) ...[
                     Row(
                       children: [
-                        Text(
-                          'Prochain rang : ${prochain.titre}',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: prochain.couleur),
+                        Expanded(
+                          child: Text(
+                            'Prochain rang : ${prochain.titre}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: prochain.couleur),
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Text(
                           '$restants niveau${restants > 1 ? 'x' : ''} restant${restants > 1 ? 's' : ''}',
                           style: GoogleFonts.inter(fontSize: 11, color: AppColors.grisTexte, fontWeight: FontWeight.w600),
@@ -866,12 +896,16 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                             children: [
                               Row(
                                 children: [
-                                  Text(
-                                    g.titre,
-                                    style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13.5,
-                                      color: estAtteint ? AppColors.texteFort : Colors.grey.shade600,
+                                  Flexible(
+                                    child: Text(
+                                      g.titre,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                        color: estAtteint ? AppColors.texteFort : Colors.grey.shade600,
+                                      ),
                                     ),
                                   ),
                                   if (estActuel) ...[
@@ -1441,11 +1475,12 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       widgets.add(
         Positioned(
           top: yPos - 16,
-          left: 20,
-          right: 20,
+          left: 16,
+          right: 16,
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              constraints: BoxConstraints(maxWidth: screenWidth - 32),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [gradeMonde.couleurOmbre, gradeMonde.couleur],
@@ -1456,25 +1491,28 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
                 ],
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(monde.iconeData, size: 16, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text(
-                    'MONDE ${monde.id} : ${monde.nom.toUpperCase()}',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                      shadows: const [
-                        Shadow(color: Colors.black45, offset: Offset(0, 1), blurRadius: 2),
-                      ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(monde.iconeData, size: 16, color: Colors.white),
+                    const SizedBox(width: 7),
+                    Text(
+                      'MONDE ${monde.id} : ${monde.nom.toUpperCase()}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.4,
+                        shadows: const [
+                          Shadow(color: Colors.black45, offset: Offset(0, 1), blurRadius: 2),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1488,14 +1526,15 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       widgets.add(
         Positioned(
           top: summitPos.dy - 100,
-          left: 0,
-          right: 0,
+          left: 16,
+          right: 16,
           child: Column(
             children: [
               const Icon(Icons.emoji_events_rounded, size: 48, color: Color(0xFFFFD700)),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                constraints: BoxConstraints(maxWidth: screenWidth - 32),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)]),
                   borderRadius: BorderRadius.circular(20),
@@ -1503,13 +1542,16 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                     BoxShadow(color: Colors.orange.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4)),
                   ],
                 ),
-                child: Text(
-                  'GRAND SOMMET DU MAÎTRE AGRONOME',
-                  style: GoogleFonts.inter(
-                    color: Colors.brown.shade900,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                    letterSpacing: 0.5,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'GRAND SOMMET DU MAÎTRE AGRONOME',
+                    style: GoogleFonts.inter(
+                      color: Colors.brown.shade900,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
