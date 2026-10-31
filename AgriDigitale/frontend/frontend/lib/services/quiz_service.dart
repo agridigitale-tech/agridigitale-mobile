@@ -1,7 +1,7 @@
 // Service de gestion du jeu Quiz Agricole.
 // 100% autonome, fonctionne entièrement hors-ligne grâce à SharedPreferences.
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/quiz_data.dart';
 import '../models/quiz_grade.dart';
@@ -10,7 +10,7 @@ class BadgeQuiz {
   final String id;
   final String nom;
   final String description;
-  final String icone;
+  final IconData icone;
 
   const BadgeQuiz({
     required this.id,
@@ -34,55 +34,55 @@ class QuizService {
   static const _kKeyQuizJourFait = '${_kPrefix}quiz_jour_fait';
   static const _kKeyBadges = '${_kPrefix}badges';
 
-  // Badges disponibles dans le jeu
+  // Badges disponibles dans le jeu (icônes vectorielles, 0 émoticône)
   static const List<BadgeQuiz> tousLesBadges = [
     BadgeQuiz(
       id: 'premier_pas',
       nom: 'Première Graine',
       description: 'Terminer votre toute première session de quiz',
-      icone: '🌱',
+      icone: Icons.yard_rounded,
     ),
     BadgeQuiz(
       id: 'streak_3',
       nom: 'Flamme Verte',
       description: 'Jouer 3 jours consécutifs au Quiz du Jour',
-      icone: '🔥',
+      icone: Icons.local_fire_department_rounded,
     ),
     BadgeQuiz(
       id: 'streak_7',
       nom: 'Agriculteur Passionné',
       description: 'Maintenir une série de 7 jours consécutifs',
-      icone: '⚡',
+      icone: Icons.bolt_rounded,
     ),
     BadgeQuiz(
       id: 'maitre_sol',
       nom: 'Gardien du Sol',
       description: 'Obtenir 3 étoiles sur tous les niveaux du Monde 1',
-      icone: '🌍',
+      icone: Icons.public_rounded,
     ),
     BadgeQuiz(
       id: 'expert_maraichage',
       nom: 'Maître Maraîcher',
       description: 'Compléter avec succès le Monde 2 (Tomates, Piments, Oignons)',
-      icone: '🍅',
+      icone: Icons.eco_rounded,
     ),
     BadgeQuiz(
       id: 'pro_cereales',
       nom: 'Seigneur des Moissons',
       description: 'Compléter avec succès le Monde 3 (Grandes Cultures)',
-      icone: '🌽',
+      icone: Icons.agriculture_rounded,
     ),
     BadgeQuiz(
       id: 'champion_bio',
       nom: 'Protecteur Écolo',
       description: 'Compléter le Monde 4 (Défense Naturelle & Neem)',
-      icone: '🌿',
+      icone: Icons.spa_rounded,
     ),
     BadgeQuiz(
       id: 'grand_agronome',
       nom: 'Grand Agronome',
       description: 'Accumuler plus de 35 étoiles sur l\'ensemble des mondes',
-      icone: '🏆',
+      icone: Icons.emoji_events_rounded,
     ),
   ];
 
@@ -128,7 +128,7 @@ class QuizService {
     return sp.getInt(_kKeyGrains) ?? 0;
   }
 
-  /// Récupère la flamme de série journalière (Streak 🔥)
+  /// Récupère la flamme de série journalière (Streak)
   Future<int> getStreakJours() async {
     final sp = await _prefs;
     await _verifierValiditeStreak();

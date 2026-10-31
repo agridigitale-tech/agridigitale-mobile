@@ -142,8 +142,8 @@ class _QuizScreenState extends State<QuizScreen> {
   void _partagerResultat() {
     final note = '$_bonnesReponses/${widget.questions.length}';
     final texte = widget.estQuizDuJour
-        ? '🌾 J\'ai obtenu $note au Quiz Agricole du Jour sur AgriDigitale ! 🔥 Série de $_streakActuel jours. Peux-tu faire mieux ? Télécharge l\'application : https://agridigitale.net'
-        : '🌾 Je viens de réussir le "${widget.titre}" avec un score de $note sur l\'application AgriDigitale ! Peux-tu faire mieux ? https://agridigitale.net';
+        ? 'J\'ai obtenu $note au Quiz Agricole du Jour sur AgriDigitale ! Série de $_streakActuel jours. Peux-tu faire mieux ? Télécharge l\'application : https://agridigitale.net'
+        : 'Je viens de réussir le "${widget.titre}" avec un score de $note sur l\'application AgriDigitale ! Peux-tu faire mieux ? https://agridigitale.net';
     Share.share(texte);
   }
 
@@ -382,9 +382,14 @@ class _QuizScreenState extends State<QuizScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    (_reponseSelectionnee == _questionActuelle.bonneReponseIndex) ? '👏' : '💡',
-                    style: const TextStyle(fontSize: 24),
+                  Icon(
+                    (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
+                        ? Icons.check_circle_rounded
+                        : Icons.lightbulb_rounded,
+                    size: 26,
+                    color: (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
+                        ? AppColors.vertPrimaire
+                        : Colors.amber.shade800,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -440,7 +445,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 elevation: 2,
               ),
               child: Text(
-                _questionIndex < widget.questions.length - 1 ? 'Question suivante →' : 'Voir mon score 🎉',
+                _questionIndex < widget.questions.length - 1 ? 'Question suivante →' : 'Voir mon score',
                 style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -461,10 +466,15 @@ class _QuizScreenState extends State<QuizScreen> {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
         children: [
-          // Émoticône ou trophée
-          Text(
-            sansFaute ? '🏆' : (reussi ? '🌟' : '🌱'),
-            style: const TextStyle(fontSize: 64),
+          // Icône trophée vectorielle
+          Icon(
+            sansFaute
+                ? Icons.emoji_events_rounded
+                : (reussi ? Icons.stars_rounded : Icons.eco_rounded),
+            size: 64,
+            color: sansFaute
+                ? Colors.amber.shade700
+                : (reussi ? AppColors.vertPrimaire : Colors.teal),
           ),
           const SizedBox(height: 10),
           Text(
@@ -522,9 +532,9 @@ class _QuizScreenState extends State<QuizScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem('Score', '$_bonnesReponses/$total', Icons.check_circle_outline, AppColors.vertPrimaire),
-                _buildStatItem('Grains', '+$_grainsGagnes 🌾', Icons.monetization_on_outlined, Colors.orange),
+                _buildStatItem('Grains', '+$_grainsGagnes', Icons.grain_rounded, Colors.orange),
                 if (_streakActuel > 0)
-                  _buildStatItem('Série', '$_streakActuel j 🔥', Icons.local_fire_department, Colors.redAccent),
+                  _buildStatItem('Série', '$_streakActuel j', Icons.local_fire_department_rounded, Colors.redAccent),
               ],
             ),
           ),
@@ -553,14 +563,14 @@ class _QuizScreenState extends State<QuizScreen> {
               ),
               child: Row(
                 children: [
-                  Text(_nouveauGrade!.icone, style: const TextStyle(fontSize: 38)),
+                  Icon(_nouveauGrade!.icone, size: 38, color: _nouveauGrade!.couleur),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '🎉 PROMOTION DE GRADE !',
+                          'PROMOTION DE GRADE',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w900,
                             fontSize: 12,
@@ -603,7 +613,7 @@ class _QuizScreenState extends State<QuizScreen> {
               ),
               child: Row(
                 children: [
-                  Text(_gradeActuel!.icone, style: const TextStyle(fontSize: 26)),
+                  Icon(_gradeActuel!.icone, size: 26, color: _gradeActuel!.couleur),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -691,13 +701,13 @@ class _QuizScreenState extends State<QuizScreen> {
               ),
               child: Row(
                 children: [
-                  Text(badge.icone, style: const TextStyle(fontSize: 32)),
+                  Icon(badge.icone, size: 32, color: Colors.amber.shade800),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Nouveau Badge : ${badge.nom} 🏆', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.amber.shade900)),
+                        Text('Nouveau Badge : ${badge.nom}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.amber.shade900)),
                         Text(badge.description, style: const TextStyle(fontSize: 12, color: AppColors.grisTexte)),
                       ],
                     ),

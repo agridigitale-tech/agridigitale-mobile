@@ -180,6 +180,8 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       }
     }
 
+    final grade = QuizGrade.getGradePourNiveau(niveau.id);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -193,7 +195,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
             ],
           ),
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -208,57 +210,184 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
-              // En-tête Monde
-              if (mondeParent != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.vertPrimaire.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+              // Bannière Illustration en ligne thématique du niveau / grade
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  height: 140,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(mondeParent.icone, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Monde ${mondeParent.id} : ${mondeParent.nom}',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: AppColors.vertFonce,
+                      Image.network(
+                        grade.illustrationUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: grade.couleurFond,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: grade.couleur,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: grade.degrade,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(grade.icone, size: 48, color: Colors.white.withValues(alpha: 0.85)),
+                            ),
+                          );
+                        },
+                      ),
+                      // Filtre progressif pour le contraste des pastilles
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.15),
+                              Colors.black.withValues(alpha: 0.55),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Pastille Grade
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(grade.icone, size: 13, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                grade.titre.toUpperCase(),
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10.5,
+                                  color: Colors.white,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Pastille Monde
+                      if (mondeParent != null)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: grade.couleur.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(mondeParent.iconeData, size: 13, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Monde ${mondeParent.id}',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // Nom de zone en bas de l'illustration
+                      Positioned(
+                        left: 12,
+                        bottom: 8,
+                        child: Text(
+                          grade.nomZone,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shadows: const [
+                              Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 14),
+
+              // Écriture du niveau en GRAND et GRAS
+              Text(
+                'NIVEAU ${niveau.id}',
+                style: GoogleFonts.inter(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: grade.couleur,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 2),
 
               // Titre du Niveau
               Text(
                 niveau.titre,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.texteFort,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               // Description
               Text(
                 niveau.description,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: AppColors.grisTexte,
-                  height: 1.35,
+                  height: 1.3,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               // Étoiles obtenues
               Row(
@@ -266,16 +395,16 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 children: List.generate(3, (i) {
                   final active = (i < etoiles);
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
                     child: Icon(
                       Icons.star_rounded,
-                      size: 42,
+                      size: 38,
                       color: active ? Colors.amber : Colors.grey.shade300,
                     ),
                   );
                 }),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 etoiles > 0
                     ? '$etoiles/3 étoiles obtenues'
@@ -286,11 +415,11 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   color: etoiles > 0 ? Colors.amber.shade900 : AppColors.grisTexte,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // Piliers de récompense
+              // Piliers de récompense (Zéro émoticône)
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6FAF6),
                   borderRadius: BorderRadius.circular(16),
@@ -299,28 +428,28 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildModalBadge(Icons.timer_outlined, '3 questions', '1 min snack'),
-                    _buildModalBadge(Icons.monetization_on_outlined, '+15 à +25', 'Grains 🌾'),
-                    _buildModalBadge(Icons.local_fire_department, 'Série +1', 'Boost 🔥'),
+                    _buildModalBadge(Icons.timer_outlined, '3 questions', '1 min'),
+                    _buildModalBadge(Icons.grain_rounded, '+15 à +25', 'Grains'),
+                    _buildModalBadge(Icons.local_fire_department_rounded, 'Série +1', 'Boost'),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
-              // Bouton Jouer
+              // Bouton Jouer aux couleurs du Grade
               SizedBox(
                 width: double.infinity,
-                height: 54,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
                     _lancerNiveau(niveau);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.vertPrimaire,
+                    backgroundColor: grade.couleur,
                     foregroundColor: Colors.white,
                     elevation: 4,
-                    shadowColor: AppColors.vertPrimaire.withValues(alpha: 0.4),
+                    shadowColor: grade.couleur.withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Row(
@@ -329,8 +458,8 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                       Icon(etoiles > 0 ? Icons.replay_rounded : Icons.play_arrow_rounded, size: 24),
                       const SizedBox(width: 8),
                       Text(
-                        etoiles > 0 ? 'REJOUER LE NIVEAU' : 'JOUER LE NIVEAU',
-                        style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                        etoiles > 0 ? 'REJOUER LE NIVEAU' : 'COMMENCER LE NIVEAU',
+                        style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                       ),
                     ],
                   ),
@@ -390,7 +519,11 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Row(
           children: [
-            Text(estDebloque ? '🎁' : '🔒', style: const TextStyle(fontSize: 28)),
+            Icon(
+              estDebloque ? Icons.card_giftcard_rounded : Icons.lock_rounded,
+              size: 28,
+              color: estDebloque ? Colors.amber.shade800 : Colors.blueGrey,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -441,7 +574,9 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
             const SizedBox(height: 16),
             Row(
               children: [
-                Text('🏆 Trophées & Badges', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
+                const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 22),
+                const SizedBox(width: 8),
+                Text('Trophées & Badges', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -473,7 +608,11 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                     ),
                     child: Row(
                       children: [
-                        Text(estDebloque ? b.icone : '🔒', style: const TextStyle(fontSize: 30)),
+                        Icon(
+                          estDebloque ? b.icone : Icons.lock_rounded,
+                          size: 28,
+                          color: estDebloque ? Colors.amber.shade800 : Colors.grey.shade400,
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -545,7 +684,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
             // En-tête
             Row(
               children: [
-                const Text('🏛️', style: TextStyle(fontSize: 24)),
+                const Icon(Icons.military_tech_rounded, size: 24, color: AppColors.vertPrimaire),
                 const SizedBox(width: 8),
                 Text('Les 10 Grades Agricoles', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
                 const Spacer(),
@@ -588,7 +727,17 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 children: [
                   Row(
                     children: [
-                      Text(_gradeActuel.icone, style: const TextStyle(fontSize: 34)),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: _gradeActuel.couleur.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2)),
+                          ],
+                        ),
+                        child: Icon(_gradeActuel.icone, size: 28, color: _gradeActuel.couleur),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -655,7 +804,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                       ),
                       child: Row(
                         children: [
-                          const Text('👑', style: TextStyle(fontSize: 16)),
+                          Icon(Icons.workspace_premium_rounded, size: 18, color: Colors.amber.shade900),
                           const SizedBox(width: 6),
                           Text(
                             'Rang Suprême Débloqué ! Vous êtes une Légende.',
@@ -702,7 +851,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                     ),
                     child: Row(
                       children: [
-                        Text(g.icone, style: const TextStyle(fontSize: 26)),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: g.couleur.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(g.icone, size: 22, color: g.couleur),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -898,7 +1054,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           else
             const Padding(
               padding: EdgeInsets.only(left: 4, right: 6),
-              child: Text('🎮', style: TextStyle(fontSize: 20)),
+              child: Icon(Icons.sports_esports_rounded, size: 20, color: AppColors.vertPrimaire),
             ),
 
           // Titre flexible qui s'adapte sans pousser les stats
@@ -939,7 +1095,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_gradeActuel.icone, style: const TextStyle(fontSize: 12)),
+                          Icon(_gradeActuel.icone, size: 13, color: _gradeActuel.couleur),
                           const SizedBox(width: 3),
                           Text(
                             _gradeActuel.titre.split(' ').first,
@@ -954,11 +1110,11 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                     ),
                   ),
                   const SizedBox(width: 4),
-                  _buildStatPill('⭐', '$totalEtoiles', Colors.amber.shade900, Colors.amber.shade50),
+                  _buildStatPill(Icons.star_rounded, '$totalEtoiles', Colors.amber.shade900, Colors.amber.shade50),
                   const SizedBox(width: 4),
-                  _buildStatPill('🌾', '$_totalGrains', Colors.orange.shade900, Colors.orange.shade50),
+                  _buildStatPill(Icons.grain_rounded, '$_totalGrains', Colors.orange.shade900, Colors.orange.shade50),
                   const SizedBox(width: 4),
-                  _buildStatPill('🔥', '$_streak j', Colors.redAccent.shade700, Colors.red.shade50),
+                  _buildStatPill(Icons.local_fire_department_rounded, '$_streak j', Colors.redAccent.shade700, Colors.red.shade50),
                   const SizedBox(width: 4),
 
                   // Trophée Badges
@@ -998,7 +1154,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
-  Widget _buildStatPill(String emoji, String texte, Color texteColor, Color fondColor) {
+  Widget _buildStatPill(IconData icone, String texte, Color texteColor, Color fondColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
@@ -1009,7 +1165,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 12)),
+          Icon(icone, size: 12.5, color: texteColor),
           const SizedBox(width: 3),
           Text(
             texte,
@@ -1024,11 +1180,12 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
-  // ── Bulles de Niveaux 3D ──
+  // ── Bulles de Niveaux 3D aux couleurs du Grade ──
   Widget _buildNiveauBubble(int niveauId, Offset pos) {
     final estDebloque = (niveauId <= _niveauMax);
     final estNiveauActuel = (niveauId == _niveauMax);
     final etoiles = _etoilesMap[niveauId] ?? 0;
+    final grade = QuizGrade.getGradePourNiveau(niveauId);
     const bubbleSize = 64.0;
 
     return Positioned(
@@ -1041,7 +1198,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           alignment: Alignment.center,
           clipBehavior: Clip.none,
           children: [
-            // A. Halo lumineux pulsant si niveau actuel
+            // A. Halo lumineux pulsant aux couleurs du Grade si niveau actuel
             if (estNiveauActuel)
               Positioned(
                 top: 20,
@@ -1057,7 +1214,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF28B7FE).withValues(alpha: 0.6),
+                              color: grade.couleur.withValues(alpha: 0.65),
                               blurRadius: 18,
                               spreadRadius: 4,
                             ),
@@ -1087,7 +1244,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   height: bubbleSize,
                   child: Stack(
                     children: [
-                      // 1. Rebord 3D inférieur (Donne l'aspect relief façon Bubble Shooter)
+                      // 1. Rebord 3D inférieur (Donne le relief teinté selon le Grade)
                       Positioned(
                         left: 0,
                         right: 0,
@@ -1097,11 +1254,11 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: estDebloque
-                                ? const Color(0xFF095889)
+                                ? grade.couleurOmbre
                                 : const Color(0xFF5E6B77),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.28),
+                                color: (estDebloque ? grade.couleurOmbre : Colors.black).withValues(alpha: 0.32),
                                 blurRadius: 8,
                                 offset: const Offset(0, 6),
                               ),
@@ -1110,7 +1267,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                         ),
                       ),
 
-                      // 2. Corps de la bulle en dégradé
+                      // 2. Corps de la bulle en dégradé vibrant du Grade
                       Positioned(
                         left: 0,
                         right: 0,
@@ -1120,13 +1277,10 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: estDebloque
-                                ? const LinearGradient(
+                                ? LinearGradient(
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
-                                    colors: [
-                                      Color(0xFF38C5FE), // Cyan vibrant
-                                      Color(0xFF0C7BBF), // Bleu profond
-                                    ],
+                                    colors: grade.degrade,
                                   )
                                 : const LinearGradient(
                                     begin: Alignment.topCenter,
@@ -1137,8 +1291,10 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                     ],
                                   ),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: estDebloque ? 0.45 : 0.2),
-                              width: 1.5,
+                              color: estDebloque
+                                  ? Colors.white.withValues(alpha: 0.55)
+                                  : grade.couleur.withValues(alpha: 0.25),
+                              width: 1.6,
                             ),
                           ),
                           child: Stack(
@@ -1156,7 +1312,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        Colors.white.withValues(alpha: 0.65),
+                                        Colors.white.withValues(alpha: 0.70),
                                         Colors.white.withValues(alpha: 0.0),
                                       ],
                                     ),
@@ -1164,12 +1320,12 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                 ),
                               ),
 
-                              // Numéro ou Cadenas
+                              // Numéro en GRAND & GRAS ou Cadenas
                               if (estDebloque)
                                 Text(
                                   '$niveauId',
                                   style: GoogleFonts.inter(
-                                    fontSize: niveauId >= 100 ? 19 : 23,
+                                    fontSize: niveauId >= 100 ? 19 : 24,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                     shadows: const [
@@ -1178,7 +1334,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                   ),
                                 )
                               else
-                                const Icon(Icons.lock_rounded, color: Color(0xFF455059), size: 24),
+                                const Icon(Icons.lock_rounded, color: Color(0xFF455059), size: 23),
                             ],
                           ),
                         ),
@@ -1214,7 +1370,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 ),
               ),
 
-            // D. Avatar / Pin joueur animé "Ici !" sur le niveau actif
+            // D. Avatar / Pin joueur animé "Ici !" sur le niveau actif (Zéro émoticône)
             if (estNiveauActuel)
               Positioned(
                 top: -14,
@@ -1224,15 +1380,15 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                     return Transform.translate(
                       offset: Offset(0, _bounceAnimation.value),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+                          gradient: LinearGradient(
+                            colors: [grade.couleur, grade.couleurOmbre],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 6,
                               offset: const Offset(0, 3),
                             ),
@@ -1241,16 +1397,19 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('📍', style: TextStyle(fontSize: 11)),
+                            const Icon(Icons.location_on_rounded, size: 12, color: Colors.white),
                             const SizedBox(width: 3),
                             Text(
-                              'Ici • ${_gradeActuel.icone}',
+                              'NIV. $niveauId',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 11,
+                                letterSpacing: 0.4,
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            Icon(grade.icone, size: 12, color: Colors.white),
                           ],
                         ),
                       ),
@@ -1264,7 +1423,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
-  // ── Bannières des 10 Mondes & Grand Sommet ──
+  // ── Bannières des 10 Mondes & Grand Sommet (Zéro Émoticônes) ──
   List<Widget> _buildBannieresMondes(double screenWidth, Map<int, Offset> levelPositions) {
     final widgets = <Widget>[];
 
@@ -1277,6 +1436,8 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           ? pos.dy + 80
           : (levelPositions[premierNiveau - 1]!.dy + pos.dy) / 2;
 
+      final gradeMonde = QuizGrade.getGradePourNiveau(premierNiveau);
+
       widgets.add(
         Positioned(
           top: yPos - 16,
@@ -1286,27 +1447,34 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5A2B), Color(0xFFA06D3B)], // Bois noble
+                gradient: LinearGradient(
+                  colors: [gradeMonde.couleurOmbre, gradeMonde.couleur],
                 ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFD4A373), width: 1.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.5),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 3)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 3)),
                 ],
               ),
-              child: Text(
-                '${monde.icone} MONDE ${monde.id} : ${monde.nom.toUpperCase()}',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                  shadows: const [
-                    Shadow(color: Colors.black45, offset: Offset(0, 1), blurRadius: 2),
-                  ],
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(monde.iconeData, size: 16, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'MONDE ${monde.id} : ${monde.nom.toUpperCase()}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                      shadows: const [
+                        Shadow(color: Colors.black45, offset: Offset(0, 1), blurRadius: 2),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1324,7 +1492,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           right: 0,
           child: Column(
             children: [
-              const Text('🏆', style: TextStyle(fontSize: 48)),
+              const Icon(Icons.emoji_events_rounded, size: 48, color: Color(0xFFFFD700)),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
@@ -1389,9 +1557,10 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ],
               ),
-              child: Text(
-                estDebloque ? '🎁' : '🪙',
-                style: const TextStyle(fontSize: 22),
+              child: Icon(
+                estDebloque ? Icons.card_giftcard_rounded : Icons.lock_clock_rounded,
+                size: 22,
+                color: estDebloque ? Colors.amber.shade900 : Colors.blueGrey.shade700,
               ),
             ),
           ),

@@ -1,5 +1,5 @@
 // Carte d'accueil interactive pour le Quiz Agricole et le parcours de Niveaux.
-// Déclencheur visuel : streak 🔥, grains 🌾, et accès en 1 clic.
+// Déclencheur visuel : streak, grains, et accès en 1 clic.
 import 'package:flutter/material.dart';
 import '../core/design/app_colors.dart';
 import '../data/quiz_data.dart';
@@ -60,7 +60,7 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
       MaterialPageRoute(
         builder: (_) => QuizScreen(
           questions: questions,
-          titre: '🌾 Quiz du Jour',
+          titre: 'Quiz du Jour',
           estQuizDuJour: true,
         ),
       ),
@@ -150,7 +150,7 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('🔥', style: TextStyle(fontSize: 12)),
+                            Icon(Icons.local_fire_department_rounded, size: 13, color: Colors.red.shade700),
                             const SizedBox(width: 2),
                             Text(
                               '$_streak j',
@@ -175,8 +175,8 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(grade.icone, style: const TextStyle(fontSize: 12)),
-                          const SizedBox(width: 3),
+                          Icon(grade.icone, size: 13, color: grade.couleur),
+                          const SizedBox(width: 4),
                           Text(
                             grade.titre.split(' ').first,
                             style: TextStyle(
@@ -196,13 +196,20 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.amber.shade400),
                       ),
-                      child: Text(
-                        '$_grains 🌾',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                          color: Colors.amber.shade900,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.grain_rounded, size: 13, color: Colors.amber.shade900),
+                          const SizedBox(width: 3),
+                          Text(
+                            '$_grains',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

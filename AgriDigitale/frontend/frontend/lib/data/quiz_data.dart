@@ -1,6 +1,8 @@
 // Catalogue complet de 100 niveaux et 300 questions pour le Quiz Agricole 100% hors-ligne.
 // Conçu pour le Togo et l'Afrique de l'Ouest : Agronomie, Élevage, Eau, Agri-Tech et Agro-Business.
 
+import 'package:flutter/material.dart';
+
 class QuestionQuiz {
   final int id;
   final String question;
@@ -49,6 +51,33 @@ class MondeQuiz {
     required this.icone,
     required this.niveaux,
   });
+
+  IconData get iconeData {
+    switch (id) {
+      case 1:
+        return Icons.landscape_rounded;
+      case 2:
+        return Icons.agriculture_rounded;
+      case 3:
+        return Icons.eco_rounded;
+      case 4:
+        return Icons.park_rounded;
+      case 5:
+        return Icons.water_drop_rounded;
+      case 6:
+        return Icons.pets_rounded;
+      case 7:
+        return Icons.spa_rounded;
+      case 8:
+        return Icons.precision_manufacturing_rounded;
+      case 9:
+        return Icons.inventory_2_rounded;
+      case 10:
+        return Icons.stars_rounded;
+      default:
+        return Icons.military_tech_rounded;
+    }
+  }
 }
 
 class QuizData {
