@@ -2,6 +2,7 @@
 // Déclencheurs de dopamine : confettis, retour haptique, explications bienveillantes et progression.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/design/app_colors.dart';
 import '../../data/quiz_data.dart';
@@ -145,7 +146,8 @@ class _QuizScreenState extends State<QuizScreen> {
     final progression = (_questionIndex + 1) / total;
     const lettres = ['A', 'B', 'C', 'D'];
 
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,12 +157,19 @@ class _QuizScreenState extends State<QuizScreen> {
             children: [
               Text(
                 'Question ${_questionIndex + 1}/$total',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.vertPrimaire, fontSize: 13),
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.vertPrimaire,
+                  fontSize: 13,
+                ),
               ),
               const Spacer(),
               const Icon(Icons.flash_on, color: Colors.amber, size: 16),
               const SizedBox(width: 4),
-              const Text('1 min snack', style: TextStyle(color: AppColors.grisTexte, fontSize: 12)),
+              Text(
+                '1 min snack',
+                style: GoogleFonts.inter(color: AppColors.grisTexte, fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -173,7 +182,7 @@ class _QuizScreenState extends State<QuizScreen> {
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.vertPrimaire),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Carte de la question
           Container(
@@ -191,108 +200,159 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             child: Text(
               _questionActuelle.question,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, height: 1.4),
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+                color: AppColors.texteFort,
+              ),
             ),
           ),
           const SizedBox(height: 20),
 
-          // Options de réponse
-          Expanded(
-            child: ListView.separated(
-              itemCount: _questionActuelle.options.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, i) {
-                final optionTexte = _questionActuelle.options[i];
-                final estSelectionnee = (_reponseSelectionnee == i);
-                final estLaBonneReponse = (i == _questionActuelle.bonneReponseIndex);
+          // Grille 2x2 des 4 options de réponse
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _questionActuelle.options.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+            ),
+            itemBuilder: (context, i) {
+              final optionTexte = _questionActuelle.options[i];
+              final estSelectionnee = (_reponseSelectionnee == i);
+              final estLaBonneReponse = (i == _questionActuelle.bonneReponseIndex);
 
-                Color fond = Colors.white;
-                Color bordure = AppColors.grisLigne;
-                Color texteCouleur = AppColors.texteFort;
-                IconData? iconeStatut;
+              Color fond = Colors.white;
+              Color bordure = AppColors.grisLigne;
+              Color texteCouleur = AppColors.texteFort;
+              Color badgeFond = AppColors.grisPastille;
+              Color badgeTexte = AppColors.texteFort;
+              IconData? iconeStatut;
+              double opacite = 1.0;
 
-                if (_repondu) {
-                  if (estLaBonneReponse) {
-                    fond = AppColors.vertClair.withValues(alpha: 0.18);
-                    bordure = AppColors.vertPrimaire;
-                    texteCouleur = AppColors.vertFonce;
-                    iconeStatut = Icons.check_circle;
-                  } else if (estSelectionnee) {
-                    fond = Colors.red.shade50;
-                    bordure = Colors.red.shade400;
-                    texteCouleur = Colors.red.shade900;
-                    iconeStatut = Icons.cancel;
-                  }
+              if (_repondu) {
+                if (estLaBonneReponse) {
+                  fond = AppColors.vertClair.withValues(alpha: 0.2);
+                  bordure = AppColors.vertPrimaire;
+                  texteCouleur = AppColors.vertFonce;
+                  badgeFond = AppColors.vertPrimaire;
+                  badgeTexte = Colors.white;
+                  iconeStatut = Icons.check_circle;
+                } else if (estSelectionnee) {
+                  fond = Colors.red.shade50;
+                  bordure = Colors.red.shade400;
+                  texteCouleur = Colors.red.shade900;
+                  badgeFond = Colors.red;
+                  badgeTexte = Colors.white;
+                  iconeStatut = Icons.cancel;
+                } else {
+                  opacite = 0.55;
                 }
+              }
 
-                return InkWell(
-                  onTap: _repondu ? null : () => _validerReponse(i),
-                  borderRadius: BorderRadius.circular(14),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: fond,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: bordure, width: estSelectionnee || (_repondu && estLaBonneReponse) ? 2.0 : 1.2),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: (_repondu && estLaBonneReponse)
-                                ? AppColors.vertPrimaire
-                                : ((_repondu && estSelectionnee) ? Colors.red : AppColors.grisPastille),
-                            shape: BoxShape.circle,
+              return Opacity(
+                opacity: opacite,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _repondu ? null : () => _validerReponse(i),
+                    borderRadius: BorderRadius.circular(16),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: fond,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: bordure,
+                          width: estSelectionnee || (_repondu && estLaBonneReponse) ? 2.0 : 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
-                          child: Center(
-                            child: Text(
-                              lettres[i],
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: (_repondu && (estLaBonneReponse || estSelectionnee)) ? Colors.white : AppColors.texteFort,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: badgeFond,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    lettres[i],
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: badgeTexte,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              if (iconeStatut != null)
+                                Icon(
+                                  iconeStatut,
+                                  color: estLaBonneReponse ? AppColors.vertPrimaire : Colors.red,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                optionTexte,
+                                textAlign: TextAlign.center,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13.5,
+                                  fontWeight: estSelectionnee || (_repondu && estLaBonneReponse)
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
+                                  color: texteCouleur,
+                                  height: 1.25,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            optionTexte,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: estSelectionnee ? FontWeight.bold : FontWeight.w500,
-                              color: texteCouleur,
-                            ),
-                          ),
-                        ),
-                        if (iconeStatut != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(iconeStatut, color: (_repondu && estLaBonneReponse) ? AppColors.vertPrimaire : Colors.red, size: 22),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+          const SizedBox(height: 20),
 
           // Encadré d'explication bienveillante si répondu
           if (_repondu) ...[
             Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
-                    ? AppColors.vertClair.withValues(alpha: 0.12)
+                    ? AppColors.vertClair.withValues(alpha: 0.15)
                     : Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
-                      ? AppColors.vertPrimaire.withValues(alpha: 0.3)
+                      ? AppColors.vertPrimaire.withValues(alpha: 0.4)
                       : Colors.amber.shade300,
                 ),
               ),
@@ -301,9 +361,9 @@ class _QuizScreenState extends State<QuizScreen> {
                 children: [
                   Text(
                     (_reponseSelectionnee == _questionActuelle.bonneReponseIndex) ? '👏' : '💡',
-                    style: const TextStyle(fontSize: 20),
+                    style: const TextStyle(fontSize: 24),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,24 +372,33 @@ class _QuizScreenState extends State<QuizScreen> {
                           (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
                               ? 'Excellent !'
                               : 'Bon à savoir :',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 14,
                             color: (_reponseSelectionnee == _questionActuelle.bonneReponseIndex)
                                 ? AppColors.vertFonce
                                 : Colors.amber.shade900,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
                           _questionActuelle.explication,
-                          style: const TextStyle(fontSize: 13, height: 1.35),
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: Colors.black87,
+                          ),
                         ),
                         if (_questionActuelle.astuceBonus != null) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             'Astuce : ${_questionActuelle.astuceBonus!}',
-                            style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.vertFonce),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.vertFonce,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ],
@@ -343,14 +412,16 @@ class _QuizScreenState extends State<QuizScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.vertPrimaire,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 2,
               ),
               child: Text(
                 _questionIndex < widget.questions.length - 1 ? 'Question suivante →' : 'Voir mon score 🎉',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
+            const SizedBox(height: 24),
           ],
         ],
       ),
