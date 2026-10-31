@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/design/app_colors.dart';
 import '../../data/quiz_data.dart';
+import '../../models/quiz_grade.dart';
 import '../../services/quiz_service.dart';
 import 'quiz_screen.dart';
 
@@ -37,6 +38,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   int _streak = 0;
   Map<int, int> _etoilesMap = {};
   List<String> _badgesDebloques = [];
+  QuizGrade _gradeActuel = QuizGrade.tousLesGrades.first;
   bool _chargement = true;
 
   // Géométrie de la carte
@@ -105,6 +107,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
         _streak = streak;
         _etoilesMap = etoiles;
         _badgesDebloques = badges;
+        _gradeActuel = QuizGrade.getGradePourNiveau(max);
         _chargement = false;
       });
 
@@ -509,6 +512,252 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
+  void _afficherModalGrades() {
+    HapticFeedback.lightImpact();
+    final prochain = QuizGrade.getProchainGrade(_niveauMax);
+    final restants = QuizGrade.getNiveauxRestants(_niveauMax);
+    final progression = QuizGrade.getProgressionVersProchainGrade(_niveauMax);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Poignée supérieure
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // En-tête
+            Row(
+              children: [
+                const Text('🏛️', style: TextStyle(fontSize: 24)),
+                const SizedBox(width: 8),
+                Text('Les 10 Grades Agricoles', style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Niv. $_niveauMax/100',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.vertPrimaire, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Carte du Grade Actuel avec barre de progression vers le prochain rang
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_gradeActuel.couleurFond, Colors.white],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _gradeActuel.couleur, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: _gradeActuel.couleur.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(_gradeActuel.icone, style: const TextStyle(fontSize: 34)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'VOTRE RANG ACTUEL',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: _gradeActuel.couleur,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              _gradeActuel.titre,
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 18, color: AppColors.texteFort),
+                            ),
+                            Text(
+                              _gradeActuel.sousTitre,
+                              style: GoogleFonts.inter(fontSize: 12, color: AppColors.grisTexte),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _gradeActuel.description,
+                    style: GoogleFonts.inter(fontSize: 12.5, color: Colors.black87, height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+                  if (prochain != null) ...[
+                    Row(
+                      children: [
+                        Text(
+                          'Prochain rang : ${prochain.titre}',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: prochain.couleur),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '$restants niveau${restants > 1 ? 'x' : ''} restant${restants > 1 ? 's' : ''}',
+                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.grisTexte, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: progression,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: AlwaysStoppedAnimation<Color>(prochain.couleur),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('👑', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Rang Suprême Débloqué ! Vous êtes une Légende.',
+                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.brown.shade800),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              'L\'Échelle de Progression (10 Grades)',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.texteFort),
+            ),
+            const SizedBox(height: 8),
+
+            // Liste des 10 grades
+            Expanded(
+              child: ListView.separated(
+                itemCount: QuizGrade.tousLesGrades.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final g = QuizGrade.tousLesGrades[i];
+                  final estAtteint = (_niveauMax >= g.niveauRequis);
+                  final estActuel = (g.titre == _gradeActuel.titre);
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: estActuel
+                          ? g.couleurFond
+                          : (estAtteint ? Colors.grey.shade50 : Colors.grey.shade100.withValues(alpha: 0.6)),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: estActuel
+                            ? g.couleur
+                            : (estAtteint ? g.couleur.withValues(alpha: 0.4) : Colors.grey.shade300),
+                        width: estActuel ? 1.8 : 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(g.icone, style: const TextStyle(fontSize: 26)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    g.titre,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.5,
+                                      color: estAtteint ? AppColors.texteFort : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  if (estActuel) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: g.couleur,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Actuel',
+                                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${g.sousTitre} • Requis : Niv. ${g.niveauRequis}',
+                                style: GoogleFonts.inter(fontSize: 11, color: estAtteint ? AppColors.grisTexte : Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (estAtteint)
+                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20)
+                        else
+                          Icon(Icons.lock_rounded, color: Colors.grey.shade400, size: 18),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalEtoiles = _etoilesMap.values.fold(0, (sum, val) => sum + val);
@@ -676,6 +925,35 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Pastille Grade Actuel (Cliquable pour voir les 10 grades)
+                  InkWell(
+                    onTap: _afficherModalGrades,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _gradeActuel.couleurFond,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _gradeActuel.couleur.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_gradeActuel.icone, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 3),
+                          Text(
+                            _gradeActuel.titre.split(' ').first,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              color: _gradeActuel.couleur,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   _buildStatPill('⭐', '$totalEtoiles', Colors.amber.shade900, Colors.amber.shade50),
                   const SizedBox(width: 4),
                   _buildStatPill('🌾', '$_totalGrains', Colors.orange.shade900, Colors.orange.shade50),
@@ -966,7 +1244,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                             const Text('📍', style: TextStyle(fontSize: 11)),
                             const SizedBox(width: 3),
                             Text(
-                              'Ici !',
+                              'Ici • ${_gradeActuel.icone}',
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,

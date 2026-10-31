@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/design/app_colors.dart';
 import '../../data/quiz_data.dart';
+import '../../models/quiz_grade.dart';
 import '../../services/quiz_service.dart';
 import '../../widgets/confetti_overlay.dart';
 
@@ -41,6 +42,23 @@ class _QuizScreenState extends State<QuizScreen> {
   int _streakActuel = 0;
   bool _nouveauNiveauDebloque = false;
   List<BadgeQuiz> _nouveauxBadges = [];
+  QuizGrade? _nouveauGrade;
+  QuizGrade? _gradeActuel;
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerGradeInitial();
+  }
+
+  Future<void> _chargerGradeInitial() async {
+    final grade = await _quizService.getGradeActuel();
+    if (mounted) {
+      setState(() {
+        _gradeActuel = grade;
+      });
+    }
+  }
 
   QuestionQuiz get _questionActuelle => widget.questions[_questionIndex];
 
@@ -80,11 +98,13 @@ class _QuizScreenState extends State<QuizScreen> {
       final res = await _quizService.enregistrerResultatQuizDuJour(
         bonnesReponses: _bonnesReponses,
       );
+      final grade = await _quizService.getGradeActuel();
       if (!mounted) return;
       setState(() {
         _grainsGagnes = res.grainsGagnes;
         _streakActuel = res.streakActuel;
         _nouveauxBadges = res.nouveauxBadges;
+        _gradeActuel = grade;
         _quizTermine = true;
       });
     } else if (widget.niveauId != null) {
@@ -93,12 +113,15 @@ class _QuizScreenState extends State<QuizScreen> {
         bonnesReponses: _bonnesReponses,
       );
       final streak = await _quizService.getStreakJours();
+      final grade = await _quizService.getGradeActuel();
       if (!mounted) return;
       setState(() {
         _etoilesObtenues = res.etoiles;
         _grainsGagnes = res.grainsGagnes;
         _nouveauNiveauDebloque = res.niveauDebloque;
         _nouveauxBadges = res.nouveauxBadges;
+        _nouveauGrade = res.nouveauGrade;
+        _gradeActuel = grade;
         _streakActuel = streak;
         _quizTermine = true;
       });
@@ -506,6 +529,127 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Promotion de Grade Exceptionnelle
+          if (_nouveauGrade != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_nouveauGrade!.couleurFond, Colors.white],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _nouveauGrade!.couleur, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: _nouveauGrade!.couleur.withValues(alpha: 0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Text(_nouveauGrade!.icone, style: const TextStyle(fontSize: 38)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🎉 PROMOTION DE GRADE !',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                            color: _nouveauGrade!.couleur,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _nouveauGrade!.titre,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 17,
+                            color: AppColors.texteFort,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _nouveauGrade!.sousTitre,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.grisTexte,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_gradeActuel != null) ...[
+            // Grade actuel du joueur et progression vers le prochain rang
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.grisLigne),
+              ),
+              child: Row(
+                children: [
+                  Text(_gradeActuel!.icone, style: const TextStyle(fontSize: 26)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Rang : ${_gradeActuel!.titre}',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: _gradeActuel!.couleur,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (widget.niveauId != null && QuizGrade.getProchainGrade(widget.niveauId!) != null)
+                              Text(
+                                '${QuizGrade.getNiveauxRestants(widget.niveauId!)} niv. avant promotion',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: AppColors.grisTexte,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (widget.niveauId != null) ...[
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: QuizGrade.getProgressionVersProchainGrade(widget.niveauId!),
+                              minHeight: 6,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(_gradeActuel!.couleur),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Nouveau niveau débloqué
           if (_nouveauNiveauDebloque) ...[

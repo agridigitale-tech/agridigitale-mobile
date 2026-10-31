@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../core/design/app_colors.dart';
 import '../data/quiz_data.dart';
+import '../models/quiz_grade.dart';
 import '../services/quiz_service.dart';
 import '../screens/quiz/quiz_screen.dart';
 import '../screens/quiz/quiz_niveaux_screen.dart';
@@ -80,6 +81,7 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final grade = QuizGrade.getGradePourNiveau(_niveauMax);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -163,6 +165,30 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
                       ),
                       const SizedBox(width: 6),
                     ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: grade.couleurFond,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: grade.couleur.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(grade.icone, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 3),
+                          Text(
+                            grade.titre.split(' ').first,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                              color: grade.couleur,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(

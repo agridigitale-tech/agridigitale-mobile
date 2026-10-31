@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/quiz_data.dart';
+import '../models/quiz_grade.dart';
 
 class BadgeQuiz {
   final String id;
@@ -148,9 +149,15 @@ class QuizService {
     return sp.getStringList(_kKeyBadges) ?? [];
   }
 
+  /// Récupère le grade actif actuel du joueur (de Novice à Légende)
+  Future<QuizGrade> getGradeActuel() async {
+    final max = await getNiveauMaxDebloque();
+    return QuizGrade.getGradePourNiveau(max);
+  }
+
   /// Enregistre le résultat d'un niveau du mode aventure
-  /// Retourne : (etoilesObtenues, nouveauNiveauDebloque, grainsGagnes, nouveauxBadges)
-  Future<({int etoiles, bool niveauDebloque, int grainsGagnes, List<BadgeQuiz> nouveauxBadges})> enregistrerResultatNiveau({
+  /// Retourne : (etoilesObtenues, nouveauNiveauDebloque, grainsGagnes, nouveauxBadges, nouveauGrade)
+  Future<({int etoiles, bool niveauDebloque, int grainsGagnes, List<BadgeQuiz> nouveauxBadges, QuizGrade? nouveauGrade})> enregistrerResultatNiveau({
     required int niveauId,
     required int bonnesReponses,
   }) async {
@@ -178,9 +185,18 @@ class QuizService {
 
     // Déblocage du niveau suivant si au moins 2 étoiles et c'est le niveau max actuel
     bool niveauDebloque = false;
+    QuizGrade? nouveauGrade;
     if (etoilesSession >= 2 && niveauId == niveauMaxActuel && niveauId < QuizData.totalNiveaux) {
-      await sp.setInt(_kKeyNiveauMax, niveauId + 1);
+      final nouveauNiveau = niveauId + 1;
+      await sp.setInt(_kKeyNiveauMax, nouveauNiveau);
       niveauDebloque = true;
+
+      // Détection de promotion de grade
+      final ancienGrade = QuizGrade.getGradePourNiveau(niveauMaxActuel);
+      final gradeApres = QuizGrade.getGradePourNiveau(nouveauNiveau);
+      if (gradeApres.titre != ancienGrade.titre) {
+        nouveauGrade = gradeApres;
+      }
     }
 
     // Calcul des grains
@@ -200,6 +216,7 @@ class QuizService {
       niveauDebloque: niveauDebloque,
       grainsGagnes: grainsGagnes,
       nouveauxBadges: nouveauxBadges,
+      nouveauGrade: nouveauGrade,
     );
   }
 
