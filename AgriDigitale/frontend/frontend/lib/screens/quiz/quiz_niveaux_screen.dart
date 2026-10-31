@@ -1,11 +1,12 @@
-// Écran interactif du Roadmap / Monde du Quiz Agricole.
+// Écran interactif du Roadmap / Monde du Quiz Agricole (100 Niveaux).
 // Design inspiré du Bubble Shooter / Candy Crush :
 // - Ciel bleu avec nuages flottants
-// - Route sinueuse (S-curve) en sable reliant les niveaux 1 (en bas) à 15 (en haut)
+// - Route sinueuse (S-curve) en sable reliant les niveaux 1 (en bas) à 100 (au sommet)
 // - Bulles 3D immersives (Bleu brillant pour débloqué, pierre grise pour verrouillé)
 // - Étoiles au-dessus des niveaux réussis, halo lumineux & pin joueur "Vous êtes ici !"
-// - Coffres aux trésors aux paliers des mondes (Niveaux 3, 6, 9, 12, 15)
+// - Coffres aux trésors aux paliers des 10 mondes (Niveaux 10, 20, 30, ..., 100)
 // - Panneau de prévisualisation ergonomique avant de lancer un niveau
+// - Barre supérieure anti-débordement avec FittedBox responsive
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +17,7 @@ import '../../services/quiz_service.dart';
 import 'quiz_screen.dart';
 
 class QuizNiveauxScreen extends StatefulWidget {
-  static const int kTotalNiveaux = 15;
+  static int get kTotalNiveaux => QuizData.totalNiveaux;
   const QuizNiveauxScreen({super.key});
 
   @override
@@ -39,31 +40,28 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   bool _chargement = true;
 
   // Géométrie de la carte
-  static const int kTotalNiveaux = QuizNiveauxScreen.kTotalNiveaux;
+  static int get kTotalNiveaux => QuizData.totalNiveaux;
   static const double kTopPadding = 200.0;
-  static const double kStepY = 140.0;
+  static const double kStepY = 115.0;
   static const double kBottomPadding = 180.0;
-  static const double kTotalHeight = kTopPadding + (kTotalNiveaux - 1) * kStepY + kBottomPadding;
+  double get kTotalHeight => kTopPadding + (kTotalNiveaux - 1) * kStepY + kBottomPadding;
 
-  // Oscillation horizontale de la route (ratio 0.0 = bord gauche, 1.0 = bord droit)
-  // Index 0 = Niveau 1 (départ en bas), Index 14 = Niveau 15 (sommet en haut)
-  static const List<double> kXRatios = [
-    0.50, // N1  (Départ centré en bas)
-    0.28, // N2  (Courbe à gauche)
-    0.18, // N3  (Palier gauche - Monde 1)
-    0.44, // N4  (Vers la droite)
-    0.74, // N5  (Courbe à droite)
-    0.82, // N6  (Palier droite - Monde 2)
-    0.56, // N7  (Vers la gauche)
-    0.26, // N8  (Courbe à gauche)
-    0.18, // N9  (Palier gauche - Monde 3)
-    0.44, // N10 (Vers la droite)
-    0.74, // N11 (Courbe à droite)
-    0.82, // N12 (Palier droite - Monde 4)
-    0.56, // N13 (Vers la gauche)
-    0.28, // N14 (Courbe à gauche)
-    0.50, // N15 (Sommet centré - Monde 5)
-  ];
+  // Oscillation serpentine périodique (0.0 = bord gauche, 1.0 = bord droit)
+  static double getXRatio(int index) {
+    if (index == 0) return 0.50; // Niveau 1 : départ centré en bas
+    if (index == kTotalNiveaux - 1) return 0.50; // Niveau 100 : sommet centré en haut
+    const pattern = [
+      0.50, // Centre
+      0.28, // Vers la gauche
+      0.16, // Courbe gauche
+      0.28, // Remonte vers le centre
+      0.50, // Centre
+      0.72, // Vers la droite
+      0.84, // Courbe droite
+      0.72, // Remonte vers le centre
+    ];
+    return pattern[index % pattern.length];
+  }
 
   @override
   void initState() {
@@ -119,7 +117,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
 
   double _calculerYPourNiveau(int niveauId) {
     final index = (niveauId - 1).clamp(0, kTotalNiveaux - 1);
-    // Niveau 1 est en bas, Niveau 15 est en haut
+    // Niveau 1 est en bas, Niveau 100 est en haut
     return kTopPadding + (kTotalNiveaux - 1 - index) * kStepY;
   }
 
@@ -127,7 +125,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     final index = (niveauId - 1).clamp(0, kTotalNiveaux - 1);
     const margin = 56.0;
     final trackWidth = screenWidth - (margin * 2);
-    return margin + (kXRatios[index] * trackWidth);
+    return margin + (getXRatio(index) * trackWidth);
   }
 
   void _scrollerVersNiveauActuel({bool anime = true}) {
@@ -538,13 +536,13 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ),
 
-                // Canvas scrollable avec la route en S et les bulles 3D
+                // Canvas scrollable avec la route en S et les 100 bulles 3D
                 Positioned.fill(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final screenWidth = constraints.maxWidth;
 
-                      // Pré-calculer les positions des 15 niveaux
+                      // Pré-calculer les positions des 100 niveaux
                       final levelPositions = <int, Offset>{};
                       for (int n = 1; n <= kTotalNiveaux; n++) {
                         levelPositions[n] = Offset(
@@ -568,16 +566,17 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                 painter: _RoadMapPainter(
                                   levelPositions: levelPositions,
                                   screenWidth: screenWidth,
+                                  totalNiveaux: kTotalNiveaux,
                                 ),
                               ),
 
                               // 2. Panneaux de Mondes et Bannières
                               ..._buildBannieresMondes(screenWidth, levelPositions),
 
-                              // 3. Coffres au trésor aux paliers de mondes
+                              // 3. Coffres au trésor aux paliers des mondes
                               ..._buildCoffresTresors(levelPositions),
 
-                              // 4. Les 15 bulles de niveau 3D
+                              // 4. Les 100 bulles de niveau 3D
                               for (int n = 1; n <= kTotalNiveaux; n++)
                                 _buildNiveauBubble(n, levelPositions[n]!),
                             ],
@@ -588,7 +587,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ),
 
-                // Barre supérieure fixe avec Stats du Joueur
+                // Barre supérieure fixe avec Stats du Joueur (100% Anti-Débordement)
                 Positioned(
                   top: 0,
                   left: 0,
@@ -617,17 +616,17 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
-  // ── Barre Supérieure Frosted Glass ──
+  // ── Barre Supérieure Frosted Glass (Garantie Sans Débordement) ──
   Widget _buildHeaderFlottant(int totalEtoiles) {
     return Container(
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        bottom: 10,
-        left: 12,
-        right: 12,
+        top: MediaQuery.of(context).padding.top + 6,
+        bottom: 8,
+        left: 10,
+        right: 10,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: Colors.white.withValues(alpha: 0.94),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
         boxShadow: [
           BoxShadow(
@@ -642,44 +641,78 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           // Bouton retour si applicable
           if (Navigator.canPop(context))
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.texteFort),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: AppColors.texteFort),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
               onPressed: () => Navigator.pop(context),
             )
           else
             const Padding(
-              padding: EdgeInsets.only(left: 6, right: 4),
-              child: Text('🎮', style: TextStyle(fontSize: 22)),
+              padding: EdgeInsets.only(left: 4, right: 6),
+              child: Text('🎮', style: TextStyle(fontSize: 20)),
             ),
 
-          Text(
-            'Défi Agricole',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-              color: AppColors.texteFort,
+          // Titre flexible qui s'adapte sans pousser les stats
+          Flexible(
+            child: Text(
+              'Défi Agricole',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                color: AppColors.texteFort,
+              ),
             ),
           ),
-          const Spacer(),
-
-          // Pastilles de Stats
-          _buildStatPill('⭐', '$totalEtoiles/${QuizData.totalNiveaux * 3}', Colors.amber.shade900, Colors.amber.shade50),
-          const SizedBox(width: 6),
-          _buildStatPill('🌾', '$_totalGrains', Colors.orange.shade900, Colors.orange.shade50),
-          const SizedBox(width: 6),
-          _buildStatPill('🔥', '$_streak j', Colors.redAccent.shade700, Colors.red.shade50),
           const SizedBox(width: 6),
 
-          // Trophée Badges
-          InkWell(
-            onTap: _afficherBadges,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: AppColors.vertPrimaire.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+          // Groupe de stats auto-scalable : FittedBox empêche tout débordement (RenderFlex overflow)
+          Flexible(
+            flex: 2,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildStatPill('⭐', '$totalEtoiles', Colors.amber.shade900, Colors.amber.shade50),
+                  const SizedBox(width: 4),
+                  _buildStatPill('🌾', '$_totalGrains', Colors.orange.shade900, Colors.orange.shade50),
+                  const SizedBox(width: 4),
+                  _buildStatPill('🔥', '$_streak j', Colors.redAccent.shade700, Colors.red.shade50),
+                  const SizedBox(width: 4),
+
+                  // Trophée Badges
+                  InkWell(
+                    onTap: _afficherBadges,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.vertPrimaire.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.vertPrimaire.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.emoji_events_rounded, color: AppColors.vertPrimaire, size: 16),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${_badgesDebloques.length}',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              color: AppColors.vertPrimaire,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.emoji_events_rounded, color: AppColors.vertPrimaire, size: 20),
             ),
           ),
         ],
@@ -689,22 +722,22 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
 
   Widget _buildStatPill(String emoji, String texte, Color texteColor, Color fondColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: fondColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: texteColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 13)),
-          const SizedBox(width: 4),
+          Text(emoji, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 3),
           Text(
             texte,
             style: GoogleFonts.inter(
               fontWeight: FontWeight.w800,
-              fontSize: 12,
+              fontSize: 11.5,
               color: texteColor,
             ),
           ),
@@ -718,14 +751,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     final estDebloque = (niveauId <= _niveauMax);
     final estNiveauActuel = (niveauId == _niveauMax);
     final etoiles = _etoilesMap[niveauId] ?? 0;
-    const bubbleSize = 66.0;
+    const bubbleSize = 64.0;
 
     return Positioned(
       left: pos.dx - (bubbleSize / 2),
       top: pos.dy - (bubbleSize / 2),
       child: SizedBox(
         width: bubbleSize,
-        height: bubbleSize + 40, // Espace pour étoiles et badge "Vous êtes ici"
+        height: bubbleSize + 40,
         child: Stack(
           alignment: Alignment.center,
           clipBehavior: Clip.none,
@@ -858,7 +891,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                 Text(
                                   '$niveauId',
                                   style: GoogleFonts.inter(
-                                    fontSize: 24,
+                                    fontSize: niveauId >= 100 ? 19 : 23,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                     shadows: const [
@@ -867,7 +900,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                                   ),
                                 )
                               else
-                                const Icon(Icons.lock_rounded, color: Color(0xFF455059), size: 26),
+                                const Icon(Icons.lock_rounded, color: Color(0xFF455059), size: 24),
                             ],
                           ),
                         ),
@@ -878,7 +911,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               ),
             ),
 
-            // C. Étoiles au-dessus pour les niveaux complétés (si débloqué et pas le niveau actuel sans étoiles)
+            // C. Étoiles au-dessus pour les niveaux complétés
             if (estDebloque && etoiles > 0)
               Positioned(
                 top: 0,
@@ -903,7 +936,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 ),
               ),
 
-            // D. Avatar / Pin joueur animé "Vous êtes ici !" sur le niveau actif
+            // D. Avatar / Pin joueur animé "Ici !" sur le niveau actif
             if (estNiveauActuel)
               Positioned(
                 top: -14,
@@ -953,23 +986,22 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
     );
   }
 
-  // ── Bannières de Début de Monde & Sommet ──
+  // ── Bannières des 10 Mondes & Grand Sommet ──
   List<Widget> _buildBannieresMondes(double screenWidth, Map<int, Offset> levelPositions) {
     final widgets = <Widget>[];
 
-    // Bannières entre les mondes
-    final separations = [
-      (y: levelPositions[1]!.dy + 90, monde: QuizData.mondes[0], label: '🌱 DÉPART : SOLS & PÉPINIÈRES'),
-      (y: (levelPositions[3]!.dy + levelPositions[4]!.dy) / 2, monde: QuizData.mondes[1], label: '🌽 MONDE 2 : GRANDES CULTURES'),
-      (y: (levelPositions[6]!.dy + levelPositions[7]!.dy) / 2, monde: QuizData.mondes[2], label: '🐄 MONDE 3 : ÉLEVAGE & SANTÉ'),
-      (y: (levelPositions[9]!.dy + levelPositions[10]!.dy) / 2, monde: QuizData.mondes[3], label: '🥬 MONDE 4 : MARAÎCHAGE & EAU'),
-      (y: (levelPositions[12]!.dy + levelPositions[13]!.dy) / 2, monde: QuizData.mondes[4], label: '💰 MONDE 5 : AGRO-BUSINESS'),
-    ];
+    for (final monde in QuizData.mondes) {
+      final premierNiveau = monde.niveaux.first.id;
+      final pos = levelPositions[premierNiveau];
+      if (pos == null) continue;
 
-    for (final sep in separations) {
+      final yPos = (premierNiveau == 1)
+          ? pos.dy + 80
+          : (levelPositions[premierNiveau - 1]!.dy + pos.dy) / 2;
+
       widgets.add(
         Positioned(
-          top: sep.y - 16,
+          top: yPos - 16,
           left: 20,
           right: 20,
           child: Center(
@@ -977,7 +1009,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5A2B), Color(0xFFA06D3B)], // Bois chaleureux
+                  colors: [Color(0xFF8B5A2B), Color(0xFFA06D3B)], // Bois noble
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFD4A373), width: 1.5),
@@ -986,7 +1018,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                 ],
               ),
               child: Text(
-                sep.label,
+                '${monde.icone} MONDE ${monde.id} : ${monde.nom.toUpperCase()}',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   color: Colors.white,
@@ -1004,65 +1036,64 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       );
     }
 
-    // Trophée Sommet au-dessus du Niveau 15
-    final summitY = levelPositions[15]!.dy - 100;
-    widgets.add(
-      Positioned(
-        top: summitY,
-        left: 0,
-        right: 0,
-        child: Column(
-          children: [
-            const Text('🏆', style: TextStyle(fontSize: 44)),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)]),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.orange.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Text(
-                'SOMMET DE L\'EXPERT AGRICOLE',
-                style: GoogleFonts.inter(
-                  color: Colors.brown.shade900,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+    // Grand Trophée Sommet au-dessus du Niveau 100
+    final summitPos = levelPositions[kTotalNiveaux];
+    if (summitPos != null) {
+      widgets.add(
+        Positioned(
+          top: summitPos.dy - 100,
+          left: 0,
+          right: 0,
+          child: Column(
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA000)]),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.orange.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Text(
+                  'GRAND SOMMET DU MAÎTRE AGRONOME',
+                  style: GoogleFonts.inter(
+                    color: Colors.brown.shade900,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     return widgets;
   }
 
-  // ── Coffres aux Trésors aux Paliers (Niveaux 3, 6, 9, 12, 15) ──
+  // ── Coffres aux Trésors aux Paliers des 10 Mondes ──
   List<Widget> _buildCoffresTresors(Map<int, Offset> levelPositions) {
     final widgets = <Widget>[];
-    final paliers = [
-      (niveau: 3, mondeId: 1, decalageX: 58.0),
-      (niveau: 6, mondeId: 2, decalageX: -58.0),
-      (niveau: 9, mondeId: 3, decalageX: 58.0),
-      (niveau: 12, mondeId: 4, decalageX: -58.0),
-      (niveau: 15, mondeId: 5, decalageX: 58.0),
-    ];
 
-    for (final p in paliers) {
-      final pos = levelPositions[p.niveau]!;
-      final estDebloque = (_niveauMax > p.niveau);
+    for (final monde in QuizData.mondes) {
+      final dernierNiveauId = monde.niveaux.last.id;
+      final pos = levelPositions[dernierNiveauId];
+      if (pos == null) continue;
+
+      final decalageX = (monde.id % 2 == 1) ? 58.0 : -58.0;
+      final estDebloque = (_niveauMax > dernierNiveauId);
 
       widgets.add(
         Positioned(
-          left: pos.dx + p.decalageX - 22,
+          left: pos.dx + decalageX - 22,
           top: pos.dy - 10,
           child: GestureDetector(
-            onTap: () => _afficherDialogueCoffre(p.mondeId, p.niveau),
+            onTap: () => _afficherDialogueCoffre(monde.id, dernierNiveauId),
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -1094,12 +1125,17 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   }
 }
 
-// ── CustomPainter pour la Route Sinueuse, les Nuages et la Nature ──
+// ── CustomPainter pour la Route Sinueuse, les Nuages et la Nature (100 Niveaux) ──
 class _RoadMapPainter extends CustomPainter {
   final Map<int, Offset> levelPositions;
   final double screenWidth;
+  final int totalNiveaux;
 
-  _RoadMapPainter({required this.levelPositions, required this.screenWidth});
+  _RoadMapPainter({
+    required this.levelPositions,
+    required this.screenWidth,
+    required this.totalNiveaux,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1117,24 +1153,17 @@ class _RoadMapPainter extends CustomPainter {
       ..color = const Color(0xFFD4ECFB).withValues(alpha: 0.8)
       ..style = PaintingStyle.fill;
 
-    // Coordonnées de quelques nuages flottants
-    final clouds = [
-      Offset(screenWidth * 0.15, size.height * 0.08),
-      Offset(screenWidth * 0.82, size.height * 0.18),
-      Offset(screenWidth * 0.12, size.height * 0.32),
-      Offset(screenWidth * 0.85, size.height * 0.46),
-      Offset(screenWidth * 0.18, size.height * 0.60),
-      Offset(screenWidth * 0.84, size.height * 0.74),
-      Offset(screenWidth * 0.14, size.height * 0.88),
-    ];
+    // Répartition équilibrée de nuages tout le long de la grande carte
+    for (double y = size.height * 0.04; y < size.height * 0.98; y += 450.0) {
+      final isRight = ((y / 450.0).round() % 2 == 1);
+      final c = Offset(isRight ? screenWidth * 0.82 : screenWidth * 0.15, y);
 
-    for (final c in clouds) {
-      // Ombre légère sous le nuage
+      // Ombre légère
       canvas.drawCircle(Offset(c.dx, c.dy + 3), 26, cloudShade);
       canvas.drawCircle(Offset(c.dx - 18, c.dy + 5), 18, cloudShade);
       canvas.drawCircle(Offset(c.dx + 18, c.dy + 5), 18, cloudShade);
 
-      // Corps du nuage blanc
+      // Corps du nuage
       canvas.drawCircle(c, 26, paintCloud);
       canvas.drawCircle(Offset(c.dx - 18, c.dy + 2), 18, paintCloud);
       canvas.drawCircle(Offset(c.dx + 18, c.dy + 2), 18, paintCloud);
@@ -1151,7 +1180,7 @@ class _RoadMapPainter extends CustomPainter {
   void _dessinerRoute(Canvas canvas, Size size) {
     if (levelPositions.length < 2) return;
 
-    // Construction du chemin sinueux C1 continu
+    // Construction du chemin sinueux C1 continu pour tous les niveaux
     final path = Path();
     final p0 = levelPositions[1]!;
 
@@ -1159,7 +1188,7 @@ class _RoadMapPainter extends CustomPainter {
     path.moveTo(p0.dx, p0.dy + 60);
     path.lineTo(p0.dx, p0.dy);
 
-    for (int i = 1; i < QuizNiveauxScreen.kTotalNiveaux; i++) {
+    for (int i = 1; i < totalNiveaux; i++) {
       final pStart = levelPositions[i]!;
       final pEnd = levelPositions[i + 1]!;
       final midY = (pStart.dy + pEnd.dy) / 2;
@@ -1171,8 +1200,8 @@ class _RoadMapPainter extends CustomPainter {
       );
     }
 
-    // Prolongement supérieur vers le Sommet
-    final pTop = levelPositions[QuizNiveauxScreen.kTotalNiveaux]!;
+    // Prolongement supérieur vers le Grand Sommet
+    final pTop = levelPositions[totalNiveaux]!;
     path.lineTo(pTop.dx, pTop.dy - 60);
 
     // 1. Contour / Ombre de la route en sable
@@ -1209,13 +1238,11 @@ class _RoadMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    // Dessin de petits points réguliers le long de chaque segment
-    for (int i = 1; i < QuizNiveauxScreen.kTotalNiveaux; i++) {
+    for (int i = 1; i < totalNiveaux; i++) {
       final pStart = levelPositions[i]!;
       final pEnd = levelPositions[i + 1]!;
-      for (double t = 0.25; t <= 0.75; t += 0.25) {
+      for (double t = 0.33; t <= 0.67; t += 0.34) {
         final midY = (pStart.dy + pEnd.dy) / 2;
-        // Formule cubique Bezier à t
         final u = 1 - t;
         final x = u * u * u * pStart.dx +
             3 * u * u * t * pStart.dx +
@@ -1238,7 +1265,7 @@ class _RoadMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    for (int i = 1; i <= QuizNiveauxScreen.kTotalNiveaux; i += 2) {
+    for (int i = 1; i <= totalNiveaux; i += 2) {
       final pos = levelPositions[i]!;
       final cote = (i % 4 == 1) ? 38.0 : -38.0;
       final gx = pos.dx + cote;
@@ -1253,6 +1280,8 @@ class _RoadMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RoadMapPainter oldDelegate) {
-    return oldDelegate.levelPositions != levelPositions || oldDelegate.screenWidth != screenWidth;
+    return oldDelegate.levelPositions != levelPositions ||
+        oldDelegate.screenWidth != screenWidth ||
+        oldDelegate.totalNiveaux != totalNiveaux;
   }
 }
