@@ -1,0 +1,585 @@
+// Écran d'accueil et de démarrage du Jungle Quiz Adventure.
+// Reproduit fidèlement la maquette "Jungle Quiz Adventure with Germain.png" :
+// - Barre supérieure avec Germain_Ahobli, Niveau, Pièces d'or, Gemmes et Réglages
+// - Pipeline des 5 Rangs (Novice -> Légende)
+// - Scène immersive Jungle avec Germain héros, Panneau en bois 3D "Quiz" & Chapeau diplômé
+// - Carte parchemin "Réponds aux questions, gagne des étoiles et atteins le rang Légende !"
+// - Bouton 3D doré éclatant "▶ Commencer" menant à la Roadmap des 100 niveaux
+// - Conteneur à 3 atouts (Étoiles, Récompenses, Rang)
+// - Barre de navigation inférieure (Accueil, Stats, Quiz, Récompenses, Classement)
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/quiz_service.dart';
+import 'quiz_jungle_top_bar.dart';
+import 'quiz_jungle_ranks_bar.dart';
+import 'quiz_niveaux_screen.dart';
+
+class QuizWelcomeScreen extends StatefulWidget {
+  const QuizWelcomeScreen({super.key});
+
+  @override
+  State<QuizWelcomeScreen> createState() => _QuizWelcomeScreenState();
+}
+
+class _QuizWelcomeScreenState extends State<QuizWelcomeScreen> with SingleTickerProviderStateMixin {
+  final _quizService = QuizService();
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseScale;
+
+  int _niveauMax = 1;
+  int _totalGrains = 2350;
+  int _totalEtoiles = 0;
+  int _streak = 0;
+  final int _gemmes = 75;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    _pulseScale = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _chargerStats();
+    _quizService.changeNotifier.addListener(_chargerStats);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _quizService.changeNotifier.removeListener(_chargerStats);
+    super.dispose();
+  }
+
+  Future<void> _chargerStats() async {
+    final max = await _quizService.getNiveauMaxDebloque();
+    final grains = await _quizService.getTotalGrains();
+    final etoiles = await _quizService.getTotalEtoiles();
+    final streak = await _quizService.getStreakJours();
+
+    if (mounted) {
+      setState(() {
+        _niveauMax = max;
+        // Si les grains sont à 0 par défaut, afficher une base de départ valorisante
+        _totalGrains = grains > 0 ? grains : 2350;
+        _totalEtoiles = etoiles;
+        _streak = streak;
+      });
+    }
+  }
+
+  void _lancerAventure() {
+    HapticFeedback.heavyImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const QuizNiveauxScreen(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final nomAffiche = auth.nomUtilisateur ?? 'Germain_Ahobli';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF071C17),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Fond d'écran officiel Jungle Quiz Adventure ──
+          Image.asset(
+            'assets/images/quiz_jungle_welcome_bg.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0F3827), Color(0xFF071C17)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
+
+          // Léger voile supérieur pour détacher les barres d'informations
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 140,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.75),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Contenu Interactif ──
+          SafeArea(
+            child: Column(
+              children: [
+                // 1. Barre supérieure (Profil, Pièces, Gemmes, Réglages)
+                QuizJungleTopBar(
+                  userName: nomAffiche,
+                  niveau: _niveauMax,
+                  pieces: _totalGrains,
+                  gemmes: _gemmes,
+                  afficherLogo: false,
+                ),
+
+                // 2. Barre des 5 Rangs / Grades (Novice à Légende)
+                QuizJungleRanksBar(
+                  niveauActuel: _niveauMax,
+                ),
+
+                const Spacer(),
+
+                // 3. Carte Parchemin incitative
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3D6),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFD4A373), width: 2),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFFFD54F), Color(0xFFFF8F00)],
+                            ),
+                          ),
+                          child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 28),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Réponds aux questions, gagne des étoiles et atteins le rang Légende !',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF3E2723),
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 4. Grand Bouton 3D Doré "▶ Commencer"
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: AnimatedBuilder(
+                    animation: _pulseScale,
+                    builder: (context, child) => Transform.scale(
+                      scale: _pulseScale.value,
+                      child: child,
+                    ),
+                    child: GestureDetector(
+                      onTap: _lancerAventure,
+                      child: Container(
+                        width: double.infinity,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFEA00), Color(0xFFFF9100), Color(0xFFFF6D00)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF9100).withValues(alpha: 0.75),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 4),
+                            ),
+                            const BoxShadow(
+                              color: Colors.black54,
+                              blurRadius: 12,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: Color(0xFFFF8F00), size: 30),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Commencer',
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                                shadows: const [
+                                  Shadow(color: Color(0xFFBF360C), offset: Offset(0, 2), blurRadius: 4),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 5. Conteneur des 3 Atouts (Étoiles, Récompenses, Rang)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC06251E),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF00E676).withValues(alpha: 0.4), width: 1.2),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 3)),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildAtoutItem(
+                          icone: Icons.star_rounded,
+                          couleurIcone: const Color(0xFFFFD54F),
+                          texteLigne1: 'Gagne',
+                          texteLigne2: 'des étoiles',
+                        ),
+                        _buildSeparateurVertical(),
+                        _buildAtoutItem(
+                          icone: Icons.card_giftcard_rounded,
+                          couleurIcone: const Color(0xFFFF7043),
+                          texteLigne1: 'Débloque',
+                          texteLigne2: 'des récompenses',
+                        ),
+                        _buildSeparateurVertical(),
+                        _buildAtoutItem(
+                          icone: Icons.trending_up_rounded,
+                          couleurIcone: const Color(0xFF00E676),
+                          texteLigne1: 'Améliore',
+                          texteLigne2: 'ton rang',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // 6. Dock inférieur (Accueil, Stats, Quiz, Récompenses, Classement)
+                _buildBottomDock(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAtoutItem({
+    required IconData icone,
+    required Color couleurIcone,
+    required String texteLigne1,
+    required String texteLigne2,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icone, color: couleurIcone, size: 26),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              texteLigne1,
+              style: GoogleFonts.poppins(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                height: 1.1,
+              ),
+            ),
+            Text(
+              texteLigne2,
+              style: GoogleFonts.poppins(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.white70,
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeparateurVertical() {
+    return Container(
+      width: 1,
+      height: 26,
+      color: Colors.white24,
+    );
+  }
+
+  Widget _buildBottomDock() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xEE041A28),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF0288D1).withValues(alpha: 0.5), width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildDockBouton(Icons.home_rounded, 'Accueil', onTap: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          }),
+          _buildDockBouton(Icons.bar_chart_rounded, 'Stats', onTap: _afficherModalStats),
+          // Onglet Quiz Actif Surélevé & Doré
+          _buildDockBoutonQuizActif(),
+          _buildDockBouton(Icons.card_giftcard_rounded, 'Récompenses', onTap: _afficherModalBadges),
+          _buildDockBouton(Icons.emoji_events_rounded, 'Classement', onTap: _afficherModalClassement),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDockBouton(IconData icone, String label, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, color: Colors.white70, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDockBoutonQuizActif() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFD54F), Color(0xFFFFB300)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFD54F).withValues(alpha: 0.6),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFF1E88E5),
+            ),
+            child: const Icon(Icons.sports_esports_rounded, color: Colors.white, size: 18),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Quiz',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF3E2723),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _afficherModalStats() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(22),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F3025),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Vos Performances', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatPill('Niveau Max', '$_niveauMax / 100', Icons.flag_rounded, const Color(0xFF00E676)),
+                _buildStatPill('Étoiles', '$_totalEtoiles', Icons.star_rounded, const Color(0xFFFFD54F)),
+                _buildStatPill('Série', '$_streak j', Icons.local_fire_department_rounded, const Color(0xFFFF7043)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black),
+              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatPill(String titre, String valeur, IconData icone, Color couleur) {
+    return Column(
+      children: [
+        Icon(icone, color: couleur, size: 28),
+        const SizedBox(height: 4),
+        Text(valeur, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(titre, style: GoogleFonts.poppins(fontSize: 11, color: Colors.white70)),
+      ],
+    );
+  }
+
+  void _afficherModalBadges() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(22),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F3025),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Récompenses & Badges', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: QuizService.tousLesBadges.map((b) {
+                return Chip(
+                  avatar: Icon(b.icone, color: const Color(0xFFFFD54F), size: 18),
+                  label: Text(b.nom, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  backgroundColor: const Color(0xFF1B4D3E),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black),
+              child: const Text('FERMER', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _afficherModalClassement() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(22),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F3025),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Top Explorateurs', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700), size: 30),
+              title: const Text('Germain_Ahobli (Vous)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              trailing: Text('Rang Légende', style: GoogleFonts.poppins(color: const Color(0xFFFFD54F), fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFC0C0C0), size: 28),
+              title: const Text('Koffi M.', style: TextStyle(color: Colors.white)),
+              trailing: Text('Rang Maître', style: GoogleFonts.poppins(color: Colors.white70)),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black),
+              child: const Text('FERMER', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -7,7 +7,7 @@ import 'home/home_screen.dart';
 import 'weather/weather_screen.dart';
 import 'agdtv/agdtv_screen.dart';
 import 'favoris/favoris_screen.dart';
-import 'quiz/quiz_niveaux_screen.dart';
+import 'quiz/quiz_welcome_screen.dart';
 import 'settings/settings_screen.dart';
 import 'admin/admin_screen.dart';
 import '../widgets/banner_carousel.dart';
@@ -48,7 +48,7 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     WeatherScreen(),
     AgdtvScreen(),
     FavorisScreen(),
-    QuizNiveauxScreen(),
+    QuizWelcomeScreen(),
     SettingsScreen(),
   ];
 
