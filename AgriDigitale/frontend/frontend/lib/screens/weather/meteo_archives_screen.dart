@@ -91,17 +91,35 @@ class _MeteoArchivesScreenState extends State<MeteoArchivesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('🌅 Matinée', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  Row(
+                    children: [
+                      Icon(Icons.wb_sunny_outlined, size: 16, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
+                      const SizedBox(width: 6),
+                      const Text('Matinée', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(b.resumeMatin, style: const TextStyle(fontSize: 13)),
                   const Divider(height: 18),
-                  const Text('🌤️ Après-midi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  Row(
+                    children: [
+                      Icon(Icons.wb_cloudy_outlined, size: 16, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
+                      const SizedBox(width: 6),
+                      const Text('Après-midi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(b.resumeApresMidi, style: const TextStyle(fontSize: 13)),
                   const Divider(height: 18),
-                  Text(
-                    '🌡️ Températures : ${b.tempMin.toInt()}°C – ${b.tempMax.toInt()}°C',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  Row(
+                    children: [
+                      Icon(Icons.thermostat, size: 16, color: isDark ? AppColors.vertClair : AppColors.vertPrimaire),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Températures : ${b.tempMin.toInt()}°C – ${b.tempMax.toInt()}°C',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
                   ),
                 ],
               ),

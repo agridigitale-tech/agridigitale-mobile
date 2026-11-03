@@ -38,6 +38,53 @@ class TogoMapWidget extends StatefulWidget {
     this.codeRegionSelectionnee,
   });
 
+  static IconData getIconData(String icone) {
+    switch (icone.toLowerCase()) {
+      case 'soleil':
+      case 'sun':
+      case 'clear':
+        return Icons.wb_sunny_rounded;
+      case 'eclaircie':
+      case 'partly-cloudy':
+        return Icons.cloud_queue_rounded;
+      case 'orage':
+      case 'thunder':
+      case 'storm':
+        return Icons.thunderstorm_rounded;
+      case 'pluie':
+      case 'rain':
+      case 'drizzle':
+        return Icons.water_drop_rounded;
+      case 'nuage':
+      case 'cloud':
+      case 'cloudy':
+      default:
+        return Icons.wb_cloudy_rounded;
+    }
+  }
+
+  static Color getIconColor(String icone, bool isDark) {
+    switch (icone.toLowerCase()) {
+      case 'soleil':
+      case 'sun':
+      case 'clear':
+        return Colors.orangeAccent;
+      case 'orage':
+      case 'thunder':
+      case 'storm':
+        return Colors.amber.shade700;
+      case 'pluie':
+      case 'rain':
+      case 'drizzle':
+        return Colors.blueAccent;
+      case 'eclaircie':
+      case 'partly-cloudy':
+        return isDark ? Colors.lightBlueAccent : Colors.teal;
+      default:
+        return isDark ? AppColors.texteSombreMoyen : Colors.blueGrey;
+    }
+  }
+
   @override
   State<TogoMapWidget> createState() => _TogoMapWidgetState();
 }
@@ -118,36 +165,8 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
     widget.onRegionSelected(r);
   }
 
-  IconData _getIconData(String icone) {
-    switch (icone.toLowerCase()) {
-      case 'soleil':
-        return Icons.wb_sunny_rounded;
-      case 'eclaircie':
-        return Icons.cloud_queue_rounded;
-      case 'orage':
-        return Icons.thunderstorm_rounded;
-      case 'pluie':
-        return Icons.water_drop_rounded;
-      case 'nuage':
-      default:
-        return Icons.wb_cloudy_rounded;
-    }
-  }
-
-  Color _getIconColor(String icone, bool isDark) {
-    switch (icone.toLowerCase()) {
-      case 'soleil':
-        return Colors.orangeAccent;
-      case 'orage':
-        return Colors.amber.shade700;
-      case 'pluie':
-        return Colors.blueAccent;
-      case 'eclaircie':
-        return isDark ? Colors.lightBlueAccent : Colors.teal;
-      default:
-        return isDark ? AppColors.texteSombreMoyen : Colors.blueGrey;
-    }
-  }
+  IconData _getIconData(String icone) => TogoMapWidget.getIconData(icone);
+  Color _getIconColor(String icone, bool isDark) => TogoMapWidget.getIconColor(icone, isDark);
 
   @override
   Widget build(BuildContext context) {
@@ -197,10 +216,11 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Carte Vectorielle Réelle du Togo (SVG)',
+                      'TOGO',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
                         color: isDark ? AppColors.texteSombreFort : AppColors.texteFort,
                       ),
                     ),
@@ -436,36 +456,6 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
                       color: isDark ? AppColors.texteSombreFort : Colors.black87,
                     ),
                   ),
-                  if (region.conseil.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.black.withValues(alpha: 0.2)
-                            : Colors.white.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.eco_rounded, size: 15, color: AppColors.vertPrimaire),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              region.conseil,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontStyle: FontStyle.italic,
-                                color: isDark ? AppColors.texteSombreMoyen : Colors.grey.shade800,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -601,13 +591,27 @@ class _RealTogoSvgPainter extends CustomPainter {
     canvas.drawPath(togoPath, borderPaint);
 
     // 6. Pastilles météo animées flottantes sur chaque région
+    RegionMeteo getRegion(String code) {
+      return regions.firstWhere(
+        (r) => r.code == code,
+        orElse: () => BulletinMeteo.regionsParDefaut.firstWhere((r) => r.code == code),
+      );
+    }
+
+    final rSavanes = getRegion('savanes');
+    final rKara = getRegion('kara');
+    final rCentrale = getRegion('centrale');
+    final rPlateaux = getRegion('plateaux');
+    final rMaritime = getRegion('maritime');
+
     _drawFloatingMarker(
       canvas,
       bounds.left + bounds.width * 0.48,
       y0 + (h * 0.10) + (activeCode == 'savanes' ? floatOffset : 0),
       'savanes',
-      Icons.wb_sunny_rounded,
-      Colors.orangeAccent,
+      TogoMapWidget.getIconData(rSavanes.icone),
+      TogoMapWidget.getIconColor(rSavanes.icone, isDark),
+      rSavanes.tempMax,
     );
 
     _drawFloatingMarker(
@@ -615,8 +619,9 @@ class _RealTogoSvgPainter extends CustomPainter {
       bounds.left + bounds.width * 0.52,
       y0 + (h * 0.29) + (activeCode == 'kara' ? floatOffset : 0),
       'kara',
-      Icons.cloud_queue_rounded,
-      isDark ? Colors.lightBlueAccent : Colors.teal,
+      TogoMapWidget.getIconData(rKara.icone),
+      TogoMapWidget.getIconColor(rKara.icone, isDark),
+      rKara.tempMax,
     );
 
     _drawFloatingMarker(
@@ -624,8 +629,9 @@ class _RealTogoSvgPainter extends CustomPainter {
       bounds.left + bounds.width * 0.49,
       y0 + (h * 0.48) + (activeCode == 'centrale' ? floatOffset : 0),
       'centrale',
-      Icons.wb_cloudy_rounded,
-      isDark ? AppColors.texteSombreMoyen : Colors.blueGrey,
+      TogoMapWidget.getIconData(rCentrale.icone),
+      TogoMapWidget.getIconColor(rCentrale.icone, isDark),
+      rCentrale.tempMax,
     );
 
     _drawFloatingMarker(
@@ -633,8 +639,9 @@ class _RealTogoSvgPainter extends CustomPainter {
       bounds.left + bounds.width * 0.54,
       y0 + (h * 0.69) + (activeCode == 'plateaux' ? floatOffset : 0),
       'plateaux',
-      Icons.thunderstorm_rounded,
-      Colors.amber.shade700,
+      TogoMapWidget.getIconData(rPlateaux.icone),
+      TogoMapWidget.getIconColor(rPlateaux.icone, isDark),
+      rPlateaux.tempMax,
     );
 
     _drawFloatingMarker(
@@ -642,8 +649,9 @@ class _RealTogoSvgPainter extends CustomPainter {
       bounds.left + bounds.width * 0.58,
       y0 + (h * 0.90) + (activeCode == 'maritime' ? floatOffset : 0),
       'maritime',
-      Icons.water_drop_rounded,
-      Colors.blueAccent,
+      TogoMapWidget.getIconData(rMaritime.icone),
+      TogoMapWidget.getIconColor(rMaritime.icone, isDark),
+      rMaritime.tempMax,
     );
 
     canvas.restore();
@@ -692,76 +700,100 @@ class _RealTogoSvgPainter extends CustomPainter {
     String code,
     IconData iconData,
     Color iconColor,
+    double tempMax,
   ) {
     final isSelected = activeCode == code;
-    final radius = isSelected ? 12.0 : 8.5;
+    final pillWidth = isSelected ? 52.0 : 44.0;
+    final pillHeight = isSelected ? 24.0 : 20.0;
+    final rect = Rect.fromCenter(
+      center: Offset(cx, cy),
+      width: pillWidth,
+      height: pillHeight,
+    );
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(pillHeight / 2));
 
     // Cercle pulsation radar si sélectionné
     if (isSelected) {
-      final radarRadius = radius + 4.0 + (pulseValue * 6.0);
+      final pulseRRect = RRect.fromRectAndRadius(
+        rect.inflate(4.0 + (pulseValue * 5.0)),
+        Radius.circular((pillHeight / 2) + 4.0),
+      );
       final radarPaint = Paint()
         ..color = (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
             .withValues(alpha: 0.35 * (1.0 - pulseValue))
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(cx, cy), radarRadius, radarPaint);
+      canvas.drawRRect(pulseRRect, radarPaint);
     }
+
+    // Ombre de la pastille
+    canvas.drawShadow(
+      Path()..addRRect(rrect),
+      Colors.black.withValues(alpha: isDark ? 0.45 : 0.2),
+      isSelected ? 4.0 : 2.0,
+      false,
+    );
 
     // Fond de la pastille
     final markerPaint = Paint()
       ..color = isSelected
-          ? (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
-          : (isDark ? const Color(0xFF2A3140) : Colors.white)
+          ? (isDark ? const Color(0xFF1B3828) : const Color(0xFFE8F5E9))
+          : (isDark ? const Color(0xFF222938) : Colors.white)
       ..style = PaintingStyle.fill;
-
-    // Ombre de la pastille
-    canvas.drawShadow(
-      Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: radius)),
-      Colors.black.withValues(alpha: 0.3),
-      3.0,
-      false,
-    );
-
-    canvas.drawCircle(Offset(cx, cy), radius, markerPaint);
+    canvas.drawRRect(rrect, markerPaint);
 
     // Bordure
     final borderPaint = Paint()
-      ..color = isSelected ? Colors.white : (isDark ? const Color(0xFF4C5870) : Colors.grey.shade300)
+      ..color = isSelected
+          ? (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
+          : (isDark ? const Color(0xFF4C5870) : Colors.grey.shade300)
       ..style = PaintingStyle.stroke
       ..strokeWidth = isSelected ? 1.8 : 1.0;
-    canvas.drawCircle(Offset(cx, cy), radius, borderPaint);
+    canvas.drawRRect(rrect, borderPaint);
 
-    // Température associée si sélectionnée
-    if (isSelected) {
-      final reg = regions.firstWhere(
-        (r) => r.code == code,
-        orElse: () => BulletinMeteo.regionsParDefaut.first,
-      );
-      final tempText = '${reg.tempMax.toInt()}°';
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: tempText,
-          style: TextStyle(
-            color: isSelected
-                ? (isDark ? Colors.black : Colors.white)
-                : (isDark ? Colors.white : Colors.black),
-            fontSize: 9.0,
-            fontWeight: FontWeight.w900,
-          ),
+    // Icône météo dynamique
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(iconData.codePoint),
+        style: TextStyle(
+          inherit: false,
+          color: iconColor,
+          fontSize: isSelected ? 13.0 : 11.0,
+          fontFamily: iconData.fontFamily,
+          package: iconData.fontPackage,
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
 
-      textPainter.paint(
-        canvas,
-        Offset(cx - (textPainter.width / 2), cy - (textPainter.height / 2)),
-      );
-    } else {
-      // Point indicateur central
-      final dotPaint = Paint()
-        ..color = iconColor
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(cx, cy), 3.0, dotPaint);
-    }
+    // Température dynamique
+    final tempText = '${tempMax.round()}°';
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: tempText,
+        style: TextStyle(
+          color: isSelected
+              ? (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
+              : (isDark ? Colors.white : Colors.black87),
+          fontSize: isSelected ? 10.5 : 9.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final spacing = 3.0;
+    final totalWidth = iconPainter.width + spacing + textPainter.width;
+    final startX = cx - (totalWidth / 2);
+
+    iconPainter.paint(
+      canvas,
+      Offset(startX, cy - (iconPainter.height / 2)),
+    );
+
+    textPainter.paint(
+      canvas,
+      Offset(startX + iconPainter.width + spacing, cy - (textPainter.height / 2)),
+    );
   }
 
   @override
@@ -769,6 +801,7 @@ class _RealTogoSvgPainter extends CustomPainter {
     return oldDelegate.activeCode != activeCode ||
         oldDelegate.pulseValue != pulseValue ||
         oldDelegate.floatOffset != floatOffset ||
-        oldDelegate.isDark != isDark;
+        oldDelegate.isDark != isDark ||
+        oldDelegate.regions != regions;
   }
 }

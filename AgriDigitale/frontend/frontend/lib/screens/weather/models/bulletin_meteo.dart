@@ -82,6 +82,36 @@ class BulletinMeteo {
     required this.regions,
   });
 
+  BulletinMeteo copyWith({
+    String? id,
+    DateTime? date,
+    String? titre,
+    String? description,
+    String? resumeMatin,
+    String? resumeApresMidi,
+    String? resumeNuit,
+    double? tempMin,
+    double? tempMax,
+    String? conseilAgricole,
+    String? imageUrl,
+    List<RegionMeteo>? regions,
+  }) {
+    return BulletinMeteo(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      titre: titre ?? this.titre,
+      description: description ?? this.description,
+      resumeMatin: resumeMatin ?? this.resumeMatin,
+      resumeApresMidi: resumeApresMidi ?? this.resumeApresMidi,
+      resumeNuit: resumeNuit ?? this.resumeNuit,
+      tempMin: tempMin ?? this.tempMin,
+      tempMax: tempMax ?? this.tempMax,
+      conseilAgricole: conseilAgricole ?? this.conseilAgricole,
+      imageUrl: imageUrl ?? this.imageUrl,
+      regions: regions ?? this.regions,
+    );
+  }
+
   /// Données de référence pour les 5 régions du Togo
   static List<RegionMeteo> get regionsParDefaut => const [
     RegionMeteo(

@@ -74,6 +74,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
       _depuisCache = false;
     });
 
+    // 1. Récupérer les données satellitaires directes en temps réel pour le Togo
+    List<RegionMeteo> liveRegions = [];
+    try {
+      liveRegions = await _meteoService.recupererMeteoDirecteTogo();
+    } catch (e) {
+      debugPrint('[METEO] Erreur direct Togo: $e');
+    }
+
+    BulletinMeteo? b;
+    String url = '';
+
     try {
       final rep = await _dio.get('/meteo');
       debugPrint('[METEO] Réponse reçue');
@@ -82,7 +93,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
       final iconeDistante = data['iconeUrl'] as String? ?? '';
       final iconeUpload = data['icone'] as String? ?? '';
       final base = ApiClient.baseUrl.replaceAll('/api', '');
-      var url = '';
       if (iconeDistante.isNotEmpty) {
         url = iconeDistante;
       } else if (iconeUpload.startsWith('http')) {
@@ -102,45 +112,47 @@ class _WeatherScreenState extends State<WeatherScreen> {
         }
       }
 
-      final b = BulletinMeteo.fromApiResponse(data, url);
-
-      // Sauvegarde semestrielle automatique sur le téléphone (offline 6 mois)
-      await _db.sauvegarderBulletinSemestriel(b.toDbMap());
-      await _db.sauvegarderMeteoCache('__principale__', url);
-
-      if (mounted) {
-        setState(() {
-          _bulletin = b;
-          _imageUrl = url;
-          _chargement = false;
-        });
-      }
+      b = BulletinMeteo.fromApiResponse(data, url);
     } catch (e) {
-      debugPrint('[METEO] Erreur réseau, chargement du cache local : $e');
+      debugPrint('[METEO] Erreur réseau backend, vérification archives : $e');
+    }
+
+    if (b == null) {
       // Tentative de récupération depuis les archives locales du téléphone
       final archives = await _db.getBulletinsSemestriels(limite: 1);
       if (archives.isNotEmpty) {
-        final b = BulletinMeteo.fromDbRow(archives.first);
-        if (mounted) {
-          setState(() {
-            _bulletin = b;
-            _imageUrl = b.imageUrl;
-            _chargement = false;
-            _depuisCache = true;
-          });
-        }
+        b = BulletinMeteo.fromDbRow(archives.first);
+        url = b.imageUrl;
+        _depuisCache = true;
       } else {
-        // Fallback avec les prévisions synthétiques nationales
-        final fallback = BulletinMeteo.fromApiResponse({}, '');
-        if (mounted) {
-          setState(() {
-            _bulletin = fallback;
-            _chargement = false;
-            _erreur = false;
-            _depuisCache = true;
-          });
-        }
+        b = BulletinMeteo.fromApiResponse({}, '');
+        _depuisCache = true;
       }
+    }
+
+    // 2. Application dynamique des vraies températures et conditions en temps réel
+    if (liveRegions.isNotEmpty) {
+      final calcMin = liveRegions.map((r) => r.tempMin).reduce((val, el) => val < el ? val : el);
+      final calcMax = liveRegions.map((r) => r.tempMax).reduce((val, el) => val > el ? val : el);
+      b = b.copyWith(
+        tempMin: calcMin,
+        tempMax: calcMax,
+        regions: liveRegions,
+      );
+    }
+
+    // Sauvegarde semestrielle automatique sur le téléphone (offline 6 mois)
+    await _db.sauvegarderBulletinSemestriel(b.toDbMap());
+    if (url.isNotEmpty) {
+      await _db.sauvegarderMeteoCache('__principale__', url);
+    }
+
+    if (mounted) {
+      setState(() {
+        _bulletin = b;
+        _imageUrl = url.isNotEmpty ? url : b?.imageUrl;
+        _chargement = false;
+      });
     }
   }
 
@@ -486,9 +498,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
             ),
             child: Row(
               children: [
-                _buildPeriodeBouton(0, '🌅 Matinée'),
-                _buildPeriodeBouton(1, '🌤️ Après-midi'),
-                _buildPeriodeBouton(2, '🌙 Nuit'),
+                _buildPeriodeBouton(0, Icons.wb_sunny_outlined, 'Matinée'),
+                _buildPeriodeBouton(1, Icons.wb_cloudy_outlined, 'Après-midi'),
+                _buildPeriodeBouton(2, Icons.nightlight_round_outlined, 'Nuit'),
               ],
             ),
           ),
@@ -525,56 +537,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
               ),
             ),
           ),
-
-          // Conseil Agricole
-          if (b.conseilAgricole.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade900.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.shade400.withValues(alpha: 0.35)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.tips_and_updates_outlined, color: Colors.amberAccent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Conseil Agricole du Jour',
-                          style: TextStyle(
-                            color: Colors.amberAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          b.conseilAgricole,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildPeriodeBouton(int index, String label) {
+  Widget _buildPeriodeBouton(int index, IconData icon, String label) {
     final actif = _periodeIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -586,14 +554,25 @@ class _WeatherScreenState extends State<WeatherScreen> {
             color: actif ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: actif ? AppColors.vertFonce : Colors.white70,
-              fontSize: 12,
-              fontWeight: actif ? FontWeight.bold : FontWeight.w500,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: actif ? AppColors.vertFonce : Colors.white70,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: actif ? AppColors.vertFonce : Colors.white70,
+                  fontSize: 12,
+                  fontWeight: actif ? FontWeight.bold : FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
