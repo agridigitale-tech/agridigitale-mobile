@@ -17,9 +17,12 @@ import '../../widgets/defi_app_bar_badge.dart';
 import '../../widgets/conseil_du_jour_section.dart';
 import '../../widgets/prix_produits_section.dart';
 import '../../widgets/preferences_agricoles_dialog.dart';
+import '../../widgets/home_skeleton_loading.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
 import '../../core/api_client.dart';
+import '../../services/prix_produits_service.dart';
+import '../../widgets/bande_alerte_prix_overlay.dart';
 import '../main_navigation_screen.dart';
 import 'article_detail_screen.dart';
 import 'search_screen.dart';
@@ -59,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     _chargerPlus();
     _chargerNotifs();
     _verifierBanniereBoostee();
+    PrixProduitsService().getDerniereAlerteActive();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verifierConseilMatin();
     });
@@ -344,10 +348,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                   child: PrixProduitsSection(),
                 )
               else if (_articles.isEmpty && _chargement)
-                const SliverFillRemaining(
-                    child: Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.vertPrimaire)))
+                SliverToBoxAdapter(
+                  child: HomeSkeletonLoading(
+                    categorie: _categorieActive,
+                  ),
+                )
               else if (_articles.isEmpty && !_chargement)
                 SliverFillRemaining(
                     child: _etatMessage(Icons.article_outlined,
@@ -404,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         _ArticleUne(
                           article: _articleUne!,
                           onTap: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id))),
+                              MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id, articleInitial: _articleUne))),
                         ),
                       ],
                     ),
@@ -450,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               return ArticleCardVerticale(
                                 article: a,
                                 onTap: () => Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                                    MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
                               );
                             },
                           ),
@@ -495,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       return ArticleCard(
                         article: a,
                         onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id))),
+                            MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
                       );
                     },
                     childCount: _articles.length,
@@ -524,6 +529,30 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             }
           },
         ),
+
+      // Bande jaune d'alerte en superposition (Hausse / Baisse de cours)
+      ValueListenableBuilder<AlertePrixMarche?>(
+        valueListenable: PrixProduitsService.alerteBandeJauneNotifier,
+        builder: (context, alerte, _) {
+          if (alerte == null) return const SizedBox.shrink();
+          return Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: BandeAlertePrixOverlay(
+                alerte: alerte,
+                onFermer: () => PrixProduitsService().fermerAlerteBandeJaune(),
+                onTap: () {
+                  setState(() => _categorieActive = 'PRIX PRODUIT');
+                  PrixProduitsService().fermerAlerteBandeJaune();
+                },
+              ),
+            ),
+          );
+        },
+      ),
     ],
   ),
 );

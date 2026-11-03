@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/design/app_colors.dart';
 import '../data/marches_data.dart';
+import '../services/prix_produits_service.dart';
+import 'produit_image_widget.dart';
 
 class CoursMarchesWidget extends StatefulWidget {
   const CoursMarchesWidget({super.key});
@@ -13,11 +15,42 @@ class CoursMarchesWidget extends StatefulWidget {
 }
 
 class _CoursMarchesWidgetState extends State<CoursMarchesWidget> {
+  final _service = PrixProduitsService();
+  List<MarcheAgricole> _marches = MarchesData.marches;
   int _marcheIndex = 0;
   bool _voirTout = false;
   final NumberFormat _fmt = NumberFormat('#,###', 'fr_FR');
 
-  MarcheAgricole get _marcheSelectionne => MarchesData.marches[_marcheIndex];
+  @override
+  void initState() {
+    super.initState();
+    _chargerMarches();
+    _service.changeNotifier.addListener(_chargerMarches);
+  }
+
+  @override
+  void dispose() {
+    _service.changeNotifier.removeListener(_chargerMarches);
+    super.dispose();
+  }
+
+  Future<void> _chargerMarches() async {
+    final list = await _service.getMarches();
+    if (mounted) {
+      setState(() {
+        _marches = list;
+        if (_marcheIndex >= _marches.length) {
+          _marcheIndex = 0;
+        }
+      });
+    }
+  }
+
+  MarcheAgricole get _marcheSelectionne {
+    if (_marches.isEmpty) return MarchesData.marches.first;
+    if (_marcheIndex >= _marches.length) return _marches.first;
+    return _marches[_marcheIndex];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,10 +138,10 @@ class _CoursMarchesWidgetState extends State<CoursMarchesWidget> {
             height: 36,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: MarchesData.marches.length,
+              itemCount: _marches.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
-                final m = MarchesData.marches[i];
+                final m = _marches[i];
                 final estActif = (_marcheIndex == i);
                 return InkWell(
                   onTap: () => setState(() => _marcheIndex = i),
@@ -176,7 +209,12 @@ class _CoursMarchesWidgetState extends State<CoursMarchesWidget> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
-                    Text(p.icone, style: const TextStyle(fontSize: 20)),
+                    ProduitImageWidget(
+                      nomProduit: p.produit,
+                      imageOuIcone: p.icone,
+                      size: 36,
+                      borderRadius: 8,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(

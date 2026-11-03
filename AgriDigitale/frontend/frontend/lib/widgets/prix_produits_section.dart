@@ -7,6 +7,7 @@ import '../core/design/app_colors.dart';
 import '../data/marches_data.dart';
 import '../services/prix_produits_service.dart';
 import 'mini_graphe_tendance.dart';
+import 'produit_image_widget.dart';
 
 class PrixProduitsSection extends StatefulWidget {
   const PrixProduitsSection({super.key});
@@ -265,19 +266,12 @@ class _PrixProduitsSectionState extends State<PrixProduitsSection> {
                   ),
                   child: Row(
                     children: [
-                      // Icône produit dans un conteneur rond
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: (isDark ? Colors.white10 : Colors.grey.shade100),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          p.icone,
-                          style: const TextStyle(fontSize: 24),
-                        ),
+                      // Vraie photo du produit
+                      ProduitImageWidget(
+                        nomProduit: p.produit,
+                        imageOuIcone: p.icone,
+                        size: 48,
+                        borderRadius: 12,
                       ),
                       const SizedBox(width: 12),
 
