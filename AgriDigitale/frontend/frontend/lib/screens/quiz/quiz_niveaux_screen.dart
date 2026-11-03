@@ -8,6 +8,7 @@
 // - Panneau de prévisualisation ergonomique avant de lancer un niveau
 // - Barre supérieure anti-débordement avec FittedBox responsive
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +16,8 @@ import '../../core/design/app_colors.dart';
 import '../../data/quiz_data.dart';
 import '../../models/quiz_grade.dart';
 import '../../services/quiz_service.dart';
+import '../../services/quiz_sound_service.dart';
+import '../../widgets/quiz/quiz_rank_up_dialog.dart';
 import 'quiz_screen.dart';
 import 'quiz_jungle_top_bar.dart';
 import 'quiz_jungle_ranks_bar.dart';
@@ -27,13 +30,20 @@ class QuizNiveauxScreen extends StatefulWidget {
   State<QuizNiveauxScreen> createState() => _QuizNiveauxScreenState();
 }
 
-class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTickerProviderStateMixin {
+class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with TickerProviderStateMixin {
   final _quizService = QuizService();
+  final _soundService = QuizSoundService();
   final _scrollController = ScrollController();
 
   late AnimationController _animController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _bounceAnimation;
+
+  // Animation d'entrée spectaculaire pour le roadmap du jeu
+  late AnimationController _entranceController;
+  late Animation<double> _topOffsetAnimation;
+  late Animation<double> _bottomOffsetAnimation;
+  late Animation<double> _opacityAnimation;
 
   int _niveauMax = 1;
   int _totalGrains = 0;
@@ -50,26 +60,26 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   static const double kBottomPadding = 180.0;
   double get kTotalHeight => kTopPadding + (kTotalNiveaux - 1) * kStepY + kBottomPadding;
 
-  // Oscillation serpentine périodique (0.0 = bord gauche, 1.0 = bord droit)
+  // Oscillation serpentine harmonieuse et continue (0.0 = bord gauche, 1.0 = bord droit)
   static double getXRatio(int index) {
-    if (index == 0) return 0.50; // Niveau 1 : départ centré en bas
-    if (index == kTotalNiveaux - 1) return 0.50; // Niveau 100 : sommet centré en haut
-    const pattern = [
-      0.50, // Centre
-      0.28, // Vers la gauche
-      0.16, // Courbe gauche
-      0.28, // Remonte vers le centre
-      0.50, // Centre
-      0.72, // Vers la droite
-      0.84, // Courbe droite
-      0.72, // Remonte vers le centre
-    ];
-    return pattern[index % pattern.length];
+    if (index == 0 || index >= kTotalNiveaux - 1) return 0.50; // Niveaux 1 et 100 centrés
+
+    // Amortissement doux au départ (niveaux 1-3) et à l'arrivée (niveaux 97-100)
+    double taper = 1.0;
+    if (index < 3) taper = index / 3.0;
+    if (index > kTotalNiveaux - 4) taper = (kTotalNiveaux - 1 - index) / 3.0;
+
+    // Onde sinusoïdale continue et ample (période de 7 niveaux pour de beaux virages amples)
+    final angle = index * (2 * math.pi / 7.0);
+    return (0.50 + 0.33 * math.sin(angle) * taper).clamp(0.16, 0.84);
   }
 
   @override
   void initState() {
     super.initState();
+    _soundService.init();
+    _soundService.setEstSurEcranJeu(true);
+
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -83,6 +93,46 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
     );
 
+    // Initialisation de l'animation d'arrivée du monde du jeu (-700px et +700px)
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+
+    _topOffsetAnimation = Tween<double>(
+      begin: -700.0,
+      end: 0.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _bottomOffsetAnimation = Tween<double>(
+      begin: 700.0,
+      end: 0.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
+    );
+
+    // Déclenchement dès que le rendu écran est prêt pour être 100% visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _entranceController.forward(from: 0.0);
+      }
+    });
+
     _chargerDonnees();
     _quizService.changeNotifier.addListener(_chargerDonnees);
   }
@@ -90,7 +140,10 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   @override
   void dispose() {
     _animController.dispose();
+    _entranceController.dispose();
     _scrollController.dispose();
+    _soundService.setEstSurEcranJeu(false);
+    _soundService.stopAll();
     _quizService.changeNotifier.removeListener(_chargerDonnees);
     super.dispose();
   }
@@ -846,6 +899,44 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                       ),
                     ),
                   ],
+                  const SizedBox(height: 10),
+                  // Bouton pour afficher la célébration festive de ce grade
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      QuizRankUpDialog.afficher(context, nouveauGrade: _gradeActuel);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: _gradeActuel.degrade),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _gradeActuel.couleur.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded, size: 18, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Voir la Célébration de Rang',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -867,78 +958,86 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   final estAtteint = (_niveauMax >= g.niveauRequis);
                   final estActuel = (g.titre == _gradeActuel.titre);
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: estActuel
-                          ? g.couleurFond
-                          : (estAtteint ? Colors.grey.shade50 : Colors.grey.shade100.withValues(alpha: 0.6)),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
+                  return GestureDetector(
+                    onTap: estAtteint
+                        ? () {
+                            Navigator.pop(ctx);
+                            QuizRankUpDialog.afficher(context, nouveauGrade: g);
+                          }
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
                         color: estActuel
-                            ? g.couleur
-                            : (estAtteint ? g.couleur.withValues(alpha: 0.4) : Colors.grey.shade300),
-                        width: estActuel ? 1.8 : 1.0,
+                            ? g.couleurFond
+                            : (estAtteint ? Colors.grey.shade50 : Colors.grey.shade100.withValues(alpha: 0.6)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: estActuel
+                              ? g.couleur
+                              : (estAtteint ? g.couleur.withValues(alpha: 0.4) : Colors.grey.shade300),
+                          width: estActuel ? 1.8 : 1.0,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: g.couleur.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: g.couleur.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(g.icone, size: 22, color: g.couleur),
                           ),
-                          child: Icon(g.icone, size: 22, color: g.couleur),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      g.titre,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13.5,
-                                        color: estAtteint ? AppColors.texteFort : Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (estActuel) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: g.couleur,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
                                       child: Text(
-                                        'Actuel',
-                                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                        g.titre,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13.5,
+                                          color: estAtteint ? AppColors.texteFort : Colors.grey.shade600,
+                                        ),
                                       ),
                                     ),
+                                    if (estActuel) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: g.couleur,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Actuel',
+                                          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${g.sousTitre} • Requis : Niv. ${g.niveauRequis}',
-                                style: GoogleFonts.inter(fontSize: 11, color: estAtteint ? AppColors.grisTexte : Colors.grey.shade500),
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${g.sousTitre} • Requis : Niv. ${g.niveauRequis}',
+                                  style: GoogleFonts.inter(fontSize: 11, color: estAtteint ? AppColors.grisTexte : Colors.grey.shade500),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (estAtteint)
-                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20)
-                        else
-                          Icon(Icons.lock_rounded, color: Colors.grey.shade400, size: 18),
-                      ],
+                          if (estAtteint)
+                            const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20)
+                          else
+                            Icon(Icons.lock_rounded, color: Colors.grey.shade400, size: 18),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -959,7 +1058,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           ? const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire))
           : Stack(
               children: [
-                // ── Fond Jungle Visuel Immersif (Jungle Quiz Adventure Roadmap) ──
+                // ── Fond Jungle Visuel Immersif (Misty Sunbeams in a Lush Rainforest) ──
                 Positioned.fill(
                   child: Image.asset(
                     'assets/images/quiz_jungle_roadmap_bg.png',
@@ -980,10 +1079,20 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ),
 
-                // Voile sombre subtil pour faire ressortir les disques 3D et la route
+                // Voile sombre progressif pour sublimer les rayons solaires et faire ressortir la route
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.28),
+                          Colors.black.withValues(alpha: 0.12),
+                          Colors.black.withValues(alpha: 0.28),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
 
@@ -1011,13 +1120,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              // 1. Dessin de la route sinueuse en sable
+                              // 1. Dessin de la route sinueuse organique, dorée & élégante
                               CustomPaint(
                                 size: Size(screenWidth, kTotalHeight),
                                 painter: _RoadMapPainter(
                                   levelPositions: levelPositions,
                                   screenWidth: screenWidth,
                                   totalNiveaux: kTotalNiveaux,
+                                  niveauMax: _niveauMax,
                                 ),
                               ),
 
@@ -1057,7 +1167,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                               ..._buildBannieresMondes(screenWidth, levelPositions),
 
                               // 3. Coffres au trésor aux paliers des mondes
-                              ..._buildCoffresTresors(levelPositions),
+                              ..._buildCoffresTresors(screenWidth, levelPositions),
 
                               // 4. Les 100 bulles de niveau 3D
                               for (int n = 1; n <= kTotalNiveaux; n++)
@@ -1070,50 +1180,71 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
                   ),
                 ),
 
-                // Barre supérieure fixe avec Stats du Joueur & Rangs (100% Anti-Débordement)
+                // Barre supérieure fixe avec Stats du Joueur & Rangs (surgit de -700px)
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: _buildHeaderFlottant(totalEtoiles),
+                  child: AnimatedBuilder(
+                    animation: _entranceController,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(0, _topOffsetAnimation.value),
+                      child: Opacity(
+                        opacity: _opacityAnimation.value,
+                        child: child,
+                      ),
+                    ),
+                    child: _buildHeaderFlottant(totalEtoiles),
+                  ),
                 ),
 
-                // Bouton indicateur en bas de l'écran "Fais défiler pour continuer..."
+                // Bouton indicateur en bas de l'écran "Fais défiler pour continuer..." (surgit de +700px)
                 Positioned(
                   bottom: 16,
                   left: 20,
                   right: 20,
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () => _scrollerVersNiveauActuel(anime: true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8D5B28), Color(0xFF5D3A1A)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFFFD54F), width: 1.5),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 3)),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFFFD54F), size: 20),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Fais défiler pour continuer jusqu\'au niveau 100',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
+                  child: AnimatedBuilder(
+                    animation: _entranceController,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(0, _bottomOffsetAnimation.value),
+                      child: Opacity(
+                        opacity: _opacityAnimation.value,
+                        child: child,
+                      ),
+                    ),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => _scrollerVersNiveauActuel(anime: true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8D5B28), Color(0xFF5D3A1A)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
-                          ],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFFD54F), width: 1.5),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 3)),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFFFD54F), size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Fais défiler pour continuer jusqu\'au niveau 100',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  shadows: const [Shadow(color: Colors.black45, blurRadius: 2)],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1213,7 +1344,14 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
           ),
           QuizJungleRanksBar(
             niveauActuel: _niveauMax,
-            onRankTap: (_) => _afficherModalGrades(),
+            onRankTap: (tierIndex) {
+              final activeIndex = _niveauMax <= 19 ? 0 : (_niveauMax <= 39 ? 1 : (_niveauMax <= 59 ? 2 : (_niveauMax <= 79 ? 3 : 4)));
+              if (tierIndex == activeIndex) {
+                QuizRankUpDialog.afficher(context, nouveauGrade: _gradeActuel);
+              } else {
+                _afficherModalGrades();
+              }
+            },
           ),
         ],
       ),
@@ -1576,7 +1714,7 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   }
 
   // ── Coffres aux Trésors aux Paliers des 10 Mondes ──
-  List<Widget> _buildCoffresTresors(Map<int, Offset> levelPositions) {
+  List<Widget> _buildCoffresTresors(double screenWidth, Map<int, Offset> levelPositions) {
     final widgets = <Widget>[];
 
     for (final monde in QuizData.mondes) {
@@ -1584,7 +1722,8 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
       final pos = levelPositions[dernierNiveauId];
       if (pos == null) continue;
 
-      final decalageX = (monde.id % 2 == 1) ? 58.0 : -58.0;
+      // Décalage adaptatif vers le centre de l'écran pour un centrage anti-débordement
+      final decalageX = (pos.dx > screenWidth * 0.5) ? -54.0 : 54.0;
       final estDebloque = (_niveauMax > dernierNiveauId);
 
       widgets.add(
@@ -1625,163 +1764,341 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with SingleTicker
   }
 }
 
-// ── CustomPainter pour la Route Sinueuse, les Nuages et la Nature (100 Niveaux) ──
+// ── Segment de Spline Cubique pour Continuité C1 Parfaite ──
+class _SplineSegment {
+  final Offset p1;
+  final Offset cp1;
+  final Offset cp2;
+  final Offset p2;
+  final int niveauDepart;
+
+  const _SplineSegment({
+    required this.p1,
+    required this.cp1,
+    required this.cp2,
+    required this.p2,
+    required this.niveauDepart,
+  });
+}
+
+// ── CustomPainter pour la Route Sinueuse Organique, Pierres & Ambiance Jungle Rainforest ──
 class _RoadMapPainter extends CustomPainter {
   final Map<int, Offset> levelPositions;
   final double screenWidth;
   final int totalNiveaux;
+  final int niveauMax;
 
   _RoadMapPainter({
     required this.levelPositions,
     required this.screenWidth,
     required this.totalNiveaux,
+    required this.niveauMax,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    _dessinerNuages(canvas, size);
-    _dessinerRoute(canvas, size);
-    _dessinerNature(canvas, size);
-  }
-
-  void _dessinerNuages(Canvas canvas, Size size) {
-    final paintCloud = Paint()
-      ..color = Colors.white.withValues(alpha: 0.75)
-      ..style = PaintingStyle.fill;
-
-    final cloudShade = Paint()
-      ..color = const Color(0xFFD4ECFB).withValues(alpha: 0.8)
-      ..style = PaintingStyle.fill;
-
-    // Répartition équilibrée de nuages tout le long de la grande carte
-    for (double y = size.height * 0.04; y < size.height * 0.98; y += 450.0) {
-      final isRight = ((y / 450.0).round() % 2 == 1);
-      final c = Offset(isRight ? screenWidth * 0.82 : screenWidth * 0.15, y);
-
-      // Ombre légère
-      canvas.drawCircle(Offset(c.dx, c.dy + 3), 26, cloudShade);
-      canvas.drawCircle(Offset(c.dx - 18, c.dy + 5), 18, cloudShade);
-      canvas.drawCircle(Offset(c.dx + 18, c.dy + 5), 18, cloudShade);
-
-      // Corps du nuage
-      canvas.drawCircle(c, 26, paintCloud);
-      canvas.drawCircle(Offset(c.dx - 18, c.dy + 2), 18, paintCloud);
-      canvas.drawCircle(Offset(c.dx + 18, c.dy + 2), 18, paintCloud);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(c.dx, c.dy + 8), width: 56, height: 16),
-          const Radius.circular(8),
-        ),
-        paintCloud,
-      );
-    }
-  }
-
-  void _dessinerRoute(Canvas canvas, Size size) {
     if (levelPositions.length < 2) return;
 
-    // Construction du chemin sinueux C1 continu pour tous les niveaux
-    final path = Path();
-    final p0 = levelPositions[1]!;
+    // 1. Calcul des segments de la spline Catmull-Rom (courbure 100% fluide et C1 continue)
+    final segments = _calculerSegmentsSpline();
 
-    // Prolongement inférieur sous le Niveau 1
-    path.moveTo(p0.dx, p0.dy + 60);
-    path.lineTo(p0.dx, p0.dy);
+    // 2. Lucioles lumineuses & brume solaire tropicale (harmonisées avec Misty Sunbeams)
+    _dessinerLuciolesEtBrume(canvas, size);
 
-    for (int i = 1; i < totalNiveaux; i++) {
-      final pStart = levelPositions[i]!;
-      final pEnd = levelPositions[i + 1]!;
-      final midY = (pStart.dy + pEnd.dy) / 2;
+    // 3. Dessin du chemin principal multicouches (ombres profondes, remblai terre, sentier doré)
+    _dessinerRoute(canvas, segments);
 
-      path.cubicTo(
-        pStart.dx, midY,
-        pEnd.dx, midY,
-        pEnd.dx, pEnd.dy,
+    // 4. Trace lumineuse dorée et émeraude sur les niveaux déjà conquis par le joueur
+    _dessinerProgression(canvas, segments);
+
+    // 5. Galets et pierres de gué tout le long de la piste
+    _dessinerPierresDeSentier(canvas, segments);
+
+    // 6. Touches végétales de fougères tropicales sur les virages extérieurs
+    _dessinerFougeresEtFeuillages(canvas, segments);
+  }
+
+  List<_SplineSegment> _calculerSegmentsSpline() {
+    final pts = <Offset>[];
+    final p1 = levelPositions[1]!;
+    final pTop = levelPositions[totalNiveaux]!;
+
+    // Prolongements sous le niveau 1 et au-dessus du niveau 100
+    pts.add(Offset(p1.dx, p1.dy + 80));
+    pts.add(Offset(p1.dx, p1.dy + 35));
+    for (int i = 1; i <= totalNiveaux; i++) {
+      pts.add(levelPositions[i] ?? Offset(screenWidth * 0.5, 0));
+    }
+    pts.add(Offset(pTop.dx, pTop.dy - 35));
+    pts.add(Offset(pTop.dx, pTop.dy - 80));
+
+    final segments = <_SplineSegment>[];
+    const alpha = 0.85; // Tension Catmull-Rom optimale pour courbes douces sans pincement
+
+    for (int i = 1; i < pts.length - 2; i++) {
+      final p0 = pts[i - 1];
+      final p1 = pts[i];
+      final p2 = pts[i + 1];
+      final p3 = pts[i + 2];
+
+      final cp1 = Offset(
+        p1.dx + (p2.dx - p0.dx) / 6.0 * alpha,
+        p1.dy + (p2.dy - p0.dy) / 6.0 * alpha,
       );
+      final cp2 = Offset(
+        p2.dx - (p3.dx - p1.dx) / 6.0 * alpha,
+        p2.dy - (p3.dy - p1.dy) / 6.0 * alpha,
+      );
+
+      final niveauIndex = i - 1; // 0 pour l'amorce, 1 pour Niv 1->2, etc.
+
+      segments.add(_SplineSegment(
+        p1: p1,
+        cp1: cp1,
+        cp2: cp2,
+        p2: p2,
+        niveauDepart: niveauIndex,
+      ));
     }
 
-    // Prolongement supérieur vers le Grand Sommet
-    final pTop = levelPositions[totalNiveaux]!;
-    path.lineTo(pTop.dx, pTop.dy - 60);
+    return segments;
+  }
 
-    // 1. Contour / Ombre de la route en sable
-    final borderPaint = Paint()
-      ..color = const Color(0xFFC99446)
-      ..strokeWidth = 42.0
+  void _dessinerRoute(Canvas canvas, List<_SplineSegment> segments) {
+    final fullPath = Path();
+    fullPath.moveTo(segments.first.p1.dx, segments.first.p1.dy);
+    for (final seg in segments) {
+      fullPath.cubicTo(seg.cp1.dx, seg.cp1.dy, seg.cp2.dx, seg.cp2.dy, seg.p2.dx, seg.p2.dy);
+    }
+
+    // A. Ombres portées au sol (donne une vraie profondeur 3D sur le sol de la jungle)
+    final shadowPaint1 = Paint()
+      ..color = Colors.black.withValues(alpha: 0.25)
+      ..strokeWidth = 46.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, borderPaint);
 
-    // 2. Corps de la route en sable chaleureux (façon Bubble Shooter)
-    final sandPaint = Paint()
-      ..color = const Color(0xFFFBE49D)
-      ..strokeWidth = 34.0
+    final shadowPaint2 = Paint()
+      ..color = Colors.black.withValues(alpha: 0.14)
+      ..strokeWidth = 56.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, sandPaint);
 
-    // 3. Trait intérieur plus clair
-    final innerSandPaint = Paint()
-      ..color = const Color(0xFFFFF2C2)
+    canvas.save();
+    canvas.translate(0, 7);
+    canvas.drawPath(fullPath, shadowPaint1);
+    canvas.restore();
+
+    canvas.save();
+    canvas.translate(0, 14);
+    canvas.drawPath(fullPath, shadowPaint2);
+    canvas.restore();
+
+    // B. Remblai de terre sombre et racines tropicales
+    final earthPaint1 = Paint()
+      ..color = const Color(0xFF3E2723)
+      ..strokeWidth = 40.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, earthPaint1);
+
+    final earthPaint2 = Paint()
+      ..color = const Color(0xFF5D4037)
+      ..strokeWidth = 36.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, earthPaint2);
+
+    // C. Corps du sentier en sable doré chaud / pierre de rivière
+    final sandPaint1 = Paint()
+      ..color = const Color(0xFFD49B44)
+      ..strokeWidth = 30.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, sandPaint1);
+
+    final sandPaint2 = Paint()
+      ..color = const Color(0xFFF7CF76)
       ..strokeWidth = 24.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, innerSandPaint);
+    canvas.drawPath(fullPath, sandPaint2);
 
-    // 4. Petits galets / pointillés de piste au centre
-    final centerDottedPaint = Paint()
-      ..color = const Color(0xFFDFB66E)
-      ..strokeWidth = 3.5
+    // D. Crête ensoleillée centrale (effet arrondi 3D baigné de lumière)
+    final sandHighlight = Paint()
+      ..color = const Color(0xFFFFF3CA)
+      ..strokeWidth = 14.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(fullPath, sandHighlight);
+
+    final sandSpine = Paint()
+      ..color = const Color(0xFFFFFDF5)
+      ..strokeWidth = 5.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
+    canvas.drawPath(fullPath, sandSpine);
+  }
 
-    for (int i = 1; i < totalNiveaux; i++) {
-      final pStart = levelPositions[i]!;
-      final pEnd = levelPositions[i + 1]!;
-      for (double t = 0.33; t <= 0.67; t += 0.34) {
-        final midY = (pStart.dy + pEnd.dy) / 2;
-        final u = 1 - t;
-        final x = u * u * u * pStart.dx +
-            3 * u * u * t * pStart.dx +
-            3 * u * t * t * pEnd.dx +
-            t * t * t * pEnd.dx;
-        final y = u * u * u * pStart.dy +
-            3 * u * u * t * midY +
-            3 * u * t * t * midY +
-            t * t * t * pEnd.dy;
-        canvas.drawCircle(Offset(x, y), 2.2, centerDottedPaint);
+  void _dessinerProgression(Canvas canvas, List<_SplineSegment> segments) {
+    if (niveauMax <= 1) return;
+
+    final progressPath = Path();
+    bool first = true;
+
+    for (final seg in segments) {
+      if (seg.niveauDepart >= 1 && seg.niveauDepart < niveauMax) {
+        if (first) {
+          progressPath.moveTo(seg.p1.dx, seg.p1.dy);
+          first = false;
+        }
+        progressPath.cubicTo(seg.cp1.dx, seg.cp1.dy, seg.cp2.dx, seg.cp2.dy, seg.p2.dx, seg.p2.dy);
+      }
+    }
+
+    if (!first) {
+      // Halo émeraude magique
+      final glowPaint = Paint()
+        ..color = const Color(0xFF00E676).withValues(alpha: 0.28)
+        ..strokeWidth = 32.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(progressPath, glowPaint);
+
+      // Traînée dorée triomphante
+      final goldPaint = Paint()
+        ..color = const Color(0xFFFFD54F).withValues(alpha: 0.65)
+        ..strokeWidth = 10.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(progressPath, goldPaint);
+
+      // Cœur lumineux blanc éclatant
+      final corePaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.85)
+        ..strokeWidth = 3.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawPath(progressPath, corePaint);
+    }
+  }
+
+  void _dessinerPierresDeSentier(Canvas canvas, List<_SplineSegment> segments) {
+    final shadowPaint = Paint()..color = Colors.black.withValues(alpha: 0.22);
+    final stoneDark = Paint()..color = const Color(0xFF9E7D47);
+    final stoneLight = Paint()..color = const Color(0xFFEED7A1);
+    final stoneHighlight = Paint()..color = const Color(0xFFFFF7DC);
+    final activeStoneGold = Paint()..color = const Color(0xFFFFD54F);
+
+    for (final seg in segments) {
+      if (seg.niveauDepart < 1 || seg.niveauDepart >= totalNiveaux) continue;
+      final estComplete = (seg.niveauDepart < niveauMax);
+
+      // 3 galets de gué le long du virage
+      for (final t in const [0.28, 0.50, 0.72]) {
+        final pos = _evaluerBezier(seg, t);
+        final alt = ((seg.niveauDepart * 3 + (t * 10).round()) % 2 == 0);
+        final w = alt ? 11.0 : 13.0;
+        final h = w * 0.62;
+
+        // Ombre sous la pierre
+        canvas.drawOval(
+          Rect.fromCenter(center: Offset(pos.dx, pos.dy + 1.8), width: w + 1, height: h),
+          shadowPaint,
+        );
+
+        // Corps du galet
+        canvas.drawOval(
+          Rect.fromCenter(center: pos, width: w, height: h),
+          estComplete ? stoneLight : stoneDark,
+        );
+
+        // Reflet clair supérieur
+        canvas.drawOval(
+          Rect.fromCenter(center: Offset(pos.dx, pos.dy - 1.2), width: w * 0.65, height: h * 0.45),
+          estComplete ? activeStoneGold : stoneHighlight,
+        );
       }
     }
   }
 
-  void _dessinerNature(Canvas canvas, Size size) {
-    // Petites touffes d'herbe décoratives aux abords des courbes
-    final grassPaint = Paint()
-      ..color = const Color(0xFF4CAF50).withValues(alpha: 0.75)
-      ..strokeWidth = 2.5
+  void _dessinerLuciolesEtBrume(Canvas canvas, Size size) {
+    final paintHalo = Paint()..style = PaintingStyle.fill;
+    final paintCore = Paint()..style = PaintingStyle.fill..color = Colors.white;
+
+    // Particules lumineuses féeriques le long de la hauteur (effet "Misty Sunbeams")
+    for (double y = 80.0; y < size.height - 80.0; y += 140.0) {
+      final seed = (y * 1.618).toInt();
+      final rx = (seed % 100) / 100.0;
+      final x = screenWidth * (0.10 + 0.80 * rx);
+      final tailleHalo = 7.0 + (seed % 6);
+
+      final estDore = (seed % 2 == 0);
+      paintHalo.color = estDore
+          ? const Color(0xFFFFD54F).withValues(alpha: 0.30)
+          : const Color(0xFF76FF03).withValues(alpha: 0.25);
+
+      canvas.drawCircle(Offset(x, y), tailleHalo, paintHalo);
+      canvas.drawCircle(Offset(x, y), tailleHalo * 0.35, paintCore);
+    }
+  }
+
+  void _dessinerFougeresEtFeuillages(Canvas canvas, List<_SplineSegment> segments) {
+    final fougereFoncee = Paint()
+      ..color = const Color(0xFF1B5E20).withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+
+    final fougereClaire = Paint()
+      ..color = const Color(0xFF43A047).withValues(alpha: 0.90)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
 
     for (int i = 1; i <= totalNiveaux; i += 2) {
-      final pos = levelPositions[i]!;
-      final cote = (i % 4 == 1) ? 38.0 : -38.0;
-      final gx = pos.dx + cote;
-      final gy = pos.dy + 12;
+      final pos = levelPositions[i];
+      if (pos == null) continue;
 
-      // Brins d'herbe
-      canvas.drawLine(Offset(gx, gy), Offset(gx - 4, gy - 8), grassPaint);
-      canvas.drawLine(Offset(gx, gy), Offset(gx, gy - 11), grassPaint);
-      canvas.drawLine(Offset(gx, gy), Offset(gx + 4, gy - 8), grassPaint);
+      final estADroite = (pos.dx > screenWidth * 0.5);
+      final sens = estADroite ? 1.0 : -1.0;
+      final xBase = pos.dx + (sens * 38.0);
+      final yBase = pos.dy + 8.0;
+
+      // Palme / Fougère tropicale stylisée
+      canvas.drawLine(Offset(xBase, yBase), Offset(xBase + (sens * 16), yBase - 12), fougereFoncee);
+      canvas.drawLine(Offset(xBase, yBase), Offset(xBase + (sens * 10), yBase - 16), fougereClaire);
+      canvas.drawLine(Offset(xBase, yBase), Offset(xBase + (sens * 18), yBase - 4), fougereClaire);
     }
+  }
+
+  Offset _evaluerBezier(_SplineSegment seg, double t) {
+    final u = 1.0 - t;
+    final x = u * u * u * seg.p1.dx +
+        3 * u * u * t * seg.cp1.dx +
+        3 * u * t * t * seg.cp2.dx +
+        t * t * t * seg.p2.dx;
+    final y = u * u * u * seg.p1.dy +
+        3 * u * u * t * seg.cp1.dy +
+        3 * u * t * t * seg.cp2.dy +
+        t * t * t * seg.p2.dy;
+    return Offset(x, y);
   }
 
   @override
   bool shouldRepaint(covariant _RoadMapPainter oldDelegate) {
     return oldDelegate.levelPositions != levelPositions ||
         oldDelegate.screenWidth != screenWidth ||
-        oldDelegate.totalNiveaux != totalNiveaux;
+        oldDelegate.totalNiveaux != totalNiveaux ||
+        oldDelegate.niveauMax != niveauMax;
   }
 }

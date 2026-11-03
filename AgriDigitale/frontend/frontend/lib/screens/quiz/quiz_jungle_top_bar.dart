@@ -6,6 +6,7 @@
 // - Bouton réglages (roue crantée)
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../widgets/quiz/quiz_settings_dialog.dart';
 
 class QuizJungleTopBar extends StatelessWidget {
   final String userName;
@@ -13,6 +14,7 @@ class QuizJungleTopBar extends StatelessWidget {
   final int pieces;
   final int gemmes;
   final bool afficherLogo;
+  final GlobalKey? coinKey;
   final VoidCallback? onSettingsTap;
   final VoidCallback? onAddCoinsTap;
   final VoidCallback? onAddGemsTap;
@@ -24,6 +26,7 @@ class QuizJungleTopBar extends StatelessWidget {
     this.pieces = 2350,
     this.gemmes = 75,
     this.afficherLogo = false,
+    this.coinKey,
     this.onSettingsTap,
     this.onAddCoinsTap,
     this.onAddGemsTap,
@@ -255,6 +258,7 @@ class QuizJungleTopBar extends StatelessWidget {
   /// Compteur de pièces d'or ($ 2 350)
   Widget _buildCompteurPieces() {
     return Container(
+      key: coinKey,
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xDD0D2A2A),
@@ -403,44 +407,7 @@ class QuizJungleTopBar extends StatelessWidget {
   }
 
   void _afficherDialogueReglages(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1B3B2B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF00E676), width: 1.5),
-        ),
-        title: Text(
-          'Options du Quiz',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.volume_up_rounded, color: Color(0xFFFFD54F)),
-              title: const Text('Effets sonores', style: TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF00E676)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.vibration_rounded, color: Color(0xFFFFD54F)),
-              title: const Text('Retour haptique', style: TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF00E676)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('FERMER', style: TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    QuizSettingsDialog.afficher(context);
   }
 
   String _formaterNombre(int n) {

@@ -199,8 +199,9 @@ class QuizService {
       }
     }
 
-    // Calcul des grains
-    final grainsGagnes = (bonnesReponses * 10) + (etoilesSession == 3 ? 15 : (etoilesSession == 2 ? 5 : 0));
+    // Calcul des grains (avec bonus de 50 pièces en cas de promotion de rang)
+    final bonusPromotion = nouveauGrade != null ? 50 : 0;
+    final grainsGagnes = (bonnesReponses * 10) + (etoilesSession == 3 ? 15 : (etoilesSession == 2 ? 5 : 0)) + bonusPromotion;
     final grainsActuels = sp.getInt(_kKeyGrains) ?? 0;
     await sp.setInt(_kKeyGrains, grainsActuels + grainsGagnes);
 

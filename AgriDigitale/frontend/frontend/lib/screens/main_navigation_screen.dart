@@ -14,6 +14,7 @@ import '../widgets/banner_carousel.dart';
 import '../providers/auth_provider.dart';
 import '../core/design/app_colors.dart';
 import '../core/app_localizations.dart';
+import '../services/quiz_sound_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -25,9 +26,15 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
   int _index = 0;
   // Ne charge un onglet que lorsqu'il est visité pour la première fois (évite 7 requêtes simultanées au démarrage)
   final Set<int> _ongletsVisites = {0};
+  final GlobalKey<QuizWelcomeScreenState> _quizWelcomeKey = GlobalKey<QuizWelcomeScreenState>();
 
   // Permet à HomeScreen de naviguer vers l'onglet favoris (index 3) depuis l'AppBar
   void changerOnglet(int index) {
+    final estJeux = (index == 4);
+    QuizSoundService().setEstSurEcranJeu(estJeux);
+    if (estJeux) {
+      _quizWelcomeKey.currentState?.rejouerAnimationEntree();
+    }
     setState(() {
       _index = index;
       _ongletsVisites.add(index);
@@ -43,13 +50,13 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
     Icons.settings,
   ];
 
-  final _ecrans = const [
-    HomeScreen(),
-    WeatherScreen(),
-    AgdtvScreen(),
-    FavorisScreen(),
-    QuizWelcomeScreen(),
-    SettingsScreen(),
+  late final _ecrans = [
+    const HomeScreen(),
+    const WeatherScreen(),
+    const AgdtvScreen(),
+    const FavorisScreen(),
+    QuizWelcomeScreen(key: _quizWelcomeKey),
+    const SettingsScreen(),
   ];
 
   @override
@@ -128,6 +135,11 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
                     return Expanded(
                       child: InkWell(
                         onTap: () {
+                          final estJeux = (i == 4);
+                          QuizSoundService().setEstSurEcranJeu(estJeux);
+                          if (estJeux) {
+                            _quizWelcomeKey.currentState?.rejouerAnimationEntree();
+                          }
                           setState(() {
                             _index = i;
                             _ongletsVisites.add(i);

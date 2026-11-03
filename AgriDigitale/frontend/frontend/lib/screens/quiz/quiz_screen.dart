@@ -10,13 +10,17 @@
 // - Barre d'actions inférieure : Bouton en bois "Retour", Récompense "+10 Bonne réponse", Bouton 3D vert "Valider"
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../data/quiz_data.dart';
+import '../../models/quiz_grade.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/quiz_service.dart';
+import '../../services/quiz_sound_service.dart';
 import '../../widgets/confetti_overlay.dart';
+import '../../widgets/quiz/quiz_animated_host.dart';
+import '../../widgets/quiz/quiz_coin_gain_overlay.dart';
+import '../../widgets/quiz/quiz_rank_up_dialog.dart';
 import 'quiz_jungle_top_bar.dart';
 import 'quiz_jungle_ranks_bar.dart';
 
@@ -38,8 +42,12 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateMixin {
+class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   final _quizService = QuizService();
+  final _soundService = QuizSoundService();
+  final GlobalKey _coinTargetKey = GlobalKey();
+  final GlobalKey<QuizCoinGainOverlayState> _coinOverlayKey = GlobalKey<QuizCoinGainOverlayState>();
+  final GlobalKey<ConfettiOverlayState> _confettiKey = GlobalKey<ConfettiOverlayState>();
 
   int _questionIndex = 0;
   int _bonnesReponses = 0;
@@ -56,9 +64,18 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
 
+  // ── Animations d'entrée spectaculaire et instantanée ──
+  late AnimationController _entranceController;
+  late Animation<double> _topOffsetAnimation;
+  late Animation<double> _bottomOffsetAnimation;
+  late Animation<double> _opacityAnimation;
+
   @override
   void initState() {
     super.initState();
+    _soundService.init();
+    _soundService.setEstSurEcranJeu(true);
+
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -68,6 +85,46 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
+    // Initialisation de l'animation d'entrée où le haut surgit du haut (-800px) et le bas du bas (+800px)
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+
+    _topOffsetAnimation = Tween<double>(
+      begin: -800.0,
+      end: 0.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _bottomOffsetAnimation = Tween<double>(
+      begin: 800.0,
+      end: 0.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
+    );
+
+    // Déclenchement dès que le premier affichage écran est prêt
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _entranceController.forward(from: 0.0);
+      }
+    });
+
     _chargerStats();
     _demarrerMinuteur();
   }
@@ -76,6 +133,9 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
   void dispose() {
     _countdownTimer?.cancel();
     _glowController.dispose();
+    _entranceController.dispose();
+    _soundService.setEstSurEcranJeu(false);
+    _soundService.stopAll();
     super.dispose();
   }
 
@@ -97,6 +157,8 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
       if (!mounted) return;
       if (_secondesRestantes > 0) {
         setState(() => _secondesRestantes--);
+        // Joue le tic-tac du chronomètre
+        _soundService.playTick();
       } else {
         timer.cancel();
         if (!_repondu) {
@@ -110,7 +172,7 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
 
   void _selectionnerOption(int index) {
     if (_repondu) return;
-    HapticFeedback.selectionClick();
+    _soundService.vibrateLight();
     setState(() {
       _reponseSelectionnee = index;
     });
@@ -126,19 +188,45 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
       _repondu = true;
       if (estCorrect) {
         _bonnesReponses++;
-        _pieces += 10;
       }
     });
 
     if (estCorrect) {
-      HapticFeedback.mediumImpact();
-      ConfettiOverlay.of(context)?.exploser();
+      _soundService.playCorrect();
+      _soundService.vibrateMedium();
+      _confettiKey.currentState?.exploser();
+
+      // Déclenche l'animation de jet de pièces volantes 3D
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final size = MediaQuery.of(context).size;
+        final depart = Offset(size.width / 2, size.height * 0.70);
+        final box = _coinTargetKey.currentContext?.findRenderObject() as RenderBox?;
+        final cible = box != null
+            ? box.localToGlobal(box.size.center(Offset.zero))
+            : Offset(size.width * 0.62, 52);
+
+        _coinOverlayKey.currentState?.animerGain(
+          depart: depart,
+          cible: cible,
+          montant: 10,
+          nombrePieces: 7,
+          onComplete: () {
+            if (mounted) {
+              setState(() {
+                _pieces += 10;
+              });
+            }
+          },
+        );
+      });
     } else {
-      HapticFeedback.vibrate();
+      _soundService.playWrong();
+      _soundService.vibrateError();
     }
 
-    // Affiche l'explication après un court instant
-    Future.delayed(const Duration(milliseconds: 900), () {
+    // Affiche l'explication après l'animation festive
+    Future.delayed(Duration(milliseconds: estCorrect ? 1400 : 900), () {
       if (mounted) {
         _afficherModalExplication(estCorrect);
       }
@@ -149,7 +237,8 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
     setState(() {
       _repondu = true;
     });
-    HapticFeedback.vibrate();
+    _soundService.playWrong();
+    _soundService.vibrateError();
     _afficherModalExplication(false, estTempsEcoule: true);
   }
 
@@ -176,15 +265,29 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
       etoiles = 1;
     }
 
+    QuizGrade? nouveauGrade;
+    int grainsGagnes = _bonnesReponses * 10;
+
     if (widget.niveauId != null) {
-      await _quizService.enregistrerResultatNiveau(
+      final res = await _quizService.enregistrerResultatNiveau(
         niveauId: widget.niveauId!,
         bonnesReponses: _bonnesReponses,
       );
+      nouveauGrade = res.nouveauGrade;
+      grainsGagnes = res.grainsGagnes;
+    } else if (widget.estQuizDuJour) {
+      final res = await _quizService.enregistrerResultatQuizDuJour(
+        bonnesReponses: _bonnesReponses,
+      );
+      grainsGagnes = res.grainsGagnes;
     }
 
     if (mounted) {
-      _afficherVictoireModal(etoiles);
+      _afficherVictoireModal(
+        etoiles: etoiles,
+        grainsGagnes: grainsGagnes,
+        nouveauGrade: nouveauGrade,
+      );
     }
   }
 
@@ -193,66 +296,123 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
     final auth = context.watch<AuthProvider>();
     final nomAffiche = auth.nomUtilisateur ?? 'Germain_Ahobli';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A231C),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // ── Fond Jungle Visuel Immersif ──
-          Image.asset(
-            'assets/images/quiz_jungle_roadmap_bg.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (_, __, ___) => Container(
-              color: const Color(0xFF0F3827),
-            ),
-          ),
-
-          // Voile sombre pour lisibilité maximale des questions et cartes
-          Container(
-            color: Colors.black.withValues(alpha: 0.35),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
-                // 1. Barre supérieure (Germain_Ahobli, Niveau, Pièces, Gemmes, Réglages)
-                QuizJungleTopBar(
-                  userName: nomAffiche,
-                  niveau: _niveauMax,
-                  pieces: _pieces,
-                  gemmes: _gemmes,
-                  afficherLogo: false,
+    return ConfettiOverlay(
+      key: _confettiKey,
+      child: QuizCoinGainOverlay(
+        key: _coinOverlayKey,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0A231C),
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ── Fond Jungle Visuel Immersif ──
+              Image.asset(
+                'assets/images/quiz_jungle_roadmap_bg.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFF0F3827),
                 ),
+              ),
 
-                // 2. Barre des 5 Rangs (Novice -> Légende)
-                QuizJungleRanksBar(
-                  niveauActuel: _niveauMax,
-                ),
+              // Voile sombre pour lisibilité maximale des questions et cartes
+              Container(
+                color: Colors.black.withValues(alpha: 0.35),
+              ),
 
-                const SizedBox(height: 4),
-
-                // 3. Zone de Question avec Germain & Panneau Parchemin
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Column(
-                      children: [
-                        _buildSectionQuestionHeader(),
-                        const SizedBox(height: 10),
-                        // Grille 2x2 des 4 Réponses
-                        _buildGrilleReponses(),
-                      ],
+              SafeArea(
+                child: Column(
+                  children: [
+                    // 1 & 2. Haut : Barre supérieure & Barre des 5 Rangs (surgit de -800px)
+                    AnimatedBuilder(
+                      animation: _entranceController,
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(0, _topOffsetAnimation.value),
+                        child: Opacity(
+                          opacity: _opacityAnimation.value,
+                          child: child,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          QuizJungleTopBar(
+                            coinKey: _coinTargetKey,
+                            userName: nomAffiche,
+                            niveau: _niveauMax,
+                            pieces: _pieces,
+                            gemmes: _gemmes,
+                            afficherLogo: false,
+                          ),
+                          QuizJungleRanksBar(
+                            niveauActuel: _niveauMax,
+                            onRankTap: (_) {
+                              QuizRankUpDialog.afficher(
+                                context,
+                                nouveauGrade: QuizGrade.getGradePourNiveau(_niveauMax),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
 
-                // 4. Barre d'Actions Inférieure (Retour, +10 Récompense, Valider)
-                _buildBarreActionInferieure(),
-              ],
-            ),
+                    const SizedBox(height: 4),
+
+                    // 3. Zone Centrale (Question en haut, Grille de réponses en bas)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Column(
+                          children: [
+                            // En-tête de la question (Bannière, Minuteur, Germain, Parchemin - surgit de -800px)
+                            AnimatedBuilder(
+                              animation: _entranceController,
+                              builder: (context, child) => Transform.translate(
+                                offset: Offset(0, _topOffsetAnimation.value),
+                                child: Opacity(
+                                  opacity: _opacityAnimation.value,
+                                  child: child,
+                                ),
+                              ),
+                              child: _buildSectionQuestionHeader(),
+                            ),
+                            const SizedBox(height: 10),
+                            // Grille 2x2 des 4 Réponses (surgit de +800px)
+                            AnimatedBuilder(
+                              animation: _entranceController,
+                              builder: (context, child) => Transform.translate(
+                                offset: Offset(0, _bottomOffsetAnimation.value),
+                                child: Opacity(
+                                  opacity: _opacityAnimation.value,
+                                  child: child,
+                                ),
+                              ),
+                              child: _buildGrilleReponses(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // 4. Barre d'Actions Inférieure (Retour, +10 Récompense, Valider - surgit de +800px)
+                    AnimatedBuilder(
+                      animation: _entranceController,
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(0, _bottomOffsetAnimation.value),
+                        child: Opacity(
+                          opacity: _opacityAnimation.value,
+                          child: child,
+                        ),
+                      ),
+                      child: _buildBarreActionInferieure(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -341,49 +501,15 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
 
         const SizedBox(height: 8),
 
-        // Ligne avec Germain et le Panneau Parchemin de Question
+        // Ligne avec l'Animatrice de Quiz et le Panneau Parchemin de Question
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Personnage Germain pointant le doigt + Ampoule lumineuse
-            SizedBox(
-              width: 82,
-              height: 120,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  // Ampoule lumineuse au-dessus
-                  Positioned(
-                    top: 0,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFFFD54F).withValues(alpha: 0.35),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFFD54F).withValues(alpha: 0.6),
-                            blurRadius: 12,
-                            spreadRadius: 3,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.lightbulb_rounded, color: Color(0xFFFFEA00), size: 22),
-                    ),
-                  ),
-                  // Image Germain
-                  Positioned(
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/germain_character_pointing.png',
-                      height: 100,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.white, size: 70),
-                    ),
-                  ),
-                ],
-              ),
+            // Animatrice animée (yeux clignotants, bouche parlante et lecture TTS automatique)
+            QuizAnimatedHost(
+              texteQuestion: _questionActuelle.question,
+              largeur: 95,
+              hauteur: 130,
             ),
 
             const SizedBox(width: 8),
@@ -842,7 +968,7 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(
-                _questionIndex < widget.questions.length - 1 ? 'QUESTION SUIVANTE ➔' : 'VOIR LES RÉSULTATS 🏆',
+                _questionIndex < widget.questions.length - 1 ? 'QUESTION SUIVANTE ➔' : 'VOIR LES RÉSULTATS',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w900, fontSize: 14),
               ),
             ),
@@ -852,7 +978,19 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _afficherVictoireModal(int etoiles) {
+  void _afficherVictoireModal({
+    required int etoiles,
+    required int grainsGagnes,
+    QuizGrade? nouveauGrade,
+  }) {
+    if (etoiles > 0) {
+      _soundService.playVictory();
+      _soundService.vibrateHeavy();
+    } else {
+      _soundService.playWrong();
+      _soundService.vibrateError();
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -888,16 +1026,114 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
               'Bonnes réponses : $_bonnesReponses / ${widget.questions.length}',
               style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '+${_bonnesReponses * 10} Pièces d\'or remportées 🪙',
-              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFFFFD54F), fontWeight: FontWeight.w800),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF071913),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFFD54F).withValues(alpha: 0.6)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  QuizCoinGainOverlay.build3DCoin(taille: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+$grainsGagnes Pièces d\'or remportées',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFFFFD54F),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            if (nouveauGrade != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: nouveauGrade.degrade),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: nouveauGrade.couleur.withValues(alpha: 0.6),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(nouveauGrade.icone, color: Colors.white, size: 22),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'PROMOTION : ${nouveauGrade.titre.toUpperCase()}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
+            // Bouton de célébration du Rang (avec distinction si promotion ou rang actuel)
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pop(context);
+                final gradeAffiche = nouveauGrade ?? QuizGrade.getGradePourNiveau(_niveauMax);
+                QuizRankUpDialog.afficher(
+                  context,
+                  nouveauGrade: gradeAffiche,
+                  onContinuer: () {
+                    Navigator.pop(context, true);
+                  },
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD54F),
+                foregroundColor: const Color(0xFF2E1A0E),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.workspace_premium_rounded, size: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    nouveauGrade != null
+                        ? 'VOIR MON NOUVEAU RANG ➔'
+                        : 'VOIR MON RANG (${QuizGrade.getGradePourNiveau(_niveauMax).titre.toUpperCase()}) ➔',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w900, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (nouveauGrade != null) {
+                  QuizRankUpDialog.afficher(
+                    context,
+                    nouveauGrade: nouveauGrade,
+                    onContinuer: () {
+                      Navigator.pop(context, true);
+                    },
+                  );
+                } else {
+                  Navigator.pop(context, true);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00E676),
@@ -905,7 +1141,10 @@ class _QuizScreenState extends State<QuizScreen> with SingleTickerProviderStateM
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
-              child: Text('RETOUR À LA ROADMAP', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+              child: Text(
+                'RETOUR À LA ROADMAP',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
             ),
           ],
         ),
