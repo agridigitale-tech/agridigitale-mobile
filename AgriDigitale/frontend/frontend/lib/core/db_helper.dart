@@ -23,7 +23,7 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -86,6 +86,16 @@ class DBHelper {
             )
           ''');
         }
+        if (oldVersion < 7) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS bannieres_cache (
+              id TEXT PRIMARY KEY,
+              image TEXT NOT NULL,
+              lien TEXT,
+              cachedAt INTEGER NOT NULL
+            )
+          ''');
+        }
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -144,6 +154,14 @@ class DBHelper {
             regionsJson TEXT,
             imageUrl TEXT,
             enregistreAt INTEGER NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS bannieres_cache (
+            id TEXT PRIMARY KEY,
+            image TEXT NOT NULL,
+            lien TEXT,
+            cachedAt INTEGER NOT NULL
           )
         ''');
       },
@@ -255,8 +273,51 @@ class DBHelper {
   Future<Map<String, dynamic>?> getArticleDetail(String id) async {
     final db = await database;
     if (db == null) return null;
-    final rows = await db.query('articles_cache', where: 'id = ?', whereArgs: [id]);
-    return rows.isNotEmpty ? rows.first : null;
+    // 1. Recherche directe par ID exact
+    var rows = await db.query('articles_cache', where: 'id = ?', whereArgs: [id]);
+    if (rows.isNotEmpty) return rows.first;
+
+    // 2. Recherche par guid ou par lienSource
+    rows = await db.query('articles_cache', where: 'guid = ? OR lienSource LIKE ?', whereArgs: [id, '%$id%']);
+    if (rows.isNotEmpty) return rows.first;
+
+    // 3. Recherche dans la table des favoris
+    rows = await db.query('favoris_cache', where: 'id = ?', whereArgs: [id]);
+    if (rows.isNotEmpty) return rows.first;
+
+    return null;
+  }
+
+  // ── Cache Bannières Publicitaires (mode hors ligne)
+  Future<void> sauvegarderBannieres(List<Map<String, String?>> bannieres) async {
+    final db = await database;
+    if (db == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final batch = db.batch();
+    batch.delete('bannieres_cache');
+    for (int i = 0; i < bannieres.length; i++) {
+      final b = bannieres[i];
+      final img = b['image'];
+      if (img != null && img.isNotEmpty) {
+        batch.insert('bannieres_cache', {
+          'id': 'banniere_$i',
+          'image': img,
+          'lien': b['lien'],
+          'cachedAt': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<Map<String, String?>>> getBannieresCache() async {
+    final db = await database;
+    if (db == null) return [];
+    final rows = await db.query('bannieres_cache', orderBy: 'id ASC');
+    return rows.map((r) => <String, String?>{
+      'image': r['image'] as String?,
+      'lien': r['lien'] as String?,
+    }).toList();
   }
 
   // ── Cache météo : TTL 2h pour éviter trop d'appels API

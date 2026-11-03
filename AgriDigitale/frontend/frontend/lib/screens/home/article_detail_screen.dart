@@ -28,6 +28,7 @@ import '../../providers/language_provider.dart';
 import '../../widgets/auth_gate.dart';
 import '../../core/design/app_colors.dart';
 import '../../core/api_client.dart';
+import '../../core/db_helper.dart';
 import '../request/request_screen.dart';
 
 // ── Types et modèles de blocs pour le rendu direct et le suivi mot par mot ──
@@ -106,7 +107,13 @@ class PositionLecture {
 
 class ArticleDetailScreen extends StatefulWidget {
   final String articleId;
-  const ArticleDetailScreen({super.key, required this.articleId});
+  final Article? articleInitial;
+
+  const ArticleDetailScreen({
+    super.key,
+    required this.articleId,
+    this.articleInitial,
+  });
 
   @override
   State<ArticleDetailScreen> createState() => _ArticleDetailScreenState();
@@ -165,6 +172,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.articleInitial != null) {
+      _articleCourant = widget.articleInitial;
+      _preparerBlocsArticle(widget.articleInitial!);
+      _articleService.sauvegarderLocalement(widget.articleInitial!);
+    }
     _future = _articleService.detail(widget.articleId);
     _autresFuture = _articleService.lister();
     _chargerCommentaires();
@@ -2417,55 +2429,74 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+            if (widget.articleInitial != null) {
+              return _buildCorpsArticle(widget.articleInitial!, auth, isOffline: false);
+            }
             return const Center(child: CircularProgressIndicator(color: AppColors.vertPrimaire));
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  const Text('Impossible de charger l\'article'),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _future = _articleService.detail(widget.articleId);
-                      });
-                    },
-                    child: const Text('Réessayer', style: TextStyle(color: AppColors.vertPrimaire)),
+            if (widget.articleInitial != null) {
+              return _buildCorpsArticle(widget.articleInitial!, auth, isOffline: true);
+            }
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: DBHelper().getArticleDetail(widget.articleId),
+              builder: (ctx, snapLocal) {
+                if (snapLocal.hasData && snapLocal.data != null) {
+                  final localArticle = Article.fromMap(snapLocal.data!);
+                  return _buildCorpsArticle(localArticle, auth, isOffline: true);
+                }
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      const Text('Impossible de charger l\'article'),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _future = _articleService.detail(widget.articleId);
+                          });
+                        },
+                        child: const Text('Réessayer', style: TextStyle(color: AppColors.vertPrimaire)),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           }
           final article = snapshot.data!;
-          return Stack(
-            children: [
-              CustomScrollView(
-                controller: _scrollCtrl,
-                slivers: [
-                  _buildContenu(article),
-                  _buildSectionCommentaires(auth),
-                  _buildAutresArticles(),
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
-              ),
-              Positioned(
-                left: 16,
-                bottom: 20,
-                child: _buildBoutonEcouteFlottant(article),
-              ),
-            ],
-          );
+          return _buildCorpsArticle(article, auth, isOffline: false);
         },
       ),
     );
   }
 
+  Widget _buildCorpsArticle(Article article, dynamic auth, {bool isOffline = false}) {
+    return Stack(
+      children: [
+        CustomScrollView(
+          controller: _scrollCtrl,
+          slivers: [
+            _buildContenu(article, isOffline: isOffline),
+            _buildSectionCommentaires(auth),
+            _buildAutresArticles(),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
+        Positioned(
+          left: 16,
+          bottom: 20,
+          child: _buildBoutonEcouteFlottant(article),
+        ),
+      ],
+    );
+  }
+
   // Contenu éditorial de l'article avec blocs directs et suivi mot par mot en direct
-  SliverToBoxAdapter _buildContenu(Article article) {
+  SliverToBoxAdapter _buildContenu(Article article, {bool isOffline = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_articleCourant?.id != article.id || _blocsArticle.isEmpty) {
@@ -2492,22 +2523,54 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Badge Catégorie
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                article.categorie.toUpperCase(),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+            // 1. Badge Catégorie + Badge Hors ligne
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    article.categorie.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                    ),
+                  ),
                 ),
-              ),
+                if (isOffline) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.amber.shade700.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off_rounded, size: 12, color: Colors.amber.shade800),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Hors ligne',
+                          style: GoogleFonts.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -2932,7 +2995,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 ),
                 onTap: () => Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id)),
+                  MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a)),
                 ),
               );
             },

@@ -3,10 +3,13 @@
 // Si aucune bannière active n'est présente, le widget disparaît complètement (SizedBox.shrink).
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
+import '../core/db_helper.dart';
 import '../core/design/app_colors.dart';
+import 'home_skeleton_loading.dart';
 
 class BannerCarousel extends StatefulWidget {
   const BannerCarousel({super.key});
@@ -28,6 +31,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
       PageController(viewportFraction: 0.92, initialPage: 1000);
   int _pageActuelle = 1000;
   List<Map<String, String?>> _bannieres = [];
+  bool _chargement = true;
   Timer? _timer;
 
   @override
@@ -43,8 +47,37 @@ class _BannerCarouselState extends State<BannerCarousel> {
     }
   }
 
+  // Charge les bannières locales depuis le cache hors ligne SQLite
+  Future<void> _chargerBannieresDepuisCache() async {
+    if (kIsWeb) return;
+    try {
+      final cached = await DBHelper().getBannieresCache();
+      if (cached.isNotEmpty && mounted) {
+        setState(() {
+          _bannieres = cached;
+          _chargement = false;
+        });
+        debugPrint('[BannerCarousel] ${cached.length} bannières chargées depuis le cache hors ligne SQLite');
+      }
+    } catch (e) {
+      debugPrint('[BannerCarousel] Erreur chargement cache bannières: $e');
+    }
+  }
+
+  void _demarrerTimer() {
+    _timer?.cancel();
+    if (_bannieres.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (mounted) _pageSuivante();
+      });
+    }
+  }
+
   // Charge les bannières depuis l'API et démarre le timer de défilement si plusieurs bannières
   Future<void> _chargerBannieres() async {
+    // Tenter immédiatement de lire le cache hors ligne pour un affichage instantané
+    await _chargerBannieresDepuisCache();
+
     try {
       final apiClient = ApiClient();
       final response = await apiClient.dio.get('/bannieres');
@@ -66,20 +99,31 @@ class _BannerCarouselState extends State<BannerCarousel> {
 
       if (!mounted) return;
 
-      setState(() {
-        _bannieres = bannieres;
-      });
-
-      if (_bannieres.length > 1) {
-        _timer?.cancel();
-        _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-          if (mounted) _pageSuivante();
+      if (bannieres.isNotEmpty) {
+        setState(() {
+          _bannieres = bannieres;
+          _chargement = false;
         });
-      } else {
-        _timer?.cancel();
+
+        // Sauvegarder dans SQLite pour la prochaine session hors ligne
+        if (!kIsWeb) {
+          try {
+            await DBHelper().sauvegarderBannieres(bannieres);
+          } catch (_) {}
+        }
       }
+
+      _demarrerTimer();
     } catch (e) {
-      debugPrint('[BannerCarousel] Erreur chargement bannières: $e');
+      debugPrint('[BannerCarousel] Mode hors ligne / réseau indisponible ($e), bannières actuelles: ${_bannieres.length}');
+      if (_bannieres.isEmpty) {
+        await _chargerBannieresDepuisCache();
+      }
+      _demarrerTimer();
+    } finally {
+      if (mounted) {
+        setState(() => _chargement = false);
+      }
     }
   }
 
@@ -124,6 +168,8 @@ class _BannerCarouselState extends State<BannerCarousel> {
             imageUrl: imageUrl,
             fit: BoxFit.cover,
             width: double.infinity,
+            memCacheWidth: 1080,
+            maxWidthDiskCache: 1200,
             placeholder: (context, url) => Container(
               color: Colors.grey[200],
               child: const Center(
@@ -148,8 +194,22 @@ class _BannerCarouselState extends State<BannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    // Si aucune bannière active n'est présente (ou pendant le chargement initial),
-    // afficher la page comme si la bannière n'existait pas du tout (0 pixel, 0 espace).
+    // Si les bannières sont en cours de chargement initial, afficher le squelette shimmer
+    if (_chargement && _bannieres.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 150,
+        child: const ShimmerProvider(
+          child: SkeletonBox(
+            width: double.infinity,
+            height: 150,
+            radius: 12,
+          ),
+        ),
+      );
+    }
+
+    // Si aucune bannière active n'est présente, ne rien afficher
     if (_bannieres.isEmpty) {
       return const SizedBox.shrink();
     }

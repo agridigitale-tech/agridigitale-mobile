@@ -124,20 +124,51 @@ class ArticleService {
         }
       }
       return article;
-    } on DioException catch (e) {
-      debugPrint('[ArticleService] detail hors ligne: ${e.message}');
+    } catch (e) {
+      debugPrint('[ArticleService] detail hors ligne / exception: $e');
       if (!kIsWeb) {
-        final cached = await _db.getArticleDetail(id);
-        if (cached != null) {
-          final a = Article.fromMap(cached);
-          if (a.contenu.trim().isNotEmpty) return a;
+        try {
+          final cached = await _db.getArticleDetail(id);
+          if (cached != null) {
+            var a = Article.fromMap(cached);
+            // Si le corps HTML complet n'est pas encore en cache, utiliser le résumé pour permettre la lecture hors ligne
+            if (a.contenu.trim().isEmpty && a.resume.trim().isNotEmpty) {
+              a = a.copyWith(contenu: a.resume);
+            }
+            if (a.contenu.trim().isNotEmpty || a.titre.trim().isNotEmpty) {
+              debugPrint('[ArticleService] Article detail servi depuis le cache local SQLite: ${a.titre}');
+              return a;
+            }
+          }
+        } catch (dbErr) {
+          debugPrint('[ArticleService] Erreur lecture cache local detail: $dbErr');
         }
       }
-      // Secours RSS si non trouvé ou contenu vide en cache
-      final rssArticles = await recupererDepuisRss();
-      final trouve = rssArticles.where((a) => a.id == id || a.guid == id || a.lienSource.contains(id)).firstOrNull;
-      if (trouve != null) return trouve;
+      // Secours RSS si connectivité partielle
+      try {
+        final rssArticles = await recupererDepuisRss();
+        final trouve = rssArticles.where((a) => a.id == id || a.guid == id || a.lienSource.contains(id)).firstOrNull;
+        if (trouve != null) {
+          if (!kIsWeb) {
+            try {
+              await _db.sauvegarderArticleDetail(trouve.toMap());
+            } catch (_) {}
+          }
+          return trouve;
+        }
+      } catch (_) {}
       rethrow;
+    }
+  }
+
+  /// Sauvegarde locale explicite d'un article pour garantir sa disponibilité hors ligne
+  Future<void> sauvegarderLocalement(Article article) async {
+    if (!kIsWeb) {
+      try {
+        await _db.sauvegarderArticleDetail(article.toMap());
+      } catch (e) {
+        debugPrint('[ArticleService] Echec sauvegarde locale: $e');
+      }
     }
   }
 

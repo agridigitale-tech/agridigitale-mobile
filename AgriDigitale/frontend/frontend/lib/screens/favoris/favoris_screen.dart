@@ -283,7 +283,9 @@ class _FavorisScreenState extends State<FavorisScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => ArticleDetailScreen(
-                                                articleId: _filtres[i].id),
+                                              articleId: _filtres[i].id,
+                                              articleInitial: _filtres[i],
+                                            ),
                                           ),
                                         ),
                                       ),

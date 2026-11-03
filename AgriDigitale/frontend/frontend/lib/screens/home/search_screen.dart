@@ -60,7 +60,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       itemBuilder: (context, i) => ArticleCard(
                         article: _resultats![i],
                         onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _resultats![i].id))),
+                          MaterialPageRoute(builder: (_) => ArticleDetailScreen(
+                            articleId: _resultats![i].id,
+                            articleInitial: _resultats![i],
+                          ))),
                       ),
                     ),
     );
