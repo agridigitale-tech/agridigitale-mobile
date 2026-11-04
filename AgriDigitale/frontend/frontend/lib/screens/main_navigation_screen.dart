@@ -15,6 +15,7 @@ import '../providers/auth_provider.dart';
 import '../core/design/app_colors.dart';
 import '../core/app_localizations.dart';
 import '../services/quiz_sound_service.dart';
+import '../services/telemetry_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -28,17 +29,43 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
   final Set<int> _ongletsVisites = {0};
   final GlobalKey<QuizWelcomeScreenState> _quizWelcomeKey = GlobalKey<QuizWelcomeScreenState>();
 
-  // Permet à HomeScreen de naviguer vers l'onglet favoris (index 3) depuis l'AppBar
+  static const List<String> _nomsEcrans = [
+    'home',
+    'meteo',
+    'tv',
+    'favoris',
+    'jeux',
+    'parametres',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    TelemetryService().initialiser();
+    TelemetryService().naviguerVersEcran('home', estOuvertureInitiale: true);
+  }
+
+  // Permet à HomeScreen ou d'autres widgets de changer d'onglet
   void changerOnglet(int index) {
+    _allerVersOnglet(index);
+  }
+
+  void _allerVersOnglet(int index) {
     final estJeux = (index == 4);
     QuizSoundService().setEstSurEcranJeu(estJeux);
     if (estJeux) {
       _quizWelcomeKey.currentState?.rejouerAnimationEntree();
     }
+    if (index >= 0 && index < _nomsEcrans.length) {
+      TelemetryService().naviguerVersEcran(_nomsEcrans[index]);
+    }
     setState(() {
       _index = index;
       _ongletsVisites.add(index);
     });
+    if (index == 0) {
+      BannerCarousel.actualiser();
+    }
   }
 
   final _icones = [
@@ -134,20 +161,7 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
                     final actif = i == _index;
                     return Expanded(
                       child: InkWell(
-                        onTap: () {
-                          final estJeux = (i == 4);
-                          QuizSoundService().setEstSurEcranJeu(estJeux);
-                          if (estJeux) {
-                            _quizWelcomeKey.currentState?.rejouerAnimationEntree();
-                          }
-                          setState(() {
-                            _index = i;
-                            _ongletsVisites.add(i);
-                          });
-                          if (i == 0) {
-                            BannerCarousel.actualiser();
-                          }
-                        },
+                        onTap: () => _allerVersOnglet(i),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

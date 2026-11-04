@@ -1,4 +1,4 @@
-// Modèle de télémétrie et d'analytics (temps d'écran et intérêts par appareil)
+// Modèle de télémétrie et d'analytics (temps d'écran, écrans visités et profilage)
 const mongoose = require('mongoose');
 
 const analyticsSchema = new mongoose.Schema({
@@ -11,12 +11,39 @@ const analyticsSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Utilisateur',
     default: null,
+    index: true,
+  },
+  nomUtilisateur: {
+    type: String,
+    default: null,
+  },
+  emailUtilisateur: {
+    type: String,
+    default: null,
   },
   typeEvenement: {
     type: String,
-    enum: ['article_lecture', 'categorie_vue', 'session', 'app_open', 'recherche'],
+    enum: [
+      'article_lecture',
+      'categorie_vue',
+      'session',
+      'app_open',
+      'recherche',
+      'ecran_vue',
+      'presence_ping',
+      'premiere_action',
+    ],
     required: true,
     index: true,
+  },
+  ecran: {
+    type: String, // 'home' | 'meteo' | 'tv' | 'jeux' | 'favoris' | 'parametres' | 'article' | 'autre'
+    default: null,
+    index: true,
+  },
+  premierEcran: {
+    type: String, // Le premier écran visité à l'ouverture de l'application
+    default: null,
   },
   articleId: {
     type: String,
@@ -45,6 +72,10 @@ const analyticsSchema = new mongoose.Schema({
     enum: ['android', 'ios', 'web', 'inconnu'],
     default: 'inconnu',
   },
+  heureJour: {
+    type: Number, // 0 à 23 (heure locale de l'appareil)
+    default: null,
+  },
   date: {
     type: Date,
     default: Date.now,
@@ -52,9 +83,10 @@ const analyticsSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Index composés pour des agrégations ultra-rapides sans charger le CPU de Render
+// Index composés pour des requêtes ultra-rapides sans surcharger le serveur
 analyticsSchema.index({ categorie: 1, date: -1 });
 analyticsSchema.index({ deviceId: 1, date: -1 });
+analyticsSchema.index({ ecran: 1, date: -1 });
 analyticsSchema.index({ typeEvenement: 1, date: -1 });
 analyticsSchema.index({ date: -1 });
 analyticsSchema.index({ deviceId: 1, typeEvenement: 1 });

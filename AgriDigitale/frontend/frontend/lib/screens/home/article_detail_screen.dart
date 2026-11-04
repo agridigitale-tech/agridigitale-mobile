@@ -175,6 +175,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   void initState() {
     super.initState();
     _chronoLecture.start();
+    TelemetryService().naviguerVersEcran(
+      'article',
+      articleId: widget.articleId,
+      titreArticle: widget.articleInitial?.titre,
+    );
     if (widget.articleInitial != null) {
       _articleCourant = widget.articleInitial;
       _preparerBlocsArticle(widget.articleInitial!);
@@ -245,6 +250,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   @override
   void dispose() {
     _chronoLecture.stop();
+    TelemetryService().quitterEcran('article');
     if (_chronoLecture.elapsed.inSeconds >= 2) {
       final art = _articleCourant;
       TelemetryService().trackArticleLecture(

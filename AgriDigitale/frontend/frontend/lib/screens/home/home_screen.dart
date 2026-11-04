@@ -42,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   final _service = ArticleService();
   final _apiClient = ApiClient();
-  final _chronoSession = Stopwatch();
   final _chronoCategorie = Stopwatch();
   late Future<List<String>> _categoriesFuture;
   String? _categorieActive;
@@ -63,9 +62,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _chronoSession.start();
     _chronoCategorie.start();
-    TelemetryService().trackAppOpen();
 
     _categoriesFuture = _service.listerCategories();
     _chargerCacheLocalRapide();
@@ -96,9 +93,11 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _chronoSession.stop();
-    if (_chronoSession.elapsed.inSeconds >= 3) {
-      TelemetryService().trackSession(_chronoSession.elapsed.inSeconds);
+    if (_chronoCategorie.elapsed.inSeconds >= 3) {
+      TelemetryService().trackCategorieVue(
+        categorie: _categorieActive ?? 'Accueil',
+        dureeSecondes: _chronoCategorie.elapsed.inSeconds,
+      );
     }
     _scrollController.dispose();
     super.dispose();
@@ -107,9 +106,6 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      if (_chronoSession.elapsed.inSeconds >= 3) {
-        TelemetryService().trackSession(_chronoSession.elapsed.inSeconds);
-      }
       if (_chronoCategorie.elapsed.inSeconds >= 3) {
         TelemetryService().trackCategorieVue(
           categorie: _categorieActive ?? 'Accueil',
@@ -117,8 +113,6 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
     } else if (state == AppLifecycleState.resumed) {
-      _chronoSession.reset();
-      _chronoSession.start();
       _chronoCategorie.reset();
       _chronoCategorie.start();
     }

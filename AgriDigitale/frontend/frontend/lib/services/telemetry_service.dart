@@ -1,13 +1,16 @@
-// Service de Télémétrie et d'Analytics anonyme (Style TikTok)
-// Mesure le temps d'écran, les catégories préférées et la durée de lecture par article
-// sans aucune connexion ni création de compte obligatoire.
+// Service de Télémétrie et d'Analytics anonyme (Style TikTok & Profilage Temps Réel)
+// Mesure le temps d'écran par menu (Home, Météo, TV, Jeux, Articles),
+// l'état en direct (en ligne sur quel écran), le nombre d'ouvertures,
+// la première action réalisée à l'ouverture, et les heures d'utilisation (0h à 23h).
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_client.dart';
 
-class TelemetryService {
+class TelemetryService with WidgetsBindingObserver {
   static final TelemetryService _instance = TelemetryService._internal();
   factory TelemetryService() => _instance;
   TelemetryService._internal();
@@ -20,7 +23,26 @@ class TelemetryService {
   final List<Map<String, dynamic>> _queue = [];
   bool _isSending = false;
 
-  /// Générateur standard UUID v4 cryptographiquement sécurisé (sans dépendance externe)
+  // État de la navigation et de la présence
+  bool _initialise = false;
+  String _ecranActif = 'home';
+  String _dernierOngletPrincipal = 'home';
+  DateTime? _debutEcran;
+  DateTime? _debutSession;
+  String? _premierEcranSession;
+  Timer? _heartbeatTimer;
+
+  /// Initialise le service de télémétrie global
+  void initialiser() {
+    if (_initialise) return;
+    _initialise = true;
+    WidgetsBinding.instance.addObserver(this);
+    _debutSession = DateTime.now();
+    _debutEcran = DateTime.now();
+    _demarrerHeartbeat();
+  }
+
+  /// Générateur standard UUID v4 cryptographiquement sécurisé
   static String _genererUuidV4() {
     final rnd = Random.secure();
     final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
@@ -63,27 +85,125 @@ class TelemetryService {
     return 'inconnu';
   }
 
-  /// Événement d'ouverture de l'application
-  Future<void> trackAppOpen() async {
-    final devId = await getDeviceId();
+  /// Démarre le battement de cœur périodique (toutes les 20 secondes)
+  /// pour maintenir le statut "EN LIGNE" et comptabiliser le temps en temps réel
+  void _demarrerHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      _envoyerHeartbeat();
+    });
+  }
+
+  void _arreterHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  void _envoyerHeartbeat() {
     _ajouterEvenement({
-      'deviceId': devId,
+      'typeEvenement': 'presence_ping',
+      'ecran': _ecranActif,
+      'dureeSecondes': 20,
+    });
+  }
+
+  /// Signale un changement d'écran ou d'onglet
+  /// (ex: 'home', 'meteo', 'tv', 'jeux', 'favoris', 'parametres', 'article')
+  void naviguerVersEcran(
+    String nomEcran, {
+    bool estOuvertureInitiale = false,
+    String? articleId,
+    String? titreArticle,
+  }) {
+    final maintenant = DateTime.now();
+
+    // 1. Gestion de la première action à l'ouverture de l'application
+    if (estOuvertureInitiale) {
+      _premierEcranSession = nomEcran;
+      trackAppOpen(premierEcran: nomEcran);
+    } else if (_premierEcranSession == null) {
+      _premierEcranSession = nomEcran;
+      _ajouterEvenement({
+        'typeEvenement': 'premiere_action',
+        'premierEcran': nomEcran,
+        'ecran': nomEcran,
+      });
+    }
+
+    // 2. Si on quitte un écran précédent, on comptabilise la durée passée dessus
+    if (_debutEcran != null && _ecranActif != nomEcran) {
+      final ecoule = maintenant.difference(_debutEcran!).inSeconds;
+      if (ecoule >= 1) {
+        trackEcranVue(ecran: _ecranActif, dureeSecondes: ecoule);
+      }
+    }
+
+    // 3. Mémoriser le dernier onglet principal pour retour après écran secondaire (ex: article)
+    const ongletsPrincipaux = ['home', 'meteo', 'tv', 'jeux', 'favoris', 'parametres'];
+    if (ongletsPrincipaux.contains(nomEcran)) {
+      _dernierOngletPrincipal = nomEcran;
+    }
+
+    _ecranActif = nomEcran;
+    _debutEcran = maintenant;
+
+    // 4. Ping de présence immédiat pour mettre à jour l'écran actif sur le dashboard
+    _ajouterEvenement({
+      'typeEvenement': 'presence_ping',
+      'ecran': nomEcran,
+      if (articleId != null) 'articleId': articleId,
+      if (titreArticle != null) 'titreArticle': titreArticle,
+      'dureeSecondes': 0,
+    });
+  }
+
+  /// Quitte un écran secondaire (ex: retour d'un article vers l'onglet principal)
+  void quitterEcran(String nomEcran) {
+    if (_debutEcran != null) {
+      final ecoule = DateTime.now().difference(_debutEcran!).inSeconds;
+      if (ecoule >= 1) {
+        trackEcranVue(ecran: nomEcran, dureeSecondes: ecoule);
+      }
+    }
+    _ecranActif = _dernierOngletPrincipal;
+    _debutEcran = DateTime.now();
+
+    _ajouterEvenement({
+      'typeEvenement': 'presence_ping',
+      'ecran': _ecranActif,
+      'dureeSecondes': 0,
+    });
+  }
+
+  /// Événement d'ouverture de l'application
+  Future<void> trackAppOpen({String premierEcran = 'home'}) async {
+    _ajouterEvenement({
       'typeEvenement': 'app_open',
-      'plateforme': _detecterPlateforme(),
-      'date': DateTime.now().toIso8601String(),
+      'premierEcran': premierEcran,
+      'ecran': premierEcran,
     });
   }
 
   /// Événement de fin de session / temps total passé
   Future<void> trackSession(int dureeSecondes) async {
-    if (dureeSecondes < 3) return; // Ignorer les micro-ouvertures accidentelles
-    final devId = await getDeviceId();
+    if (dureeSecondes < 2) return;
     _ajouterEvenement({
-      'deviceId': devId,
       'typeEvenement': 'session',
       'dureeSecondes': dureeSecondes,
-      'plateforme': _detecterPlateforme(),
-      'date': DateTime.now().toIso8601String(),
+      'ecran': _ecranActif,
+    });
+  }
+
+  /// Temps passé sur un écran précis (Home, Météo, TV, Jeux, etc.)
+  Future<void> trackEcranVue({
+    required String ecran,
+    required int dureeSecondes,
+  }) async {
+    if (dureeSecondes < 1) return;
+    _ajouterEvenement({
+      'typeEvenement': 'ecran_vue',
+      'ecran': ecran,
+      'dureeSecondes': dureeSecondes,
     });
   }
 
@@ -95,20 +215,15 @@ class TelemetryService {
     required int dureeSecondes,
     double pourcentageLecture = 100.0,
   }) async {
-    // Si l'utilisateur reste moins de 2 secondes, c'est un clic accidentel
     if (dureeSecondes < 2) return;
-
-    final devId = await getDeviceId();
     _ajouterEvenement({
-      'deviceId': devId,
       'typeEvenement': 'article_lecture',
       'articleId': articleId,
       'titreArticle': titre,
       'categorie': categorie,
+      'ecran': 'article',
       'dureeSecondes': dureeSecondes,
       'pourcentageLecture': pourcentageLecture,
-      'plateforme': _detecterPlateforme(),
-      'date': DateTime.now().toIso8601String(),
     });
   }
 
@@ -117,23 +232,70 @@ class TelemetryService {
     required String categorie,
     required int dureeSecondes,
   }) async {
-    if (dureeSecondes < 3) return;
-
-    final devId = await getDeviceId();
+    if (dureeSecondes < 2) return;
     _ajouterEvenement({
-      'deviceId': devId,
       'typeEvenement': 'categorie_vue',
       'categorie': categorie,
+      'ecran': _ecranActif,
       'dureeSecondes': dureeSecondes,
-      'plateforme': _detecterPlateforme(),
-      'date': DateTime.now().toIso8601String(),
     });
   }
 
+  /// Écouteur de cycle de vie Flutter (pause, reprise en arrière-plan)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _arreterHeartbeat();
+      final maintenant = DateTime.now();
+      if (_debutEcran != null) {
+        final sec = maintenant.difference(_debutEcran!).inSeconds;
+        if (sec >= 1) {
+          trackEcranVue(ecran: _ecranActif, dureeSecondes: sec);
+        }
+      }
+      if (_debutSession != null) {
+        final sec = maintenant.difference(_debutSession!).inSeconds;
+        if (sec >= 3) {
+          trackSession(sec);
+        }
+      }
+      _envoyerFileAttente();
+    } else if (state == AppLifecycleState.resumed) {
+      _debutSession = DateTime.now();
+      _debutEcran = DateTime.now();
+      _demarrerHeartbeat();
+      _ajouterEvenement({
+        'typeEvenement': 'presence_ping',
+        'ecran': _ecranActif,
+        'dureeSecondes': 0,
+      });
+    }
+  }
+
   /// Ajoute un événement à la file d'attente et déclenche l'envoi en arrière-plan
-  void _ajouterEvenement(Map<String, dynamic> event) {
-    _queue.add(event);
-    _envoyerFileAttente();
+  Future<void> _ajouterEvenement(Map<String, dynamic> event) async {
+    try {
+      final devId = await getDeviceId();
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      final userNom = prefs.getString('user_nom');
+      final userEmail = prefs.getString('user_email');
+
+      final chargeUtile = <String, dynamic>{
+        'deviceId': devId,
+        'plateforme': _detecterPlateforme(),
+        'heureJour': DateTime.now().hour,
+        'date': DateTime.now().toIso8601String(),
+        ...event,
+      };
+
+      if (userId != null && userId.isNotEmpty) chargeUtile['utilisateurId'] = userId;
+      if (userNom != null && userNom.isNotEmpty) chargeUtile['nomUtilisateur'] = userNom;
+      if (userEmail != null && userEmail.isNotEmpty) chargeUtile['emailUtilisateur'] = userEmail;
+
+      _queue.add(chargeUtile);
+      _envoyerFileAttente();
+    } catch (_) {}
   }
 
   /// Envoi silencieux et non-bloquant vers le serveur Node.js
@@ -150,12 +312,11 @@ class TelemetryService {
         data: lot,
       );
     } catch (e) {
-      // Échec silencieux : ne jamais bloquer l'interface
       debugPrint('[TelemetryService] Envoi analytics silencieux différé: $e');
     } finally {
       _isSending = false;
       if (_queue.isNotEmpty) {
-        Future.delayed(const Duration(seconds: 5), _envoyerFileAttente);
+        Future.delayed(const Duration(seconds: 4), _envoyerFileAttente);
       }
     }
   }
