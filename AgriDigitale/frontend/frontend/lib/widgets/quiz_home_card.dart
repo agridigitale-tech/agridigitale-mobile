@@ -7,6 +7,8 @@ import '../models/quiz_grade.dart';
 import '../services/quiz_service.dart';
 import '../screens/quiz/quiz_screen.dart';
 import '../screens/quiz/quiz_niveaux_screen.dart';
+import '../screens/quiz/quiz_daily_screen.dart';
+import '../screens/quiz/quiz_league_screen.dart';
 
 class QuizHomeCard extends StatefulWidget {
   const QuizHomeCard({super.key});
@@ -140,52 +142,58 @@ class _QuizHomeCardState extends State<QuizHomeCard> {
                     ),
                     const Spacer(),
                     if (_streak > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade300),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.local_fire_department_rounded, size: 13, color: Colors.red.shade700),
-                            const SizedBox(width: 2),
-                            Text(
-                              '$_streak j',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                                color: Colors.red.shade900,
+                      GestureDetector(
+                        onTap: () => QuizDailyScreen.afficher(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.local_fire_department_rounded, size: 13, color: Colors.red.shade700),
+                              const SizedBox(width: 2),
+                              Text(
+                                '$_streak j',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  color: Colors.red.shade900,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
                     ],
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: grade.couleurFond,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: grade.couleur.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(grade.icone, size: 13, color: grade.couleur),
-                          const SizedBox(width: 4),
-                          Text(
-                            grade.titre.split(' ').first,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                              color: grade.couleur,
+                    GestureDetector(
+                      onTap: () => QuizLeagueScreen.afficher(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: grade.couleurFond,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: grade.couleur.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(grade.icone, size: 13, color: grade.couleur),
+                            const SizedBox(width: 4),
+                            Text(
+                              grade.titre.split(' ').first,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                                color: grade.couleur,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),

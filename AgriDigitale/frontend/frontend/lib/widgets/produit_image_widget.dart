@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/design/app_colors.dart';
@@ -6,6 +7,11 @@ import '../core/design/app_colors.dart';
 class ProduitImageHelper {
   /// Bibliothèque officielle des images locales de céréales et vivres
   static const List<Map<String, String>> imagesDisponibles = [
+    {
+      'id': 'neutre',
+      'nom': 'Image neutre (Défaut)',
+      'fichier': 'neutre',
+    },
     {
       'id': 'mais',
       'nom': 'Maïs (blanc / jaune)',
@@ -18,8 +24,33 @@ class ProduitImageHelper {
     },
     {
       'id': 'haricot',
-      'nom': 'Haricot (Niébé)',
+      'nom': 'Haricot (Niébé / local)',
       'fichier': 'assets/images/cereales/haricot.jpg',
+    },
+    {
+      'id': 'haricot_grand',
+      'nom': 'Haricot de grande taille',
+      'fichier': 'assets/images/cereales/haricot_grand_tail.jpg',
+    },
+    {
+      'id': 'mil',
+      'nom': 'Mil (pénicillaire / local)',
+      'fichier': 'assets/images/cereales/mil.webp',
+    },
+    {
+      'id': 'sorgho',
+      'nom': 'Sorgho (rouge / blanc)',
+      'fichier': 'assets/images/cereales/sorgho.jpeg',
+    },
+    {
+      'id': 'arachide',
+      'nom': 'Arachides (décortiquées / coque)',
+      'fichier': 'assets/images/cereales/arachide.jpg',
+    },
+    {
+      'id': 'voandzou',
+      'nom': 'Voandzou (Pois de terre)',
+      'fichier': 'assets/images/cereales/voandzou.jpeg',
     },
     {
       'id': 'gari',
@@ -51,33 +82,54 @@ class ProduitImageHelper {
       'nom': 'Manioc frais',
       'fichier': 'assets/images/cereales/manioc.jpeg',
     },
-    {
-      'id': 'sorgho',
-      'nom': 'Sorgho (rouge / blanc)',
-      'fichier': 'assets/images/cereales/sorgho.jpeg',
-    },
   ];
 
   /// Résolution intelligente de l'image à afficher
   static String? getImagePath(String nomProduit, {String? iconeOuImage}) {
-    // 1. Si un chemin d'asset local ou une URL http est déjà spécifié
+    // 1. Choix neutre explicite
+    if (iconeOuImage == 'neutre') {
+      return 'neutre';
+    }
+
+    // 2. Si un chemin d'asset local, fichier ou URL http est déjà spécifié
     if (iconeOuImage != null && iconeOuImage.isNotEmpty) {
-      if (iconeOuImage.startsWith('http') || iconeOuImage.startsWith('assets/')) {
+      if (iconeOuImage.startsWith('/uploads/')) {
+        return 'https://agridigitale-mobile.onrender.com$iconeOuImage';
+      }
+      if (iconeOuImage.startsWith('http') ||
+          iconeOuImage.startsWith('assets/') ||
+          iconeOuImage.startsWith('/data/') ||
+          iconeOuImage.startsWith('/storage/')) {
         return iconeOuImage;
       }
     }
 
     final nom = nomProduit.toLowerCase();
 
-    // 2. Correspondance par mot-clé sur les dénominations togolaises courantes
+    // 3. Correspondance par mot-clé sur les dénominations togolaises courantes
     if (nom.contains('maïs') || nom.contains('mais')) {
       return 'assets/images/cereales/mais.jpg';
     }
     if (nom.contains('soja')) {
       return 'assets/images/cereales/soja.jpeg';
     }
+    if (nom.contains('grande taille') || nom.contains('grand')) {
+      return 'assets/images/cereales/haricot_grand_tail.jpg';
+    }
     if (nom.contains('haricot') || nom.contains('niébé') || nom.contains('niebe')) {
       return 'assets/images/cereales/haricot.jpg';
+    }
+    if (nom.contains('voandzou')) {
+      return 'assets/images/cereales/voandzou.jpeg';
+    }
+    if (nom.contains('arachide')) {
+      return 'assets/images/cereales/arachide.jpg';
+    }
+    if (nom.contains('mil')) {
+      return 'assets/images/cereales/mil.webp';
+    }
+    if (nom.contains('sorgho')) {
+      return 'assets/images/cereales/sorgho.jpeg';
     }
     if (nom.contains('gari')) {
       return 'assets/images/cereales/gari.jpg';
@@ -96,15 +148,6 @@ class ProduitImageHelper {
     }
     if (nom.contains('manioc')) {
       return 'assets/images/cereales/manioc.jpeg';
-    }
-    if (nom.contains('sorgho')) {
-      return 'assets/images/cereales/sorgho.jpeg';
-    }
-    if (nom.contains('mil')) {
-      return 'assets/images/cereales/sorgho.jpeg';
-    }
-    if (nom.contains('arachide')) {
-      return 'assets/images/cereales/soja.jpeg';
     }
 
     return null;
@@ -133,7 +176,9 @@ class ProduitImageWidget extends StatelessWidget {
 
     Widget imageContent;
 
-    if (path != null && path.startsWith('http')) {
+    if (path == 'neutre') {
+      imageContent = _buildFallback(isDark);
+    } else if (path != null && path.startsWith('http')) {
       imageContent = CachedNetworkImage(
         imageUrl: path,
         width: size,
@@ -153,7 +198,15 @@ class ProduitImageWidget extends StatelessWidget {
         ),
         errorWidget: (_, __, ___) => _buildFallback(isDark),
       );
-    } else if (path != null && path.isNotEmpty) {
+    } else if (path != null && path.startsWith('/') && File(path).existsSync()) {
+      imageContent = Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildFallback(isDark),
+      );
+    } else if (path != null && path.isNotEmpty && path.startsWith('assets/')) {
       imageContent = Image.asset(
         path,
         width: size,
@@ -204,10 +257,15 @@ class ProduitImageWidget extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Icon(
-        Icons.eco_rounded,
-        color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
-        size: size * 0.5,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.eco_rounded,
+            color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+            size: size * 0.45,
+          ),
+        ],
       ),
     );
   }

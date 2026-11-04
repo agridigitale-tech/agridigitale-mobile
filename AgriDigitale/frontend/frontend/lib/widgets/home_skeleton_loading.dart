@@ -124,6 +124,189 @@ class HomeSkeletonLoading extends StatelessWidget {
     this.categorie,
   });
 
+  /// Squelette de la section "À la une" seule
+  static Widget sectionUneSkeleton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ShimmerProvider(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.redAccent, Colors.orange],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const SkeletonBox(width: 100, height: 18, radius: 4),
+              ],
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            height: 230,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: const SkeletonBox(
+                width: double.infinity,
+                height: double.infinity,
+                radius: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Squelette de la section "À ne pas manquer" seule
+  static Widget sectionTopVuesSkeleton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ShimmerProvider(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFE65100), Colors.amber],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const SkeletonBox(width: 140, height: 18, radius: 4),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 236,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 3,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (ctx, _) => Container(
+                width: 165,
+                height: 236,
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceSombre : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                  ),
+                ),
+                child: const SkeletonBox(
+                  width: double.infinity,
+                  height: double.infinity,
+                  radius: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Squelette de cartes horizontales pour la liste verticale
+  static Widget sectionListeSkeleton(BuildContext context, {int count = 3, bool withHeader = true, String? categorie}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ShimmerProvider(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (withHeader)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.vertPrimaire, Color(0xFF66BB6A)],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SkeletonBox(width: categorie != null ? 120 : 160, height: 18, radius: 4),
+                ],
+              ),
+            ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: count,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (ctx, _) => Container(
+              height: 110,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceSombre : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SkeletonBox(width: 95, height: 95, radius: 8),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        SkeletonBox(width: 60, height: 11, radius: 3),
+                        SizedBox(height: 6),
+                        SkeletonBox(width: double.infinity, height: 13, radius: 3),
+                        SizedBox(height: 4),
+                        SkeletonBox(width: 140, height: 13, radius: 3),
+                        SizedBox(height: 8),
+                        SkeletonBox(width: 70, height: 10, radius: 3),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

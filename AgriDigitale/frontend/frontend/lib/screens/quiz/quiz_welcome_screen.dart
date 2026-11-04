@@ -17,6 +17,8 @@ import '../../services/quiz_sound_service.dart';
 import 'quiz_jungle_top_bar.dart';
 import 'quiz_jungle_ranks_bar.dart';
 import 'quiz_niveaux_screen.dart';
+import 'quiz_league_screen.dart';
+import 'quiz_daily_screen.dart';
 
 class QuizWelcomeScreen extends StatefulWidget {
   const QuizWelcomeScreen({super.key});
@@ -656,10 +658,31 @@ class QuizWelcomeScreenState extends State<QuizWelcomeScreen> with TickerProvide
                 );
               }).toList(),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // Accès direct aux Victoires Quotidiennes
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                QuizDailyScreen.afficher(context);
+              },
+              icon: const Icon(Icons.calendar_today_rounded, size: 20),
+              label: const Text('✦ VICTOIRES QUOTIDIENNES ✦', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 46),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+            const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white24,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
               child: const Text('FERMER', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
@@ -669,39 +692,7 @@ class QuizWelcomeScreenState extends State<QuizWelcomeScreen> with TickerProvide
   }
 
   void _afficherModalClassement() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(22),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F3025),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Top Explorateurs', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD700), size: 30),
-              title: const Text('Germain_Ahobli (Vous)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              trailing: Text('Rang Légende', style: GoogleFonts.poppins(color: const Color(0xFFFFD54F), fontWeight: FontWeight.bold)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFC0C0C0), size: 28),
-              title: const Text('Koffi M.', style: TextStyle(color: Colors.white)),
-              trailing: Text('Rang Maître', style: GoogleFonts.poppins(color: Colors.white70)),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black),
-              child: const Text('FERMER', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Lance directement l'Écran officiel de Tournoi Virtuel Éphémère "Ligue Argent" (Image 1)
+    QuizLeagueScreen.afficher(context);
   }
 }

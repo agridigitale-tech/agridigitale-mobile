@@ -9,6 +9,7 @@
 // - Effet lumineux vert néon éclatant sur l'option sélectionnée (comme l'option A)
 // - Barre d'actions inférieure : Bouton en bois "Retour", Récompense "+10 Bonne réponse", Bouton 3D vert "Valider"
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -17,12 +18,15 @@ import '../../models/quiz_grade.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/quiz_service.dart';
 import '../../services/quiz_sound_service.dart';
+import '../../services/quiz_tournament_service.dart';
 import '../../widgets/confetti_overlay.dart';
 import '../../widgets/quiz/quiz_animated_host.dart';
 import '../../widgets/quiz/quiz_coin_gain_overlay.dart';
 import '../../widgets/quiz/quiz_rank_up_dialog.dart';
 import 'quiz_jungle_top_bar.dart';
 import 'quiz_jungle_ranks_bar.dart';
+import 'quiz_victory_screen.dart';
+import 'quiz_league_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final List<QuestionQuiz> questions;
@@ -45,6 +49,7 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   final _quizService = QuizService();
   final _soundService = QuizSoundService();
+  final _tournamentService = QuizTournamentService();
   final GlobalKey _coinTargetKey = GlobalKey();
   final GlobalKey<QuizCoinGainOverlayState> _coinOverlayKey = GlobalKey<QuizCoinGainOverlayState>();
   final GlobalKey<ConfettiOverlayState> _confettiKey = GlobalKey<ConfettiOverlayState>();
@@ -55,6 +60,13 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   bool _repondu = false;
   int _secondesRestantes = 45;
   Timer? _countdownTimer;
+
+  // Chronométrage de la partie & Métriques comportementales (Addiction, Flow & Ego)
+  final Stopwatch _sessionStopwatch = Stopwatch();
+  int _combo = 0;
+  int _comboMax = 0;
+  double _iqScore = 149.4;
+  int _echecsConsecutifs = 0;
 
   // Stats joueur
   int _pieces = 2350;
@@ -125,12 +137,18 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       }
     });
 
+    _sessionStopwatch.start();
+    _tournamentService.getIQ().then((val) {
+      if (mounted) setState(() => _iqScore = val);
+    });
+
     _chargerStats();
     _demarrerMinuteur();
   }
 
   @override
   void dispose() {
+    _sessionStopwatch.stop();
     _countdownTimer?.cancel();
     _glowController.dispose();
     _entranceController.dispose();
@@ -188,6 +206,12 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       _repondu = true;
       if (estCorrect) {
         _bonnesReponses++;
+        _combo++;
+        if (_combo > _comboMax) _comboMax = _combo;
+        _echecsConsecutifs = 0;
+      } else {
+        _combo = 0;
+        _echecsConsecutifs++;
       }
     });
 
@@ -195,6 +219,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       _soundService.playCorrect();
       _soundService.vibrateMedium();
       _confettiKey.currentState?.exploser();
+
+      // Incrémentation immédiate du score QI (Psychologie : gratification de l'ego)
+      _tournamentService.ajouterIQ(0.1).then((val) {
+        if (mounted) setState(() => _iqScore = val);
+      });
 
       // Déclenche l'animation de jet de pièces volantes 3D
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -236,6 +265,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   void _validerReponseParTimeout() {
     setState(() {
       _repondu = true;
+      _combo = 0;
+      _echecsConsecutifs++;
     });
     _soundService.playWrong();
     _soundService.vibrateError();
@@ -256,6 +287,9 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _terminerSessionQuiz() async {
+    _sessionStopwatch.stop();
+    final tempsSecs = _sessionStopwatch.elapsed.inSeconds;
+
     int etoiles = 0;
     if (_bonnesReponses == widget.questions.length) {
       etoiles = 3;
@@ -280,13 +314,21 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
         bonnesReponses: _bonnesReponses,
       );
       grainsGagnes = res.grainsGagnes;
+      await _tournamentService.validerJourAujourdhui();
     }
+
+    // Célébration Tournoi Virtuel Éphémère & Gain de QI
+    await _tournamentService.marquerVictoireTournoi();
+    final finalIq = await _tournamentService.ajouterIQ(0.3);
 
     if (mounted) {
       _afficherVictoireModal(
         etoiles: etoiles,
         grainsGagnes: grainsGagnes,
         nouveauGrade: nouveauGrade,
+        tempsSecondes: tempsSecs > 0 ? tempsSecs : 267,
+        iqScore: finalIq,
+        combo: math.max(_comboMax, _combo),
       );
     }
   }
@@ -421,13 +463,13 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   Widget _buildSectionQuestionHeader() {
     return Column(
       children: [
-        // Ligne Bannière Question X/100 + Minuteur Doré
+        // Ligne Bannière Question X/100 + Badge IQ/Streak + Minuteur Doré
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Bannière en bois Question X/100
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF8D5B28), Color(0xFF5D3A1A)],
@@ -443,17 +485,59 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD54F), size: 18),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD54F), size: 16),
+                  const SizedBox(width: 4),
                   Text(
-                    'Question ${_questionIndex + 1} / ${widget.questions.length}',
+                    'Q. ${_questionIndex + 1}/${widget.questions.length}',
                     style: GoogleFonts.poppins(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            // Badge central IQ & Multiplicateur de Flamme (Ego & Rétention)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B0F09),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFFFD54F), width: 1.2),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.4), blurRadius: 6),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'IQ ${_iqScore.toStringAsFixed(1)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFFFFD54F),
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Text('👑', style: TextStyle(fontSize: 12)),
+                  if (_combo > 1) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFFFF7043), Color(0xFFD84315)]),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'x$_combo 🔥',
+                        style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -482,12 +566,12 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 18),
+                  const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     '00:${_secondesRestantes.toString().padLeft(2, '0')}',
                     style: GoogleFonts.poppins(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       shadows: const [Shadow(color: Colors.black45, blurRadius: 2)],
@@ -890,13 +974,23 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   void _afficherModalExplication(bool estCorrect, {bool estTempsEcoule = false}) {
+    final List<String> complimentsEgo = [
+      'Pensée latérale activée ! ⚡',
+      'Score d\'ingénieur atteint ! 🎯',
+      'QI estimé : +0.3 👑',
+      'Effet Eurêka débloqué ! 💡',
+      'Vitesse synaptique d\'élite ! 🧠',
+      'Logique agronomique imparable ! 🌾',
+    ];
+    final egoFeedback = complimentsEgo[math.Random().nextInt(complimentsEgo.length)];
+
     showModalBottomSheet(
       context: context,
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: const Color(0xFF0F3025),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -925,17 +1019,47 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    estCorrect
-                        ? 'Excellente réponse ! +10 Pièces 🪙'
-                        : (estTempsEcoule ? 'Temps écoulé !' : 'Oups, ce n\'est pas tout à fait ça !'),
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        estCorrect
+                            ? 'Excellente réponse ! +10 Pièces 🪙'
+                            : (estTempsEcoule ? 'Temps écoulé !' : 'Oups, ce n\'est pas tout à fait ça !'),
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        estCorrect
+                            ? egoFeedback
+                            : (_echecsConsecutifs >= 2
+                                ? 'DDA Activé : Synapses en recalibrage...'
+                                : 'Presque réussi ! À 1 question du rang supérieur !'),
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: estCorrect ? const Color(0xFFFFD54F) : const Color(0xFFFFAB91),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (estCorrect && _combo > 1)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFFFF9800), Color(0xFFE65100)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'x$_combo 🔥',
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -944,18 +1068,39 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFFD54F).withValues(alpha: 0.3)),
               ),
-              child: Text(
-                _questionActuelle.explication,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white70,
-                  height: 1.35,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.lightbulb_rounded, color: Color(0xFFFFD54F), size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Le saviez-vous ?',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFFFD54F),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _questionActuelle.explication,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
@@ -982,173 +1127,35 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     required int etoiles,
     required int grainsGagnes,
     QuizGrade? nouveauGrade,
+    int tempsSecondes = 267,
+    double iqScore = 149.7,
+    int combo = 28,
   }) {
-    if (etoiles > 0) {
-      _soundService.playVictory();
-      _soundService.vibrateHeavy();
-    } else {
-      _soundService.playWrong();
-      _soundService.vibrateError();
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F3025),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: const BorderSide(color: Color(0xFFFFD54F), width: 3),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD54F), size: 54),
-            const SizedBox(height: 8),
-            Text(
-              'NIVEAU TERMINÉ !',
-              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                final estEtoileGagnee = (i < etoiles);
-                return Icon(
-                  Icons.star_rounded,
-                  size: 38,
-                  color: estEtoileGagnee ? const Color(0xFFFFD54F) : Colors.white24,
-                );
-              }),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Bonnes réponses : $_bonnesReponses / ${widget.questions.length}',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF071913),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFFFD54F).withValues(alpha: 0.6)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  QuizCoinGainOverlay.build3DCoin(taille: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    '+$grainsGagnes Pièces d\'or remportées',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: const Color(0xFFFFD54F),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (nouveauGrade != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: nouveauGrade.degrade),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: nouveauGrade.couleur.withValues(alpha: 0.6),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(nouveauGrade.icone, color: Colors.white, size: 22),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'PROMOTION : ${nouveauGrade.titre.toUpperCase()}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            // Bouton de célébration du Rang (avec distinction si promotion ou rang actuel)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                final gradeAffiche = nouveauGrade ?? QuizGrade.getGradePourNiveau(_niveauMax);
-                QuizRankUpDialog.afficher(
-                  context,
-                  nouveauGrade: gradeAffiche,
-                  onContinuer: () {
-                    Navigator.pop(context, true);
-                  },
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD54F),
-                foregroundColor: const Color(0xFF2E1A0E),
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.workspace_premium_rounded, size: 20),
-                  const SizedBox(width: 6),
-                  Text(
-                    nouveauGrade != null
-                        ? 'VOIR MON NOUVEAU RANG ➔'
-                        : 'VOIR MON RANG (${QuizGrade.getGradePourNiveau(_niveauMax).titre.toUpperCase()}) ➔',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w900, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                if (nouveauGrade != null) {
-                  QuizRankUpDialog.afficher(
-                    context,
-                    nouveauGrade: nouveauGrade,
-                    onContinuer: () {
-                      Navigator.pop(context, true);
-                    },
-                  );
-                } else {
-                  Navigator.pop(context, true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00E676),
-                foregroundColor: Colors.black,
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(
-                'RETOUR À LA ROADMAP',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
-          ],
-        ),
-      ),
+    // Écran officiel de Victoire & Célébration psychologique de l'Ego (Image 2)
+    QuizVictoryScreen.afficher(
+      context,
+      tempsSecondes: tempsSecondes,
+      iqScore: iqScore,
+      combo: combo > 0 ? combo : 1,
+      niveau: widget.niveauId ?? 105,
+      etoiles: etoiles,
+      grainsGagnes: grainsGagnes,
+      onSuivant: () {
+        if (nouveauGrade != null) {
+          QuizRankUpDialog.afficher(
+            context,
+            nouveauGrade: nouveauGrade,
+            onContinuer: () {
+              Navigator.pop(context, true);
+            },
+          );
+        } else {
+          Navigator.pop(context, true);
+        }
+      },
+      onVoirLigue: () {
+        QuizLeagueScreen.afficher(context);
+      },
     );
   }
 }

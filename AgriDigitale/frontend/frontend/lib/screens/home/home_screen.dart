@@ -22,6 +22,7 @@ import '../../core/design/app_colors.dart';
 import '../../core/app_localizations.dart';
 import '../../core/api_client.dart';
 import '../../services/prix_produits_service.dart';
+import '../../services/telemetry_service.dart';
 import '../../widgets/bande_alerte_prix_overlay.dart';
 import '../main_navigation_screen.dart';
 import 'article_detail_screen.dart';
@@ -34,17 +35,21 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
 
   final _service = ArticleService();
   final _apiClient = ApiClient();
+  final _chronoSession = Stopwatch();
+  final _chronoCategorie = Stopwatch();
   late Future<List<String>> _categoriesFuture;
   String? _categorieActive;
   final List<Article> _articles = [];
   int _page = 1;
   bool _chargement = false;
+  bool _chargementUne = false;
   bool _toutCharge = false;
   final _scrollController = ScrollController();
   int _notifCount = 0;
@@ -57,9 +62,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _chronoSession.start();
+    _chronoCategorie.start();
+    TelemetryService().trackAppOpen();
+
     _categoriesFuture = _service.listerCategories();
-    _chargerArticleUne();
-    _chargerPlus();
+    _chargerCacheLocalRapide();
+    _chargerDonneesAccueil();
     _chargerNotifs();
     _verifierBanniereBoostee();
     PrixProduitsService().getDerniereAlerteActive();
@@ -85,13 +95,137 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _chronoSession.stop();
+    if (_chronoSession.elapsed.inSeconds >= 3) {
+      TelemetryService().trackSession(_chronoSession.elapsed.inSeconds);
+    }
     _scrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      if (_chronoSession.elapsed.inSeconds >= 3) {
+        TelemetryService().trackSession(_chronoSession.elapsed.inSeconds);
+      }
+      if (_chronoCategorie.elapsed.inSeconds >= 3) {
+        TelemetryService().trackCategorieVue(
+          categorie: _categorieActive ?? 'Accueil',
+          dureeSecondes: _chronoCategorie.elapsed.inSeconds,
+        );
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _chronoSession.reset();
+      _chronoSession.start();
+      _chronoCategorie.reset();
+      _chronoCategorie.start();
+    }
+  }
+
+  /// Chargement instantané depuis le cache SQLite local (0ms de latence)
+  Future<void> _chargerCacheLocalRapide() async {
+    if (_categorieActive == 'CONSEIL DU JOUR' || _categorieActive == 'PRIX PRODUIT') return;
+    try {
+      final cached = await _service.recupererDepuisCacheLocal(categorie: _categorieActive);
+      if (cached.isNotEmpty && _articles.isEmpty && mounted) {
+        setState(() {
+          _articles.addAll(cached);
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Charge toutes les données d'accueil via la route agrégée optimisée (1 seul aller-retour réseau)
+  Future<void> _chargerDonneesAccueil() async {
+    if (_categorieActive != null) {
+      _chargerArticleUne();
+      _chargerPlus();
+      return;
+    }
+    setState(() {
+      _chargement = true;
+      _chargementUne = true;
+    });
+    try {
+      final dashboard = await _service.recupererDashboardAccueil();
+      if (!mounted) return;
+
+      setState(() {
+        if (dashboard.alaUne != null) {
+          _articleUne = dashboard.alaUne;
+        }
+        _chargementUne = false;
+        if (dashboard.categories.isNotEmpty) {
+          _categoriesFuture = Future.value(dashboard.categories);
+        }
+      });
+
+      // Affichage progressif fluide des articles
+      final nouveaux = dashboard.articles;
+      final Set<String> idsExistants = _articles.map((a) => a.id).toSet();
+      final aAjouter = nouveaux.where((a) => !idsExistants.contains(a.id)).toList();
+
+      if (aAjouter.isNotEmpty) {
+        if (aAjouter.length > 3) {
+          setState(() {
+            _articles.addAll(aAjouter.take(3));
+          });
+          await Future.delayed(const Duration(milliseconds: 90));
+          if (!mounted) return;
+
+          setState(() {
+            _articles.addAll(aAjouter.skip(3).take(4));
+          });
+          await Future.delayed(const Duration(milliseconds: 80));
+          if (!mounted) return;
+
+          setState(() {
+            _articles.addAll(aAjouter.skip(7));
+            _page = 2;
+            if (nouveaux.length < 20) _toutCharge = true;
+          });
+        } else {
+          setState(() {
+            _articles.addAll(aAjouter);
+            _page = 2;
+            if (nouveaux.length < 20) _toutCharge = true;
+          });
+        }
+      } else if (nouveaux.isNotEmpty) {
+        setState(() => _toutCharge = true);
+      }
+    } catch (e) {
+      debugPrint('[HOME] Secours vers chargements individuels: $e');
+      if (mounted) {
+        _chargerArticleUne();
+        _chargerPlus();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chargement = false;
+          _chargementUne = false;
+        });
+      }
+    }
+  }
+
   Future<void> _chargerArticleUne() async {
-    final article = await _service.articleUne();
-    if (mounted) setState(() => _articleUne = article);
+    if (_categorieActive != null) return;
+    setState(() => _chargementUne = true);
+    try {
+      final article = await _service.articleUne();
+      if (mounted) {
+        setState(() {
+          _articleUne = article;
+          _chargementUne = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _chargementUne = false);
+    }
   }
 
   Future<void> _chargerNotifs() async {
@@ -101,6 +235,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     } catch (_) {}
   }
 
+  /// Chargement progressif / streaming : les premiers articles s'affichent d'abord
   Future<void> _chargerPlus() async {
     if (_chargement || _toutCharge) return;
     if (_categorieActive == 'CONSEIL DU JOUR' || _categorieActive == 'PRIX PRODUIT') return;
@@ -109,16 +244,47 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       final nouveaux =
           await _service.lister(categorie: _categorieActive, page: _page);
       if (mounted) {
-        setState(() {
-          final Set<String> idsExistants = _articles.map((a) => a.id).toSet();
-          final aAjouter = nouveaux.where((a) => !idsExistants.contains(a.id)).toList();
-          _articles.addAll(aAjouter);
-          _page++;
-          // Si moins de 20 reçus ou aucun nouvel article unique (ex. cache hors-ligne), arrêter le scroll infini
-          if (nouveaux.length < 20 || (nouveaux.isNotEmpty && aAjouter.isEmpty)) {
-            _toutCharge = true;
+        final Set<String> idsExistants = _articles.map((a) => a.id).toSet();
+        final aAjouter = nouveaux.where((a) => !idsExistants.contains(a.id)).toList();
+
+        if (aAjouter.isNotEmpty) {
+          if (_page == 1 && aAjouter.length > 3) {
+            // Étape 1 : Les 3 premiers articles apparaissent immédiatement
+            setState(() {
+              _articles.addAll(aAjouter.take(3));
+            });
+
+            // Pause micro-frame pour fluidité visuelle
+            await Future.delayed(const Duration(milliseconds: 90));
+            if (!mounted) return;
+
+            // Étape 2 : Les 4 suivants apparaissent
+            setState(() {
+              _articles.addAll(aAjouter.skip(3).take(4));
+            });
+
+            // Pause micro-frame
+            await Future.delayed(const Duration(milliseconds: 80));
+            if (!mounted) return;
+
+            // Étape 3 : Le reste des articles arrive
+            setState(() {
+              _articles.addAll(aAjouter.skip(7));
+              _page++;
+              if (nouveaux.length < 20) _toutCharge = true;
+            });
+          } else {
+            setState(() {
+              _articles.addAll(aAjouter);
+              _page++;
+              if (nouveaux.length < 20) _toutCharge = true;
+            });
           }
-        });
+        } else {
+          if (nouveaux.length < 20 || nouveaux.isNotEmpty) {
+            setState(() => _toutCharge = true);
+          }
+        }
       }
     } catch (e) {
       debugPrint('[HOME] !! Erreur _chargerPlus: $e');
@@ -128,14 +294,31 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   // Filtre les articles par catégorie (null = toutes) et recharge depuis la page 1
   void _filtrer(String? cat) {
+    if (_chronoCategorie.elapsed.inSeconds >= 3) {
+      TelemetryService().trackCategorieVue(
+        categorie: _categorieActive ?? 'Accueil',
+        dureeSecondes: _chronoCategorie.elapsed.inSeconds,
+      );
+    }
+    _chronoCategorie.reset();
+    _chronoCategorie.start();
+
+    final String? categoriePropre =
+        (cat == null || cat.trim().toUpperCase() == 'HOME' || cat.trim().toUpperCase() == 'TOUT')
+            ? null
+            : cat.trim();
+
     setState(() {
-      _categorieActive = cat;
+      _categorieActive = categoriePropre;
       _articles.clear();
       _page = 1;
       _toutCharge = false;
+      if (categoriePropre != null) _articleUne = null;
     });
-    // Si c'est une vue spéciale locale (Conseil du jour ou Prix produit), pas de chargement réseau
-    if (cat != 'CONSEIL DU JOUR' && cat != 'PRIX PRODUIT') {
+
+    if (categoriePropre != 'CONSEIL DU JOUR' && categoriePropre != 'PRIX PRODUIT') {
+      _chargerCacheLocalRapide();
+      if (categoriePropre == null) _chargerArticleUne();
       _chargerPlus();
     }
   }
@@ -145,13 +328,15 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       _articles.clear();
       _page = 1;
       _toutCharge = false;
-      _categoriesFuture = _service.listerCategories();
       _articleUne = null;
     });
     BannerCarousel.actualiser();
     if (_categorieActive == 'CONSEIL DU JOUR' || _categorieActive == 'PRIX PRODUIT') {
       await _chargerNotifs();
+    } else if (_categorieActive == null) {
+      await Future.wait([_chargerDonneesAccueil(), _chargerNotifs()]);
     } else {
+      _categoriesFuture = _service.listerCategories();
       await Future.wait([_chargerArticleUne(), _chargerPlus(), _chargerNotifs()]);
     }
   }
@@ -347,165 +532,194 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 const SliverToBoxAdapter(
                   child: PrixProduitsSection(),
                 )
-              else if (_articles.isEmpty && _chargement)
-                SliverToBoxAdapter(
-                  child: HomeSkeletonLoading(
-                    categorie: _categorieActive,
-                  ),
-                )
-              else if (_articles.isEmpty && !_chargement)
-                SliverFillRemaining(
-                    child: _etatMessage(Icons.article_outlined,
-                        l.t('no_articles'), l.t('no_articles_sub')))
               else ...[
-                // Article à la une
-                if (_articleUne != null && _categorieActive == null)
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Colors.redAccent, Colors.orange],
+                // 1. Article à la une (apparaît dès qu'il est prêt en premier !)
+                if (_categorieActive == null) ...[
+                  if (_articleUne != null)
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.redAccent, Colors.orange],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
-                                  borderRadius: BorderRadius.circular(2),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text('À la une',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 18,
+                                const SizedBox(width: 8),
+                                Text('À la une',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3)),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '🔥 TENDANCE',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9,
                                       fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.3)),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '🔥 TENDANCE',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.redAccent,
-                                    letterSpacing: 0.5,
+                                      color: Colors.redAccent,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _ArticleUne(
-                          article: _articleUne!,
-                          onTap: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id, articleInitial: _articleUne))),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Scroll horizontal "À ne pas manquer" = les 6 articles les plus vus
-                if (_articles.length > 1 && _categorieActive == null)
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Color(0xFFE65100), Colors.amber],
-                                  ),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text('À ne pas manquer',
-                                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          height: 236,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.only(left: 14),
-                            itemBuilder: (context, i) {
-                              final top = _articles.take(6).toList();
-                              if (i >= top.length) return null;
-                              final a = top[i];
-                              return ArticleCardVerticale(
-                                article: a,
-                                onTap: () => Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // En-tête "Dernières actualités"
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [AppColors.vertPrimaire, Color(0xFF66BB6A)],
+                              ],
                             ),
-                            borderRadius: BorderRadius.circular(2),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _categorieActive != null ? 'Articles : $_categorieActive' : 'Dernières actualités',
-                          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
-                        ),
-                      ],
+                          _ArticleUne(
+                            article: _articleUne!,
+                            onTap: () => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: _articleUne!.id, articleInitial: _articleUne))),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_chargementUne)
+                    SliverToBoxAdapter(
+                      child: HomeSkeletonLoading.sectionUneSkeleton(context),
+                    ),
+                ],
+
+                // 2. Scroll horizontal "À ne pas manquer" (Top 6 vues)
+                if (_categorieActive == null) ...[
+                  if (_articles.length > 1)
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Color(0xFFE65100), Colors.amber],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('À ne pas manquer',
+                                    style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 236,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.only(left: 14),
+                              itemBuilder: (context, i) {
+                                final top = _articles.take(6).toList();
+                                if (i >= top.length) return null;
+                                final a = top[i];
+                                return ArticleCardVerticale(
+                                  article: a,
+                                  onTap: () => Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_chargement && _articles.isEmpty)
+                    SliverToBoxAdapter(
+                      child: HomeSkeletonLoading.sectionTopVuesSkeleton(context),
+                    ),
+                ],
+
+                // 3. Section "Dernières actualités" / Liste verticale progressive
+                if (_articles.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [AppColors.vertPrimaire, Color(0xFF66BB6A)],
+                              ),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _categorieActive != null ? 'Articles : $_categorieActive' : 'Dernières actualités',
+                            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                // Liste verticale = tous les articles par date
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) {
-                      if (i >= _articles.length) return null;
-                      final a = _articles[i];
-                      return ArticleCard(
-                        article: a,
-                        onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
-                      );
-                    },
-                    childCount: _articles.length,
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) {
+                        if (i >= _articles.length) return null;
+                        final a = _articles[i];
+                        return ArticleCard(
+                          article: a,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => ArticleDetailScreen(articleId: a.id, articleInitial: a))),
+                        );
+                      },
+                      childCount: _articles.length,
+                    ),
                   ),
-                ),
+                  // Shimmer sous la liste pendant le streaming des suivants
+                  if (_chargement && _articles.length < 5)
+                    SliverToBoxAdapter(
+                      child: HomeSkeletonLoading.sectionListeSkeleton(
+                        context,
+                        count: 2,
+                        withHeader: false,
+                      ),
+                    ),
+                ] else if (_chargement) ...[
+                  SliverToBoxAdapter(
+                    child: HomeSkeletonLoading.sectionListeSkeleton(
+                      context,
+                      count: 3,
+                      withHeader: true,
+                      categorie: _categorieActive,
+                    ),
+                  ),
+                ] else ...[
+                  SliverFillRemaining(
+                    child: _etatMessage(
+                      Icons.article_outlined,
+                      l.t('no_articles'),
+                      l.t('no_articles_sub'),
+                    ),
+                  ),
+                ],
               ],
             if (_chargement)
               const SliverToBoxAdapter(

@@ -161,8 +161,10 @@ const scrapeOgImage = async (url) => {
 };
 
 /**
- * Extrait le contenu complet depuis une page agridigitale.net (Inertia.js/Laravel).
+ * Extrait le contenu complet et les métadonnées (légende de l'image de couverture)
+ * depuis une page agridigitale.net (Inertia.js/Laravel).
  * Le contenu est dans data-page JSON : props.article.content = '{"fr":"<p>...</p>"}'
+ * La légende de l'image de couverture est dans props.article.legend = '{"fr":"..."}'
  */
 const scrapeContenuInertia = async (url) => {
   if (!url || !urlEstSure(url)) return null;
@@ -177,7 +179,6 @@ const scrapeContenuInertia = async (url) => {
     const html = res.data;
 
     // Extraire le JSON Inertia depuis data-page="..."
-    // Les guillemets sont encodés en &quot; dans l'attribut HTML
     const dataPageMatch = html.match(/data-page="({.*?})"/s);
     if (!dataPageMatch) return null;
 
@@ -208,12 +209,26 @@ const scrapeContenuInertia = async (url) => {
 
     if (contenu && contenu.replace(/<[^>]*>/g, '').trim().length > 50) {
       // Réécrit les images inline : {{BASE_URL}} + chemins relatifs → URL absolues
-      // (ex. src="{{BASE_URL}}/ck/xxx.jpg" ou src="/ck/xxx.jpg"
-      //      → https://agridigitale.net/storage/ck/xxx.jpg)
       contenu = normaliserImagesContenu(contenu);
-      return contenu;
     }
-    return null;
+
+    // Extraction propre de la légende de l'image de couverture (props.article.legend)
+    let legende = '';
+    if (article.legend) {
+      try {
+        const legObj = typeof article.legend === 'string'
+          ? JSON.parse(article.legend)
+          : article.legend;
+        legende = (typeof legObj === 'object' ? (legObj.fr || legObj.en || Object.values(legObj)[0]) : legObj) || '';
+      } catch (_) {
+        legende = String(article.legend || '');
+      }
+    }
+
+    return {
+      contenu: contenu || null,
+      legende: legende ? legende.trim() : null,
+    };
   } catch (err) {
     console.warn(`[RSS] Échec scrape Inertia ${url}: ${err.message}`);
     return null;
@@ -261,8 +276,13 @@ const recupererFlux = async (tentative = 1) => {
 
       // Toujours scraper le contenu complet depuis la page Inertia
       let contenu = '';
+      let legendeImage = null;
       if (item.link) {
-        contenu = await scrapeContenuInertia(item.link) || '';
+        const scrapeRes = await scrapeContenuInertia(item.link);
+        if (scrapeRes) {
+          contenu = scrapeRes.contenu || '';
+          legendeImage = scrapeRes.legende || null;
+        }
       }
       // Fallback sur le contenu RSS si le scrape échoue
       if (!contenu || contenu.replace(/<[^>]*>/g, '').trim().length < 50) {
@@ -280,11 +300,12 @@ const recupererFlux = async (tentative = 1) => {
         } catch (_) {}
       }
 
-      // Extraire la légende de la photo si présente dans le contenu (balise figcaption)
-      let legendeImage = null;
-      const matchFigcaption = (contenu || '').match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
-      if (matchFigcaption) {
-        legendeImage = matchFigcaption[1].replace(/<[^>]*>/g, '').trim();
+      // Si aucune légende de couverture n'a été trouvée sur la page, tenter fallback sur figcaption
+      if (!legendeImage) {
+        const matchFigcaption = (contenu || '').match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
+        if (matchFigcaption) {
+          legendeImage = matchFigcaption[1].replace(/<[^>]*>/g, '').trim();
+        }
       }
 
       // Extraire l'auteur de l'article
@@ -357,9 +378,14 @@ const mettreAJourContenuArticles = async () => {
       if (contenuTexte.length >= 200) continue;
 
       try {
-        const nouveauContenu = await scrapeContenuInertia(article.lienSource);
+        const scrapeRes = await scrapeContenuInertia(article.lienSource);
+        const nouveauContenu = scrapeRes ? (scrapeRes.contenu || '') : '';
         if (nouveauContenu && nouveauContenu.replace(/<[^>]*>/g, '').trim().length > contenuTexte.length) {
-          await Article.updateOne({ _id: article._id }, { $set: { contenu: nouveauContenu } });
+          const updateFields = { contenu: nouveauContenu };
+          if (scrapeRes.legende && (!article.legendeImage || article.legendeImage.length === 0)) {
+            updateFields.legendeImage = scrapeRes.legende;
+          }
+          await Article.updateOne({ _id: article._id }, { $set: updateFields });
           misAJour++;
           console.log(`[RSS] ✓ Mis à jour : ${article.titre.substring(0, 60)}`);
         }

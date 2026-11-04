@@ -28,6 +28,9 @@ const NotificationSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Index composés pour l'accès rapide aux notifications d'un utilisateur
+NotificationSchema.index({ destinataire: 1, lu: 1 });
+NotificationSchema.index({ destinataire: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', NotificationSchema);//permet d'exporter le modèle Notification pour l'utiliser dans d'autres parties de l'application
 

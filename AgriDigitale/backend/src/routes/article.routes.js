@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const c = require('../controllers/article.controller');
 
+router.get('/dashboard-accueil', c.dashboardAccueil);
 router.get('/une', c.articleUne);
 router.get('/', c.listerArticles);
 router.get('/recherche', c.rechercherArticles);

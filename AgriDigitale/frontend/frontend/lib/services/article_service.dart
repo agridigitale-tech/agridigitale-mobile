@@ -7,11 +7,94 @@ import '../core/api_client.dart';
 import '../core/db_helper.dart';
 import '../models/article.dart';
 
+class AccueilDashboardData {
+  final Article? alaUne;
+  final List<Article> articles;
+  final List<String> categories;
+  final List<Map<String, dynamic>> bannieres;
+
+  AccueilDashboardData({
+    this.alaUne,
+    required this.articles,
+    required this.categories,
+    required this.bannieres,
+  });
+}
+
 class ArticleService {
   final _dio = ApiClient().dio;
   final _db = DBHelper();
 
   static String get _backendBase => ApiClient.baseUrl.replaceAll('/api', '');
+
+  /// Récupère en un seul appel réseau l'ensemble des données de démarrage d'accueil
+  Future<AccueilDashboardData> recupererDashboardAccueil() async {
+    final rep = await _dio.get('/articles/dashboard-accueil');
+    final data = rep.data as Map<String, dynamic>;
+
+    Article? alaUne;
+    if (data['alaUne'] != null && data['alaUne'] is Map<String, dynamic>) {
+      final a = Article.fromJson(data['alaUne'] as Map<String, dynamic>);
+      alaUne = a.copyWith(image: _normaliserImage(a.image));
+    }
+
+    final articlesList = <Article>[];
+    if (data['articles'] is List) {
+      for (final e in (data['articles'] as List)) {
+        if (e is Map<String, dynamic>) {
+          try {
+            final a = Article.fromJson(e);
+            if (a.id.isNotEmpty) {
+              articlesList.add(a.copyWith(image: _normaliserImage(a.image)));
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    final categoriesList = <String>[];
+    if (data['categories'] is List) {
+      for (final c in (data['categories'] as List)) {
+        if (c != null && c.toString().trim().isNotEmpty) {
+          categoriesList.add(c.toString().trim());
+        }
+      }
+    }
+
+    final bannieresList = <Map<String, dynamic>>[];
+    if (data['bannieres'] is List) {
+      for (final b in (data['bannieres'] as List)) {
+        if (b is Map<String, dynamic>) {
+          bannieresList.add(b);
+        }
+      }
+    }
+
+    // Sauvegarde cache SQLite non bloquante
+    if (!kIsWeb && articlesList.isNotEmpty) {
+      try {
+        _db.sauvegarderArticles(articlesList.map((a) => a.toMap()).toList());
+      } catch (_) {}
+    }
+
+    return AccueilDashboardData(
+      alaUne: alaUne,
+      articles: articlesList,
+      categories: categoriesList,
+      bannieres: bannieresList,
+    );
+  }
+
+  /// Récupère immédiatement les articles en cache local sans bloquer ni attendre le réseau
+  Future<List<Article>> recupererDepuisCacheLocal({String? categorie, int limite = 20}) async {
+    if (kIsWeb) return const [];
+    try {
+      final cached = await _db.listerArticlesLocaux(categorie: categorie, page: 1, limite: limite);
+      return cached.map((m) => Article.fromMap(m)).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   Future<Article?> articleUne() async {
     try {

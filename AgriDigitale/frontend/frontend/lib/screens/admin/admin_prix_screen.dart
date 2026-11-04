@@ -1,9 +1,12 @@
 // Écran d'administration complet : Gestion intégrale (CRUD) des marchés et des cours des produits agricoles.
 // Permet d'ajouter, modifier et supprimer des marchés, des denrées et leurs prix, avec sélection
 // des vraies photos de céréales et diffusion instantanée des notifications d'alertes à tous les utilisateurs.
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/design/app_colors.dart';
 import '../../data/marches_data.dart';
 import '../../services/prix_produits_service.dart';
@@ -51,6 +54,226 @@ class _AdminPrixScreenState extends State<AdminPrixScreen>
         _chargement = false;
       });
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ── SÉLECTEUR D'IMAGE (GALERIE CÉRÉALES, TÉLÉPHONE & NEUTRE)
+  // ════════════════════════════════════════════════════════════════
+
+  Future<String?> _choisirImageDepuisTelephone(BuildContext ctx) async {
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (bCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Choisir une photo de la denrée',
+              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE8F5E9),
+                child: Icon(Icons.photo_library_outlined, color: AppColors.vertPrimaire),
+              ),
+              title: const Text('Galerie photo du téléphone'),
+              subtitle: const Text('Sélectionner depuis la mémoire de votre appareil'),
+              onTap: () => Navigator.pop(bCtx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE8F5E9),
+                child: Icon(Icons.camera_alt_outlined, color: AppColors.vertPrimaire),
+              ),
+              title: const Text('Prendre une photo'),
+              subtitle: const Text('Prendre en direct avec l\'appareil photo'),
+              onTap: () => Navigator.pop(bCtx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return null;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+      if (picked != null) {
+        final file = File(picked.path);
+        final url = await _service.televerserImageProduit(file);
+        return url ?? picked.path;
+      }
+    } catch (e) {
+      debugPrint('[AdminPrix] Erreur choix image: $e');
+    }
+    return null;
+  }
+
+  Widget _buildSelecteurImageProduit({
+    required BuildContext ctx,
+    required String imageSelectionnee,
+    required void Function(String) onSelectionner,
+    required void Function(void Function()) setModalState,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Photo du produit', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12.5)),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.vertPrimaire,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+              label: Text('Depuis le téléphone', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+              onPressed: () async {
+                final url = await _choisirImageDepuisTelephone(ctx);
+                if (url != null) {
+                  setModalState(() {
+                    onSelectionner(url);
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 72,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // 1. Bouton "Téléphone" dans le carrousel
+              InkWell(
+                onTap: () async {
+                  final url = await _choisirImageDepuisTelephone(ctx);
+                  if (url != null) {
+                    setModalState(() {
+                      onSelectionner(url);
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 64,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.vertPrimaire.withValues(alpha: 0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_photo_alternate_outlined, color: AppColors.vertPrimaire, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Téléphone',
+                        style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.vertPrimaire),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 2. Image personnalisée uploadée si sélectionnée
+              if (imageSelectionnee.startsWith('http') || imageSelectionnee.startsWith('/uploads/') || imageSelectionnee.startsWith('/data/')) ...[
+                Builder(
+                  builder: (_) {
+                    final displayUrl = imageSelectionnee.startsWith('/uploads/')
+                        ? 'https://agridigitale-mobile.onrender.com$imageSelectionnee'
+                        : imageSelectionnee;
+                    return Container(
+                      width: 60,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.vertPrimaire, width: 2.5),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: displayUrl.startsWith('http')
+                            ? CachedNetworkImage(imageUrl: displayUrl, fit: BoxFit.cover)
+                            : Image.file(File(displayUrl), fit: BoxFit.cover),
+                      ),
+                    );
+                  },
+                ),
+              ],
+
+              // 3. Toutes les images disponibles de céréales + option Neutre
+              ...ProduitImageHelper.imagesDisponibles.map((img) {
+                final path = img['fichier']!;
+                final isNeutre = path == 'neutre';
+                final isSel = imageSelectionnee == path;
+
+                return InkWell(
+                  onTap: () {
+                    setModalState(() {
+                      onSelectionner(path);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 60,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: isNeutre ? const Color(0xFFE8F5E9) : null,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSel ? AppColors.vertPrimaire : Colors.grey.shade300,
+                        width: isSel ? 2.5 : 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: isNeutre
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.eco_rounded, color: AppColors.vertPrimaire, size: 24),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Neutre',
+                                  style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.vertPrimaire),
+                                ),
+                              ],
+                            )
+                          : Image.asset(path, fit: BoxFit.cover),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -187,44 +410,15 @@ class _AdminPrixScreenState extends State<AdminPrixScreen>
                     ),
                     const SizedBox(height: 14),
 
-                    // Sélection de la Vraie Photo du Produit
-                    Text('Photo de la céréale / denrée', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 72,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: ProduitImageHelper.imagesDisponibles.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (ctx, i) {
-                          final img = ProduitImageHelper.imagesDisponibles[i];
-                          final path = img['fichier']!;
-                          final isSel = !useCustomUrl && imageSelectionnee == path;
-                          return InkWell(
-                            onTap: () {
-                              setModalState(() {
-                                useCustomUrl = false;
-                                imageSelectionnee = path;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              width: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSel ? AppColors.vertPrimaire : Colors.grey.shade300,
-                                  width: isSel ? 2.5 : 1,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(path, fit: BoxFit.cover),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    // Sélection de la Photo du Produit (Galerie, Téléphone, Neutre)
+                    _buildSelecteurImageProduit(
+                      ctx: ctx,
+                      imageSelectionnee: imageSelectionnee,
+                      onSelectionner: (nouvelleImage) {
+                        useCustomUrl = false;
+                        imageSelectionnee = nouvelleImage;
+                      },
+                      setModalState: setModalState,
                     ),
                     const SizedBox(height: 14),
 
@@ -480,39 +674,14 @@ class _AdminPrixScreenState extends State<AdminPrixScreen>
                     ),
                     const SizedBox(height: 16),
 
-                    // Galerie de choix d'image du produit
-                    Text('Changer la photo du produit', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 66,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: ProduitImageHelper.imagesDisponibles.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (ctx, i) {
-                          final img = ProduitImageHelper.imagesDisponibles[i];
-                          final path = img['fichier']!;
-                          final isSel = imageSelectionnee == path;
-                          return InkWell(
-                            onTap: () => setModalState(() => imageSelectionnee = path),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              width: 56,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSel ? AppColors.vertPrimaire : Colors.grey.shade300,
-                                  width: isSel ? 2.5 : 1,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(path, fit: BoxFit.cover),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    // Sélection de la Photo du Produit (Galerie, Téléphone, Neutre)
+                    _buildSelecteurImageProduit(
+                      ctx: ctx,
+                      imageSelectionnee: imageSelectionnee,
+                      onSelectionner: (nouvelleImage) {
+                        imageSelectionnee = nouvelleImage;
+                      },
+                      setModalState: setModalState,
                     ),
                     const SizedBox(height: 14),
 

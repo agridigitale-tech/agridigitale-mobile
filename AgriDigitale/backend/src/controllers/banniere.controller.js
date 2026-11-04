@@ -11,8 +11,10 @@ exports.listerBannieres = async (req, res, next) => {
       dateDebut: { $lte: now },
       dateFin: { $gte: now },
     })
+      .select('-donneesImage')
       .sort({ ordre: 1 })
-      .limit(10);
+      .limit(10)
+      .lean();
     res.json(bannieres);
   } catch (err) { 
     next(err); 

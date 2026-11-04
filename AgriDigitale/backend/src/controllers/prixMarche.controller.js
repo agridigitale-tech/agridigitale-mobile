@@ -6,66 +6,75 @@ const { envoyerNotificationManuelle } = require('../services/notification.servic
 // Données officielles de référence des marchés agricoles au Togo
 const defaultMarchesTogo = [
   {
-    id: 'cacaveli',
-    nom: 'Marché de Cacaveli',
+    id: 'lome',
+    nom: 'Marché de Lomé',
     ville: 'Lomé',
     region: 'Maritime',
     produits: [
-      { produit: 'Maïs blanc', prixActuel: 800, prixPrecedent: 750, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [700, 720, 740, 750, 800] },
-      { produit: 'Soja grain', prixActuel: 1100, prixPrecedent: 1150, unite: 'Bol (2,5 kg)', tendance: 'baisse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1250, 1200, 1180, 1150, 1100] },
-      { produit: 'Tomate locale', prixActuel: 7500, prixPrecedent: 8500, unite: 'Panier (15 kg)', tendance: 'baisse', icone: 'assets/images/cereales/tomate.jpeg', historiquePrix: [9500, 9000, 8700, 8500, 7500] },
-      { produit: 'Piment vert', prixActuel: 2000, prixPrecedent: 1800, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/piment_frais.jpeg', historiquePrix: [1600, 1700, 1750, 1800, 2000] },
-      { produit: 'Igname Laboco', prixActuel: 3500, prixPrecedent: 3500, unite: 'Tas de 5 tubercules', tendance: 'stable', icone: 'assets/images/cereales/igname.jpg', historiquePrix: [3500, 3400, 3600, 3500, 3500] },
-      { produit: 'Haricot rouge', prixActuel: 1400, prixPrecedent: 1350, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1300, 1320, 1350, 1350, 1400] },
-      { produit: 'Oignon rouge', prixActuel: 28000, prixPrecedent: 30000, unite: 'Sac de 50 kg', tendance: 'baisse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [32000, 31500, 31000, 30000, 28000] },
+      { produit: 'Maïs', prixActuel: 500, prixPrecedent: 500, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [500, 500, 520, 500, 500] },
+      { produit: 'Soja', prixActuel: 1050, prixPrecedent: 1050, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1000, 1050, 1100, 1050, 1050] },
+      { produit: 'Haricot local', prixActuel: 1450, prixPrecedent: 1450, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1400, 1450, 1450, 1450, 1450] },
+      { produit: 'Haricot (autres variétés)', prixActuel: 1650, prixPrecedent: 1650, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot_grand_tail.jpg', historiquePrix: [1600, 1650, 1650, 1650, 1650] },
+      { produit: 'Sorgho', prixActuel: 950, prixPrecedent: 950, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [950, 950, 950, 950, 950] },
+      { produit: 'Arachides', prixActuel: 2000, prixPrecedent: 2000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/arachide.jpg', historiquePrix: [2000, 2000, 2000, 2000, 2000] },
+      { produit: 'Voandzou', prixActuel: 2000, prixPrecedent: 2000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/voandzou.jpeg', historiquePrix: [2000, 2000, 2000, 2000, 2000] },
     ],
   },
   {
     id: 'notse',
-    nom: 'Grand Marché de Notsè',
+    nom: 'Marché de Notsè',
     ville: 'Notsè',
     region: 'Plateaux',
     produits: [
-      { produit: 'Maïs blanc', prixActuel: 650, prixPrecedent: 650, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [650, 640, 660, 650, 650] },
-      { produit: 'Soja grain', prixActuel: 950, prixPrecedent: 1000, unite: 'Bol (2,5 kg)', tendance: 'baisse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1100, 1050, 1020, 1000, 950] },
-      { produit: 'Manioc frais', prixActuel: 3000, prixPrecedent: 2800, unite: 'Cuvette (25 kg)', tendance: 'hausse', icone: 'assets/images/cereales/manioc.jpeg', historiquePrix: [2500, 2600, 2700, 2800, 3000] },
-      { produit: 'Riz local étuvé', prixActuel: 1200, prixPrecedent: 1200, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [1200, 1180, 1220, 1200, 1200] },
-    ],
-  },
-  {
-    id: 'kpalime',
-    nom: 'Marché Château de Kpalimé',
-    ville: 'Kpalimé',
-    region: 'Plateaux',
-    produits: [
-      { produit: 'Banane plantain', prixActuel: 2500, prixPrecedent: 2800, unite: 'Régime moyen', tendance: 'baisse', icone: 'assets/images/cereales/manioc.jpeg', historiquePrix: [3200, 3000, 2900, 2800, 2500] },
-      { produit: 'Café vert décortiqué', prixActuel: 1600, prixPrecedent: 1500, unite: 'Kg', tendance: 'hausse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1400, 1450, 1480, 1500, 1600] },
-      { produit: 'Cacao fèves séchées', prixActuel: 3200, prixPrecedent: 3000, unite: 'Kg', tendance: 'hausse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [2700, 2850, 2950, 3000, 3200] },
-      { produit: 'Avocat', prixActuel: 1000, prixPrecedent: 1200, unite: 'Tas de 6 fruits', tendance: 'baisse', icone: 'assets/images/cereales/tomate.jpeg', historiquePrix: [1400, 1300, 1250, 1200, 1000] },
+      { produit: 'Maïs', prixActuel: 500, prixPrecedent: 500, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [500, 520, 500, 500, 500] },
+      { produit: 'Haricot', prixActuel: 1800, prixPrecedent: 1800, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1750, 1800, 1800, 1800, 1800] },
+      { produit: 'Soja', prixActuel: 900, prixPrecedent: 900, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [900, 900, 950, 900, 900] },
+      { produit: 'Mil', prixActuel: 800, prixPrecedent: 800, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mil.webp', historiquePrix: [800, 800, 800, 800, 800] },
+      { produit: 'Sorgho', prixActuel: 900, prixPrecedent: 900, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [900, 900, 900, 900, 900] },
+      { produit: 'Arachides', prixActuel: 2000, prixPrecedent: 2000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/arachide.jpg', historiquePrix: [2000, 2000, 2000, 2000, 2000] },
+      { produit: 'Voandzou', prixActuel: 2200, prixPrecedent: 2200, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/voandzou.jpeg', historiquePrix: [2200, 2200, 2200, 2200, 2200] },
+      { produit: 'Gari', prixActuel: 600, prixPrecedent: 600, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/gari.jpg', historiquePrix: [600, 600, 650, 600, 600] },
     ],
   },
   {
     id: 'kara',
-    nom: 'Grand Marché de Kara',
+    nom: 'Grand marché de Kara',
     ville: 'Kara',
     region: 'Kara',
     produits: [
-      { produit: 'Sorgho rouge', prixActuel: 900, prixPrecedent: 850, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [800, 820, 840, 850, 900] },
-      { produit: 'Mil petit grain', prixActuel: 1000, prixPrecedent: 1000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [1000, 980, 1020, 1000, 1000] },
-      { produit: 'Igname douce', prixActuel: 2200, prixPrecedent: 2400, unite: 'Tas de 5', tendance: 'baisse', icone: 'assets/images/cereales/igname.jpg', historiquePrix: [2700, 2600, 2500, 2400, 2200] },
-      { produit: 'Sésame blanc', prixActuel: 2500, prixPrecedent: 2300, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [2100, 2200, 2250, 2300, 2500] },
+      { produit: 'Maïs', prixActuel: 400, prixPrecedent: 400, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [400, 420, 400, 400, 400] },
+      { produit: 'Sorgho', prixActuel: 875, prixPrecedent: 875, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [850, 875, 900, 875, 875] },
+      { produit: 'Mil', prixActuel: 650, prixPrecedent: 650, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mil.webp', historiquePrix: [650, 650, 680, 650, 650] },
+      { produit: 'Haricot', prixActuel: 1700, prixPrecedent: 1700, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1700, 1700, 1700, 1700, 1700] },
+      { produit: 'Soja', prixActuel: 1250, prixPrecedent: 1250, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1200, 1250, 1300, 1250, 1250] },
     ],
   },
   {
-    id: 'dapaong',
-    nom: 'Marché Central de Dapaong',
-    ville: 'Dapaong',
+    id: 'bafilo',
+    nom: 'Marché de Bafilo',
+    ville: 'Bafilo',
+    region: 'Kara',
+    produits: [
+      { produit: 'Maïs', prixActuel: 450, prixPrecedent: 450, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [450, 450, 480, 450, 450] },
+      { produit: 'Haricot de grande taille', prixActuel: 2000, prixPrecedent: 2000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot_grand_tail.jpg', historiquePrix: [2000, 2000, 2000, 2000, 2000] },
+      { produit: 'Soja', prixActuel: 1000, prixPrecedent: 1000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1000, 1000, 1000, 1000, 1000] },
+      { produit: 'Sorgho', prixActuel: 650, prixPrecedent: 650, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [650, 650, 650, 650, 650] },
+      { produit: 'Mil', prixActuel: 500, prixPrecedent: 500, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mil.webp', historiquePrix: [500, 500, 500, 500, 500] },
+    ],
+  },
+  {
+    id: 'mango',
+    nom: 'Marché de Mango',
+    ville: 'Mango',
     region: 'Savanes',
     produits: [
-      { produit: 'Niébé / Haricot blanc', prixActuel: 1100, prixPrecedent: 1200, unite: 'Bol (2,5 kg)', tendance: 'baisse', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1350, 1300, 1250, 1200, 1100] },
-      { produit: 'Oignon Galmi', prixActuel: 24000, prixPrecedent: 26000, unite: 'Sac de 50 kg', tendance: 'baisse', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [29000, 28000, 27000, 26000, 24000] },
-      { produit: 'Maïs jaune', prixActuel: 700, prixPrecedent: 650, unite: 'Bol (2,5 kg)', tendance: 'hausse', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [600, 620, 640, 650, 700] },
-      { produit: 'Arachide en coque', prixActuel: 16500, prixPrecedent: 16500, unite: 'Sac de 50 kg', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [16500, 16300, 16700, 16500, 16500] },
+      { produit: 'Maïs', prixActuel: 300, prixPrecedent: 300, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mais.jpg', historiquePrix: [300, 300, 320, 300, 300] },
+      { produit: 'Soja', prixActuel: 1000, prixPrecedent: 1000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/soja.jpeg', historiquePrix: [1000, 1000, 1000, 1000, 1000] },
+      { produit: 'Mil', prixActuel: 1000, prixPrecedent: 1000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/mil.webp', historiquePrix: [1000, 1000, 1000, 1000, 1000] },
+      { produit: 'Sorgho', prixActuel: 900, prixPrecedent: 900, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/sorgho.jpeg', historiquePrix: [900, 900, 900, 900, 900] },
+      { produit: 'Haricot', prixActuel: 1500, prixPrecedent: 1500, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/haricot.jpg', historiquePrix: [1500, 1500, 1500, 1500, 1500] },
+      { produit: 'Arachides', prixActuel: 1800, prixPrecedent: 1800, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/arachide.jpg', historiquePrix: [1800, 1800, 1800, 1800, 1800] },
+      { produit: 'Voandzou', prixActuel: 2000, prixPrecedent: 2000, unite: 'Bol (2,5 kg)', tendance: 'stable', icone: 'assets/images/cereales/voandzou.jpeg', historiquePrix: [2000, 2000, 2000, 2000, 2000] },
     ],
   },
 ];
@@ -246,6 +255,24 @@ exports.supprimerProduit = async (req, res, next) => {
     return res.status(200).json({ message: 'Produit retiré du marché avec succès', marche });
   } catch (err) {
     next(err);
+  }
+};
+
+// Téléversement d'une image de produit depuis le téléphone
+exports.uploadImageProduit = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Aucun fichier image fourni' });
+    }
+    const imageUrl = `/uploads/${req.file.filename}`;
+    const baseUrl = process.env.BACKEND_URL || 'https://agridigitale-mobile.onrender.com';
+    return res.status(200).json({
+      message: 'Image téléversée avec succès',
+      url: imageUrl,
+      fullUrl: `${baseUrl}${imageUrl}`,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 

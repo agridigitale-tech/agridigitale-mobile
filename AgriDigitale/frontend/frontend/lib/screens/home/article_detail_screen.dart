@@ -22,6 +22,7 @@ import 'package:html/dom.dart' as dom;
 import '../../services/article_service.dart';
 import '../../services/favori_service.dart';
 import '../../services/commentaire_service.dart';
+import '../../services/telemetry_service.dart';
 import '../../models/article.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
@@ -128,6 +129,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   static const String _domaineImages = 'https://agridigitale.net';
   final _progression = ValueNotifier<double>(0);
+  final _chronoLecture = Stopwatch();
 
   late Future<Article> _future;
   late Future<List<Article>> _autresFuture;
@@ -172,12 +174,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _chronoLecture.start();
     if (widget.articleInitial != null) {
       _articleCourant = widget.articleInitial;
       _preparerBlocsArticle(widget.articleInitial!);
-      _articleService.sauvegarderLocalement(widget.articleInitial!);
+      if (widget.articleInitial!.contenu.trim().isNotEmpty) {
+        _articleService.sauvegarderLocalement(widget.articleInitial!);
+      }
     }
     _future = _articleService.detail(widget.articleId);
+    _future.then((a) {
+      if (a.contenu.trim().isNotEmpty) {
+        _articleService.sauvegarderLocalement(a);
+      }
+    }).catchError((_) {});
     _autresFuture = _articleService.lister();
     _chargerCommentaires();
     _initTts();
@@ -234,6 +244,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   @override
   void dispose() {
+    _chronoLecture.stop();
+    if (_chronoLecture.elapsed.inSeconds >= 2) {
+      final art = _articleCourant;
+      TelemetryService().trackArticleLecture(
+        articleId: art?.id ?? widget.articleId,
+        titre: art?.titre ?? '',
+        categorie: art?.categorie ?? 'Général',
+        dureeSecondes: _chronoLecture.elapsed.inSeconds,
+        pourcentageLecture: (_progression.value * 100).clamp(0.0, 100.0),
+      );
+    }
     _audioArretDemande = true;
     _annulerTimerFallback();
     _scrollCtrl.removeListener(_majProgression);
@@ -1966,8 +1987,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (texte.isNotEmpty) {
       return _normaliserImagesContenu(article.contenu);
     }
-    if (article.resume.isNotEmpty) return '<p>${article.resume}</p>';
-    return '<p>Contenu en cours de chargement...</p>';
+    // Si le contenu n'est pas encore chargé, renvoyer une chaîne vide pour ne pas doubler le résumé
+    return '';
   }
 
   void _afficherImagePleinEcran(String imageUrl) {
@@ -2468,6 +2489,11 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             );
           }
           final article = snapshot.data!;
+          final bool contenuPlusComplet = (_articleCourant?.contenu ?? '').length < article.contenu.length;
+          if (_articleCourant?.id != article.id || contenuPlusComplet) {
+            _articleCourant = article;
+            _preparerBlocsArticle(article);
+          }
           return _buildCorpsArticle(article, auth, isOffline: false);
         },
       ),
@@ -2499,7 +2525,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   SliverToBoxAdapter _buildContenu(Article article, {bool isOffline = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (_articleCourant?.id != article.id || _blocsArticle.isEmpty) {
+    final bool contenuPlusComplet = (_articleCourant?.contenu ?? '').length < article.contenu.length;
+    if (_articleCourant?.id != article.id || _blocsArticle.isEmpty || contenuPlusComplet) {
       _articleCourant = article;
       _preparerBlocsArticle(article);
     }

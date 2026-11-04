@@ -54,4 +54,7 @@ const banniereSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Index composé pour des requêtes actives instantanées
+banniereSchema.index({ actif: 1, dateDebut: 1, dateFin: 1, ordre: 1 });
+
 module.exports = mongoose.model('Banniere', banniereSchema);

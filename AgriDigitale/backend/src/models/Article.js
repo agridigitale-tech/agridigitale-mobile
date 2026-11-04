@@ -49,6 +49,8 @@ const articleSchema = new mongoose.Schema({
 }, { timestamps: { createdAt: 'dateRecuperation', updatedAt: false } });
 
 // Index composés pour des requêtes ultra rapides
+articleSchema.index({ datePublication: -1, dateRecuperation: -1 });
+articleSchema.index({ datePublication: -1 });
 articleSchema.index({ categorie: 1, datePublication: -1 });
 
 module.exports = mongoose.model('Article', articleSchema);

@@ -21,6 +21,8 @@ import '../../widgets/quiz/quiz_rank_up_dialog.dart';
 import 'quiz_screen.dart';
 import 'quiz_jungle_top_bar.dart';
 import 'quiz_jungle_ranks_bar.dart';
+import 'quiz_league_screen.dart';
+import 'quiz_daily_screen.dart';
 
 class QuizNiveauxScreen extends StatefulWidget {
   static int get kTotalNiveaux => QuizData.totalNiveaux;
@@ -1251,11 +1253,39 @@ class _QuizNiveauxScreenState extends State<QuizNiveauxScreen> with TickerProvid
                   ),
                 ),
 
+                // Boutons Flottants Rapides : Tournoi / Ligue & Quotidien
+                Positioned(
+                  left: 16,
+                  bottom: 68,
+                  child: Row(
+                    children: [
+                      FloatingActionButton.small(
+                        heroTag: 'fab_league',
+                        onPressed: () => QuizLeagueScreen.afficher(context),
+                        backgroundColor: const Color(0xFF2E2218),
+                        foregroundColor: const Color(0xFFFFD54F),
+                        elevation: 5,
+                        child: const Icon(Icons.leaderboard_rounded, size: 20),
+                      ),
+                      const SizedBox(width: 8),
+                      FloatingActionButton.small(
+                        heroTag: 'fab_daily',
+                        onPressed: () => QuizDailyScreen.afficher(context),
+                        backgroundColor: const Color(0xFF1B4D3E),
+                        foregroundColor: const Color(0xFF69F0AE),
+                        elevation: 5,
+                        child: const Icon(Icons.calendar_month_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Bouton Flottant "Mon Niveau" pour recentrer immédiatement
                 Positioned(
                   right: 16,
                   bottom: 68,
                   child: FloatingActionButton.extended(
+                    heroTag: 'fab_current_level',
                     onPressed: () => _scrollerVersNiveauActuel(anime: true),
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.vertPrimaire,

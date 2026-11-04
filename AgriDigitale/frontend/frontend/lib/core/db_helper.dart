@@ -23,7 +23,14 @@ class DBHelper {
     final path = join(await getDatabasesPath(), 'agridigitale.db');
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
+      onOpen: (db) async {
+        // Garantit que les index de performance existent toujours
+        try {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_cat_date ON articles_cache (categorie, datePublication DESC)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_date ON articles_cache (datePublication DESC)');
+        } catch (_) {}
+      },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('''
@@ -96,6 +103,10 @@ class DBHelper {
             )
           ''');
         }
+        if (oldVersion < 8) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_cat_date ON articles_cache (categorie, datePublication DESC)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_date ON articles_cache (datePublication DESC)');
+        }
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -128,6 +139,8 @@ class DBHelper {
             cachedAt INTEGER
           )
         ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_cat_date ON articles_cache (categorie, datePublication DESC)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_articles_cache_date ON articles_cache (datePublication DESC)');
         await db.execute('''
           CREATE TABLE meteo_cache (
             ville TEXT PRIMARY KEY,
@@ -253,10 +266,30 @@ class DBHelper {
     final db = await database;
     if (db == null) return [];
     final offset = (page - 1) * limite;
+    final catFiltre = (categorie != null &&
+            categorie.trim().toUpperCase() != 'HOME' &&
+            categorie.trim().toUpperCase() != 'TOUT')
+        ? categorie.trim()
+        : null;
     return db.query(
       'articles_cache',
-      where: categorie != null ? 'categorie = ?' : null,
-      whereArgs: categorie != null ? [categorie] : null,
+      columns: [
+        'id',
+        'guid',
+        'titre',
+        'resume',
+        'image',
+        'legendeImage',
+        'auteur',
+        'lienSource',
+        'source',
+        'categorie',
+        'datePublication',
+        'vues',
+        'cachedAt',
+      ],
+      where: catFiltre != null ? 'LOWER(categorie) = LOWER(?)' : null,
+      whereArgs: catFiltre != null ? [catFiltre] : null,
       orderBy: 'datePublication DESC',
       limit: limite,
       offset: offset,

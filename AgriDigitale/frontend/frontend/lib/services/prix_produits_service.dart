@@ -1,6 +1,8 @@
 // Service de gestion dynamique des prix des produits et marchés agricoles.
 // Persistance locale via SharedPreferences avec synchronisation réseau bidirectionnelle.
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_client.dart';
@@ -367,6 +369,33 @@ class PrixProduitsService {
       await ApiClient().dio.post('/prix-marches/reset');
     } catch (_) {}
     changeNotifier.value++;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ── TÉLÉVERSEMENT D'IMAGE DE PRODUIT
+  // ════════════════════════════════════════════════════════════════
+
+  Future<String?> televerserImageProduit(File imageFile) async {
+    try {
+      final fileName = imageFile.path.split('/').last;
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: fileName,
+        ),
+      });
+      final rep = await ApiClient().dio.post(
+        '/prix-marches/upload-image',
+        data: formData,
+      );
+      if (rep.statusCode == 200 && rep.data != null) {
+        return (rep.data['fullUrl'] ?? rep.data['url']) as String?;
+      }
+    } catch (err) {
+      debugPrint('[PrixProduitsService] Erreur upload image produit: $err');
+    }
+    // Fallback : renvoyer le chemin local pour affichage local immédiat
+    return imageFile.path;
   }
 
   // ════════════════════════════════════════════════════════════════
