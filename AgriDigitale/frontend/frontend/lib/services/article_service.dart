@@ -1,5 +1,6 @@
 // Service articles : récupère les articles depuis le backend avec fallback cache SQLite et flux RSS direct.
 // Sur le web, le cache SQLite est désactivé (kIsWeb). Les images passent par le proxy CORS.
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -181,6 +182,16 @@ class ArticleService {
       final rep = await _dio.get('/articles/$id');
       final raw = Article.fromJson(rep.data as Map<String, dynamic>);
       var article = raw.copyWith(image: _normaliserImage(raw.image));
+
+      // Si la légende de l'image est manquante, tenter de l'extraire rapidement depuis la page source
+      if (article.legendeImage.trim().isEmpty && article.lienSource.isNotEmpty) {
+        try {
+          final legendeExtraite = await _extraireLegendeDepuisLien(article.lienSource);
+          if (legendeExtraite != null && legendeExtraite.trim().isNotEmpty) {
+            article = article.copyWith(legendeImage: legendeExtraite.trim());
+          }
+        } catch (_) {}
+      }
 
       // Si le contenu est anormalement court (< 100 car.) ou vide, secours direct sur le flux RSS
       final texteContenu = article.contenu.replaceAll(RegExp(r'<[^>]*>'), '').trim();
@@ -412,5 +423,51 @@ class ArticleService {
       return '$_backendBase/api/proxy-image?url=${Uri.encodeComponent(url)}';
     }
     return url;
+  }
+
+  /// Extrait directement la légende de l'image de couverture depuis la page agridigitale.net
+  Future<String?> _extraireLegendeDepuisLien(String url) async {
+    if (url.isEmpty || !url.startsWith('http')) return null;
+    try {
+      final rep = await _dio.get<String>(
+        url,
+        options: Options(
+          responseType: ResponseType.plain,
+          receiveTimeout: const Duration(seconds: 4),
+          sendTimeout: const Duration(seconds: 3),
+        ),
+      );
+      final html = rep.data ?? '';
+      final m = RegExp(r'data-page="([^"]+)"').firstMatch(html);
+      if (m != null) {
+        final raw = m.group(1)!
+            .replaceAll('&quot;', '"')
+            .replaceAll('&#039;', "'")
+            .replaceAll('&amp;', '&');
+        final parsed = jsonDecode(raw);
+        final art = parsed['props']?['article'];
+        if (art != null && art['legend'] != null) {
+          final leg = art['legend'];
+          if (leg is Map) {
+            return (leg['fr'] ?? leg['en'] ?? leg.values.firstOrNull)?.toString().trim();
+          } else if (leg is String) {
+            try {
+              final legMap = jsonDecode(leg);
+              if (legMap is Map) {
+                return (legMap['fr'] ?? legMap['en'] ?? legMap.values.firstOrNull)?.toString().trim();
+              }
+            } catch (_) {
+              return leg.trim();
+            }
+          }
+        }
+      }
+      final figMatch = RegExp(r'<figcaption[^>]*>([\s\S]*?)<\/figcaption>', caseSensitive: false).firstMatch(html);
+      if (figMatch != null) {
+        final t = figMatch.group(1)!.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+        if (t.isNotEmpty) return t;
+      }
+    } catch (_) {}
+    return null;
   }
 }

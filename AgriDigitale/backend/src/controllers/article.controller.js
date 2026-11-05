@@ -116,27 +116,39 @@ exports.detailArticle = async (req, res, next) => {
       article.contenu = normaliserImagesContenu(article.contenu);
     }
 
+    // Si la légende de l'image est manquante, tenter de la récupérer rapidement
+    if ((!article.legendeImage || article.legendeImage.trim().length === 0) && article.lienSource) {
+      try {
+        const { scrapeContenuInertia } = require('../services/rss.service');
+        const scrapeRes = await Promise.race([
+          scrapeContenuInertia(article.lienSource),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        ]);
+        if (scrapeRes && scrapeRes.legende) {
+          article.legendeImage = scrapeRes.legende;
+          const updates = { legendeImage: scrapeRes.legende };
+          if (scrapeRes.contenu && scrapeRes.contenu.length > (article.contenu || '').length) {
+            article.contenu = scrapeRes.contenu;
+            updates.contenu = scrapeRes.contenu;
+          }
+          await Article.updateOne({ _id: article._id }, { $set: updates });
+        }
+      } catch (_) {
+        // En cas de timeout ou d'erreur réseau, tentative asynchrone silencieuse
+        setImmediate(async () => {
+          try {
+            const { scrapeContenuInertia } = require('../services/rss.service');
+            const scrapeRes = await scrapeContenuInertia(article.lienSource);
+            if (scrapeRes && scrapeRes.legende) {
+              await Article.updateOne({ _id: article._id }, { $set: { legendeImage: scrapeRes.legende } });
+            }
+          } catch (_) {}
+        });
+      }
+    }
+
     // Réponse au client mobile
     res.json(article);
-
-    // Si le contenu est incomplet, tenter le scrape en arrière-plan sans faire attendre l'utilisateur
-    const contenuTexte = (article.contenu || '').replace(/<[^>]*>/g, '').trim();
-    if (contenuTexte.length < 100 && article.lienSource) {
-      setImmediate(async () => {
-        try {
-          const { scrapeContenuInertia } = require('../services/rss.service');
-          const scrapeRes = await scrapeContenuInertia(article.lienSource);
-          const nouveauContenu = scrapeRes ? (scrapeRes.contenu || '') : '';
-          if (nouveauContenu && nouveauContenu.replace(/<[^>]*>/g, '').trim().length > contenuTexte.length) {
-            const updates = { contenu: nouveauContenu };
-            if (scrapeRes.legende) {
-              updates.legendeImage = scrapeRes.legende;
-            }
-            await Article.updateOne({ _id: article._id }, { $set: updates });
-          }
-        } catch (_) { /* scrape silencieux en tâche de fond */ }
-      });
-    }
   } catch (err) { next(err); }
 };
 

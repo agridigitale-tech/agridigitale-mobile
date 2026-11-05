@@ -2532,15 +2532,18 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final bool contenuPlusComplet = (_articleCourant?.contenu ?? '').length < article.contenu.length;
-    if (_articleCourant?.id != article.id || _blocsArticle.isEmpty || contenuPlusComplet) {
+    final bool legendePlusRecente = (_articleCourant?.legendeImage ?? '').isEmpty && article.legendeImage.isNotEmpty;
+    if (_articleCourant?.id != article.id || _blocsArticle.isEmpty || contenuPlusComplet || legendePlusRecente) {
       _articleCourant = article;
       _preparerBlocsArticle(article);
     }
 
     final hasImage = article.image != null && article.image!.isNotEmpty;
-    final legende = article.legendeImage.isNotEmpty
-        ? article.legendeImage
-        : 'Photo : © agridigitale.net';
+    final legende = article.legendeImage.trim().isNotEmpty
+        ? article.legendeImage.trim()
+        : (_articleCourant?.legendeImage.trim().isNotEmpty == true
+            ? _articleCourant!.legendeImage.trim()
+            : 'Photo : © agridigitale.net');
     final auteur = article.auteur.isNotEmpty ? article.auteur : 'La Rédaction';
 
     final blocTitre = _blocsArticle.firstWhere(

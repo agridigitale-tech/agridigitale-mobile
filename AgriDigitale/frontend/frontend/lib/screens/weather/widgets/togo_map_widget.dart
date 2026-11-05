@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import 'package:path_parsing/path_parsing.dart';
 import '../../../core/design/app_colors.dart';
 import '../models/bulletin_meteo.dart';
@@ -85,6 +87,36 @@ class TogoMapWidget extends StatefulWidget {
     }
   }
 
+  static String getLottieAsset(String icone) {
+    switch (icone.toLowerCase()) {
+      case 'pluie':
+      case 'rain':
+      case 'drizzle':
+      case 'averse':
+        return 'assets/lottie/rain.json';
+      case 'orage':
+      case 'thunder':
+      case 'storm':
+      case 'tempete':
+        return 'assets/lottie/storm.json';
+      case 'vent':
+      case 'wind':
+      case 'windy':
+      case 'nuage':
+      case 'cloud':
+      case 'cloudy':
+        return 'assets/lottie/wind.json';
+      case 'eclaircie':
+      case 'partly-cloudy':
+      case 'shower':
+      case 'soleil':
+      case 'sun':
+      case 'clear':
+      default:
+        return 'assets/lottie/partly_shower.json';
+    }
+  }
+
   @override
   State<TogoMapWidget> createState() => _TogoMapWidgetState();
 }
@@ -157,12 +189,29 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
   }
 
   void _selectionnerCode(String code) {
+    HapticFeedback.selectionClick();
     setState(() => _activeCode = code);
     final r = widget.regions.firstWhere(
       (item) => item.code == code,
       orElse: () => BulletinMeteo.regionsParDefaut.first,
     );
     widget.onRegionSelected(r);
+  }
+
+  Offset _getRegionCenter(String code) {
+    switch (code.toLowerCase()) {
+      case 'savanes':
+        return const Offset(53, 44);
+      case 'kara':
+        return const Offset(57, 95);
+      case 'centrale':
+        return const Offset(54, 146);
+      case 'plateaux':
+        return const Offset(59, 201);
+      case 'maritime':
+      default:
+        return const Offset(64, 257);
+    }
   }
 
   IconData _getIconData(String icone) => TogoMapWidget.getIconData(icone);
@@ -261,24 +310,99 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
                     _selectionnerCode('maritime');
                   }
                 },
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_pulseController, _floatController]),
-                  builder: (context, _) {
-                    return SizedBox(
-                      width: 110,
-                      height: 300,
-                      child: CustomPaint(
-                        painter: _RealTogoSvgPainter(
-                          rawPath: _getTogoPath(),
-                          activeCode: _activeCode,
-                          pulseValue: _pulseAnim.value,
-                          floatOffset: _floatAnim.value,
-                          isDark: isDark,
-                          regions: widget.regions,
+                child: SizedBox(
+                  width: 110,
+                  height: 300,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Rendu de la carte vectorielle SVG
+                      AnimatedBuilder(
+                        animation: Listenable.merge([_pulseController, _floatController]),
+                        builder: (context, _) {
+                          return CustomPaint(
+                            size: const Size(110, 300),
+                            painter: _RealTogoSvgPainter(
+                              rawPath: _getTogoPath(),
+                              activeCode: _activeCode,
+                              pulseValue: _pulseAnim.value,
+                              floatOffset: _floatAnim.value,
+                              isDark: isDark,
+                              regions: widget.regions,
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Marqueur météo animé Lottie au-dessus de la région sélectionnée
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                        left: _getRegionCenter(_activeCode).dx - 26,
+                        top: _getRegionCenter(_activeCode).dy - 26,
+                        child: AnimatedBuilder(
+                          animation: _floatController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _floatAnim.value),
+                              child: child,
+                            );
+                          },
+                          child: IgnorePointer(
+                            child: Container(
+                              key: ValueKey('active_lottie_${region.code}'),
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: (isDark ? const Color(0xFF1B241E) : Colors.white)
+                                    .withValues(alpha: 0.95),
+                                border: Border.all(
+                                  color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                                  width: 2.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (isDark ? AppColors.vertClair : AppColors.vertPrimaire)
+                                        .withValues(alpha: 0.45),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(4),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Lottie.asset(
+                                      TogoMapWidget.getLottieAsset(region.icone),
+                                      fit: BoxFit.contain,
+                                      repeat: true,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                        _getIconData(region.icone),
+                                        color: _getIconColor(region.icone, isDark),
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${region.tempMax.toInt()}°',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: isDark ? AppColors.vertClair : AppColors.vertPrimaire,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -315,7 +439,16 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
                           ),
                           child: Row(
                             children: [
-                              Icon(_getIconData(r.icone), size: 19, color: iconColor),
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Lottie.asset(
+                                  TogoMapWidget.getLottieAsset(r.icone),
+                                  fit: BoxFit.contain,
+                                  repeat: true,
+                                  errorBuilder: (_, __, ___) => Icon(_getIconData(r.icone), size: 19, color: iconColor),
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -395,15 +528,22 @@ class _TogoMapWidgetState extends State<TogoMapWidget>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        width: 46,
+                        height: 46,
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: _getIconColor(region.icone, isDark).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          _getIconData(region.icone),
-                          color: _getIconColor(region.icone, isDark),
-                          size: 22,
+                        child: Lottie.asset(
+                          TogoMapWidget.getLottieAsset(region.icone),
+                          fit: BoxFit.contain,
+                          repeat: true,
+                          errorBuilder: (_, __, ___) => Icon(
+                            _getIconData(region.icone),
+                            color: _getIconColor(region.icone, isDark),
+                            size: 24,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -604,55 +744,65 @@ class _RealTogoSvgPainter extends CustomPainter {
     final rPlateaux = getRegion('plateaux');
     final rMaritime = getRegion('maritime');
 
-    _drawFloatingMarker(
-      canvas,
-      bounds.left + bounds.width * 0.48,
-      y0 + (h * 0.10) + (activeCode == 'savanes' ? floatOffset : 0),
-      'savanes',
-      TogoMapWidget.getIconData(rSavanes.icone),
-      TogoMapWidget.getIconColor(rSavanes.icone, isDark),
-      rSavanes.tempMax,
-    );
+    if (activeCode != 'savanes') {
+      _drawFloatingMarker(
+        canvas,
+        bounds.left + bounds.width * 0.48,
+        y0 + (h * 0.10) + floatOffset,
+        'savanes',
+        TogoMapWidget.getIconData(rSavanes.icone),
+        TogoMapWidget.getIconColor(rSavanes.icone, isDark),
+        rSavanes.tempMax,
+      );
+    }
 
-    _drawFloatingMarker(
-      canvas,
-      bounds.left + bounds.width * 0.52,
-      y0 + (h * 0.29) + (activeCode == 'kara' ? floatOffset : 0),
-      'kara',
-      TogoMapWidget.getIconData(rKara.icone),
-      TogoMapWidget.getIconColor(rKara.icone, isDark),
-      rKara.tempMax,
-    );
+    if (activeCode != 'kara') {
+      _drawFloatingMarker(
+        canvas,
+        bounds.left + bounds.width * 0.52,
+        y0 + (h * 0.29) + floatOffset,
+        'kara',
+        TogoMapWidget.getIconData(rKara.icone),
+        TogoMapWidget.getIconColor(rKara.icone, isDark),
+        rKara.tempMax,
+      );
+    }
 
-    _drawFloatingMarker(
-      canvas,
-      bounds.left + bounds.width * 0.49,
-      y0 + (h * 0.48) + (activeCode == 'centrale' ? floatOffset : 0),
-      'centrale',
-      TogoMapWidget.getIconData(rCentrale.icone),
-      TogoMapWidget.getIconColor(rCentrale.icone, isDark),
-      rCentrale.tempMax,
-    );
+    if (activeCode != 'centrale') {
+      _drawFloatingMarker(
+        canvas,
+        bounds.left + bounds.width * 0.49,
+        y0 + (h * 0.48) + floatOffset,
+        'centrale',
+        TogoMapWidget.getIconData(rCentrale.icone),
+        TogoMapWidget.getIconColor(rCentrale.icone, isDark),
+        rCentrale.tempMax,
+      );
+    }
 
-    _drawFloatingMarker(
-      canvas,
-      bounds.left + bounds.width * 0.54,
-      y0 + (h * 0.69) + (activeCode == 'plateaux' ? floatOffset : 0),
-      'plateaux',
-      TogoMapWidget.getIconData(rPlateaux.icone),
-      TogoMapWidget.getIconColor(rPlateaux.icone, isDark),
-      rPlateaux.tempMax,
-    );
+    if (activeCode != 'plateaux') {
+      _drawFloatingMarker(
+        canvas,
+        bounds.left + bounds.width * 0.54,
+        y0 + (h * 0.69) + floatOffset,
+        'plateaux',
+        TogoMapWidget.getIconData(rPlateaux.icone),
+        TogoMapWidget.getIconColor(rPlateaux.icone, isDark),
+        rPlateaux.tempMax,
+      );
+    }
 
-    _drawFloatingMarker(
-      canvas,
-      bounds.left + bounds.width * 0.58,
-      y0 + (h * 0.90) + (activeCode == 'maritime' ? floatOffset : 0),
-      'maritime',
-      TogoMapWidget.getIconData(rMaritime.icone),
-      TogoMapWidget.getIconColor(rMaritime.icone, isDark),
-      rMaritime.tempMax,
-    );
+    if (activeCode != 'maritime') {
+      _drawFloatingMarker(
+        canvas,
+        bounds.left + bounds.width * 0.58,
+        y0 + (h * 0.90) + floatOffset,
+        'maritime',
+        TogoMapWidget.getIconData(rMaritime.icone),
+        TogoMapWidget.getIconColor(rMaritime.icone, isDark),
+        rMaritime.tempMax,
+      );
+    }
 
     canvas.restore();
   }

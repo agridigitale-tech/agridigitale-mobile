@@ -85,7 +85,6 @@ class _QuizVictoryScreenState extends State<QuizVictoryScreen> with TickerProvid
   late Animation<double> _pulseAnimation;
   late Animation<double> _raysAnimation;
 
-  Map<String, int> _boosters = {'shuffle': 38, 'undo': 2, 'hint': 14, 'back': 30};
   bool _luckyReclame = false;
 
   @override
@@ -109,17 +108,6 @@ class _QuizVictoryScreenState extends State<QuizVictoryScreen> with TickerProvid
     );
 
     _raysAnimation = CurvedAnimation(parent: _rotationController, curve: Curves.linear);
-
-    _chargerBoosters();
-  }
-
-  Future<void> _chargerBoosters() async {
-    final b = await _tournamentService.getBoosters();
-    if (mounted) {
-      setState(() {
-        _boosters = b;
-      });
-    }
   }
 
   @override
@@ -142,12 +130,10 @@ class _QuizVictoryScreenState extends State<QuizVictoryScreen> with TickerProvid
 
     await _tournamentService.modifierBooster('hint', 2);
     await _tournamentService.modifierBooster('undo', 2);
-    final b = await _tournamentService.getBoosters();
 
     if (mounted) {
       setState(() {
         _luckyReclame = true;
-        _boosters = b;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -298,9 +284,6 @@ class _QuizVictoryScreenState extends State<QuizVictoryScreen> with TickerProvid
                     ),
                   ),
                 ),
-
-                // Barre Inférieure des 4 Boosters
-                _buildBarreBoosters(),
               ],
             ),
           ),
@@ -923,69 +906,6 @@ class _QuizVictoryScreenState extends State<QuizVictoryScreen> with TickerProvid
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Barre Inférieure des 4 Boosters ──
-  Widget _buildBarreBoosters() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFF030D07),
-        border: Border(top: BorderSide(color: Color(0xFF133620), width: 1.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildBoosterItem(Icons.shuffle_rounded, _boosters['shuffle'] ?? 38),
-          _buildBoosterItem(Icons.replay_rounded, _boosters['undo'] ?? 2),
-          _buildBoosterItem(Icons.lightbulb_rounded, _boosters['hint'] ?? 14),
-          _buildBoosterItem(Icons.undo_rounded, _boosters['back'] ?? 30),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBoosterItem(IconData icone, int quantite) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const RadialGradient(
-              colors: [Color(0xFF2E2218), Color(0xFF150F0B)],
-            ),
-            border: Border.all(color: const Color(0xFF8D6E63).withValues(alpha: 0.6), width: 1.5),
-            boxShadow: const [
-              BoxShadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 2)),
-            ],
-          ),
-          child: Icon(icone, color: const Color(0xFFFFB74D), size: 22),
-        ),
-        Positioned(
-          top: -4,
-          right: -4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4E342E),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFFB74D), width: 1),
-            ),
-            child: Text(
-              '$quantite',
-              style: GoogleFonts.poppins(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFFFFE082),
-              ),
             ),
           ),
         ),

@@ -70,6 +70,7 @@ dependencies:
   flutter_svg: ^2.3.0
   path_parsing: ^1.1.0
   audioplayers: ^6.8.1
+  lottie: ^3.7.0
 
 dependency_overrides:
   image_picker_android: 0.8.13+23
@@ -102,6 +103,7 @@ flutter:
     - assets/images/
     - assets/images/cereales/
     - assets/sounds/
+    - assets/lottie/
 
 flutter_launcher_icons:
   android: true

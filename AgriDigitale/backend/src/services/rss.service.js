@@ -248,7 +248,7 @@ const recupererFlux = async (tentative = 1) => {
       if (!item.guid) continue;
       const existe = await Article.findOne({ guid: item.guid });
       if (existe) {
-        // Si l'article existe déjà, mettre à jour le titre ou le résumé si la rédaction les a modifiés sur le site
+        // Si l'article existe déjà, mettre à jour le titre, le résumé ou la légende manquante
         const updates = {};
         if (item.title && existe.titre !== item.title) {
           updates.titre = item.title;
@@ -256,6 +256,18 @@ const recupererFlux = async (tentative = 1) => {
         const resumeItem = item.contentSnippet || item.description || '';
         if (resumeItem && existe.resume !== resumeItem) {
           updates.resume = resumeItem;
+        }
+        // Récupérer la légende si elle était absente
+        if ((!existe.legendeImage || existe.legendeImage.trim().length === 0) && (existe.lienSource || item.link)) {
+          try {
+            const scrapeRes = await scrapeContenuInertia(existe.lienSource || item.link);
+            if (scrapeRes && scrapeRes.legende) {
+              updates.legendeImage = scrapeRes.legende;
+              if (scrapeRes.contenu && scrapeRes.contenu.length > (existe.contenu || '').length) {
+                updates.contenu = scrapeRes.contenu;
+              }
+            }
+          } catch (_) {}
         }
         if (Object.keys(updates).length > 0) {
           await Article.updateOne({ _id: existe._id }, { $set: updates });
