@@ -257,14 +257,17 @@ const recupererFlux = async (tentative = 1) => {
         if (resumeItem && existe.resume !== resumeItem) {
           updates.resume = resumeItem;
         }
-        // Récupérer la légende si elle était absente
-        if ((!existe.legendeImage || existe.legendeImage.trim().length === 0) && (existe.lienSource || item.link)) {
+        // Vérifier si le contenu ou la légende de l'article a été mis à jour sur le site web
+        const lien = existe.lienSource || item.link;
+        if (lien) {
           try {
-            const scrapeRes = await scrapeContenuInertia(existe.lienSource || item.link);
-            if (scrapeRes && scrapeRes.legende) {
-              updates.legendeImage = scrapeRes.legende;
-              if (scrapeRes.contenu && scrapeRes.contenu.length > (existe.contenu || '').length) {
+            const scrapeRes = await scrapeContenuInertia(lien);
+            if (scrapeRes) {
+              if (scrapeRes.contenu && scrapeRes.contenu !== existe.contenu) {
                 updates.contenu = scrapeRes.contenu;
+              }
+              if (scrapeRes.legende && scrapeRes.legende !== existe.legendeImage) {
+                updates.legendeImage = scrapeRes.legende;
               }
             }
           } catch (_) {}

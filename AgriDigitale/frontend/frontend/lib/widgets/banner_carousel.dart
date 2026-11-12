@@ -2,6 +2,7 @@
 // Défilement automatique toutes les 5 secondes. Clic → ouvre le lien externe si présent.
 // Si aucune bannière active n'est présente, le widget disparaît complètement (SizedBox.shrink).
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -152,39 +153,87 @@ class _BannerCarouselState extends State<BannerCarousel> {
 
     return Padding(
       padding: padding,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: GestureDetector(
-          onTap: hasLien
-              ? () async {
-                  final uri = Uri.tryParse(lien);
-                  if (uri != null && await canLaunchUrl(uri)) {
-                    await launchUrl(uri,
-                        mode: LaunchMode.externalApplication);
-                  }
-                }
-              : null,
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            memCacheWidth: 1080,
-            maxWidthDiskCache: 1200,
-            placeholder: (context, url) => Container(
-              color: Colors.grey[200],
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.vertPrimaire,
-                  strokeWidth: 2,
-                ),
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.black.withValues(alpha: 0.06),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            errorWidget: (context, url, error) => Container(
-              color: Colors.grey[200],
-              child: const Icon(
-                Icons.image_not_supported,
-                color: AppColors.grisIcone,
-              ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: GestureDetector(
+            onTap: hasLien
+                ? () async {
+                    final uri = Uri.tryParse(lien);
+                    if (uri != null && await canLaunchUrl(uri)) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    }
+                  }
+                : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1. Fond flouté d'ambiance reprenant les couleurs de la bannière
+                if (imageUrl.isNotEmpty)
+                  ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Transform.scale(
+                      scale: 1.15, // Évite les contours blancs provoqués par le flou aux bords
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 1080,
+                        maxWidthDiskCache: 1200,
+                        placeholder: (_, __) => const SizedBox.shrink(),
+                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+
+                // 2. Voile d'atténuation subtil pour adoucir le fond et donner du relief
+                Container(
+                  color: Colors.black.withValues(alpha: 0.12),
+                ),
+
+                // 3. Image entière au premier plan : dézoomée pour afficher 100% de la bannière sans rognage
+                Center(
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    memCacheWidth: 1080,
+                    maxWidthDiskCache: 1200,
+                    placeholder: (context, url) => Container(
+                      color: Colors.transparent,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.vertPrimaire,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        color: AppColors.grisIcone,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -242,22 +291,31 @@ class _BannerCarouselState extends State<BannerCarousel> {
             },
           ),
           Positioned(
-            bottom: 8,
+            bottom: 6,
             left: 0,
             right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _bannieres.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: (_pageActuelle % _bannieres.length) == index ? 12 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    color: (_pageActuelle % _bannieres.length) == index
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.5),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.30),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    _bannieres.length,
+                    (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: (_pageActuelle % _bannieres.length) == index ? 14 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        color: (_pageActuelle % _bannieres.length) == index
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
                   ),
                 ),
               ),

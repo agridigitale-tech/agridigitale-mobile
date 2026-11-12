@@ -177,9 +177,12 @@ class ArticleService {
     }
   }
 
-  Future<Article> detail(String id) async {
+  Future<Article> detail(String id, {bool forceRefresh = false}) async {
     try {
-      final rep = await _dio.get('/articles/$id');
+      final rep = await _dio.get(
+        '/articles/$id',
+        queryParameters: forceRefresh ? {'refresh': 'true'} : null,
+      );
       final raw = Article.fromJson(rep.data as Map<String, dynamic>);
       var article = raw.copyWith(image: _normaliserImage(raw.image));
 

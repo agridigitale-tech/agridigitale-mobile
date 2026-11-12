@@ -109,6 +109,26 @@ exports.detailArticle = async (req, res, next) => {
     const article = await Article.findById(req.params.id).lean();
     if (!article) return res.status(404).json({ message: 'Article introuvable' });
 
+    // Si un rafraîchissement forcé est demandé par l'application mobile (pull-to-refresh)
+    if (req.query.refresh === 'true' && article.lienSource) {
+      try {
+        const { scrapeContenuInertia } = require('../services/rss.service');
+        const scrapeRes = await Promise.race([
+          scrapeContenuInertia(article.lienSource),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+        ]);
+        if (scrapeRes && scrapeRes.contenu) {
+          article.contenu = scrapeRes.contenu;
+          const updates = { contenu: scrapeRes.contenu };
+          if (scrapeRes.legende) {
+            article.legendeImage = scrapeRes.legende;
+            updates.legendeImage = scrapeRes.legende;
+          }
+          await Article.updateOne({ _id: article._id }, { $set: updates });
+        }
+      } catch (_) {}
+    }
+
     // Corrige les images du corps des articles déjà en base
     // ({{BASE_URL}}, chemins relatifs, domaine .com → .net, /ck/ → /storage/ck/)
     if (article.contenu) {

@@ -2495,8 +2495,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             );
           }
           final article = snapshot.data!;
-          final bool contenuPlusComplet = (_articleCourant?.contenu ?? '').length < article.contenu.length;
-          if (_articleCourant?.id != article.id || contenuPlusComplet) {
+          final bool contenuModifie = _articleCourant?.contenu != article.contenu;
+          if (_articleCourant?.id != article.id || contenuModifie) {
             _articleCourant = article;
             _preparerBlocsArticle(article);
           }
@@ -2509,14 +2509,30 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   Widget _buildCorpsArticle(Article article, dynamic auth, {bool isOffline = false}) {
     return Stack(
       children: [
-        CustomScrollView(
-          controller: _scrollCtrl,
-          slivers: [
-            _buildContenu(article, isOffline: isOffline),
-            _buildSectionCommentaires(auth),
-            _buildAutresArticles(),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
+        RefreshIndicator(
+          color: AppColors.vertPrimaire,
+          onRefresh: () async {
+            try {
+              final artActualise = await _articleService.detail(widget.articleId, forceRefresh: true);
+              if (mounted) {
+                setState(() {
+                  _future = Future.value(artActualise);
+                  _articleCourant = artActualise;
+                  _preparerBlocsArticle(artActualise);
+                });
+              }
+            } catch (_) {}
+          },
+          child: CustomScrollView(
+            controller: _scrollCtrl,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              _buildContenu(article, isOffline: isOffline),
+              _buildSectionCommentaires(auth),
+              _buildAutresArticles(),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
         ),
         Positioned(
           left: 16,

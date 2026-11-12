@@ -67,11 +67,22 @@ cp AgriDigitale/frontend/frontend/build/app/outputs/bundle/release/app-release.a
 
 ---
 
-## 4. Script Automatique
+## 4. Script Automatique & Audit de Sécurité Intégré
 
-Un script d'automatisation est disponible à la racine : `AgriDigitale/build_aab.sh`.
+Un script d'automatisation avec **audit de sécurité Google Play automatique** est disponible à la racine : `AgriDigitale/build_aab.sh`.
+
 Usage :
 ```bash
-./AgriDigitale/build_aab.sh 2.0.2 23
+./AgriDigitale/build_aab.sh 2.1.1 25
 ```
-Ce script effectue automatiquement la mise à jour des versions, le `pub get`, le build release et la copie dans `playstore-publication/`.
+Ce script effectue automatiquement :
+1. **Audit pré-build** (Target SDK >= 34, absence de packages non déclarés comme `geolocator`, interdiction de `usesCleartextTraffic`, présence de la clé de signature).
+2. **Mise à jour synchronisée des versions** (`pubspec.yaml` et `local.properties`).
+3. **Récupération des dépendances** (`flutter pub get`).
+4. **Compilation release AAB**.
+5. **Audit post-build** (vérification que le manifest binaire compilé ne contient aucune permission sensible ou service au premier plan interdit).
+6. **Archivage certifié** dans `AgriDigitale/playstore-publication/`.
+
+Consulter également :
+- [`CHECKLIST_SECURITE_GOOGLE_PLAY.md`](file:///home/germain/Desktop/Programmation/agridigitale-mobile/AgriDigitale/playstore-publication/CHECKLIST_SECURITE_GOOGLE_PLAY.md)
+- [`GEMINI.md`](file:///home/germain/Desktop/Programmation/agridigitale-mobile/GEMINI.md)
